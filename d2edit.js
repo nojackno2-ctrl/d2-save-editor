@@ -38,7 +38,10 @@ function lockSaves() {
 
 /* ---------- 物品引擎：載入遊戲自己的產生器 ---------- */
 let enginePromise = null;
+// 診斷用：引擎啟動到哪一步、找到哪些程式區塊
+const engineInfo = { step: "未啟動" };
 async function startEngine() {
+  engineInfo.step = "讀取程式清單";
   const [{ patch }, signatures] = await Promise.all([import(HOST + "patch.mjs"), fetch(HOST + "signatures.json").then((r) => r.json())]);
   // 從頁面已載入的腳本開始，順著 "./xxx.js" 參照把同資料夾的區塊都抓下來
   const base = new URL("/assets/", location.origin).href;
@@ -60,7 +63,8 @@ async function startEngine() {
     files[f] = src;
     for (const m of src.matchAll(/["'`]\.\/([\w.-]+\.js)["'`]/g)) queue.push(m[1]);
   }
-  const { patched, missing } = patch(files, signatures);
+  const { patched, missing, found } = patch(files, signatures);
+  Object.assign(engineInfo, { step: "比對遊戲程式", chunks: Object.keys(files).length, found, missing });
   if (missing.length) throw new Error("遊戲版本不相容：找不到 " + missing.join("、"));
   // 加了 export 的區塊用 blob 載入（相對參照改成絕對網址）；再用 import map 讓所有區塊對它的參照都指向這份，
   // 整個模組圖只有一個實例
@@ -70,7 +74,9 @@ async function startEngine() {
     map[base + f] = URL.createObjectURL(new Blob([abs], { type: "text/javascript" }));
   }
   const statsUrl = window.__D2EDIT_ITEMSTATS || new URL("/d2/itemstats.json", location.origin).href;
-  const itemstats = await fetch(statsUrl).then((r) => { if (!r.ok) throw new Error("讀不到遊戲物品資料（請先進入過遊戲一次）。"); return r.text(); });
+  engineInfo.step = "讀取物品資料";
+  const itemstats = await fetch(statsUrl).then((r) => { engineInfo.itemstats = r.status; if (!r.ok) throw new Error("讀不到遊戲物品資料（請先進入過遊戲一次）。"); return r.text(); });
+  engineInfo.step = "載入產生器";
   // 遊戲本身已經載入同一批程式，再載一次會重複註冊；所以放進隱藏的同源 iframe，用它自己的模組環境執行
   const box = document.createElement("iframe");
   box.style.display = "none";
@@ -85,7 +91,28 @@ async function startEngine() {
     return boot(Object.assign({}, ...mods), __itemstats);
   })()`);
 }
-const engine = () => (enginePromise ??= startEngine().catch((e) => { enginePromise = null; throw e; }));
+const engine = () => (enginePromise ??= startEngine()
+  .then((e) => { engineInfo.step = "已啟動"; return e; })
+  .catch((e) => { engineInfo.error = String(e?.message ?? e); enginePromise = null; throw e; }));
+
+/* ---------- 診斷 ---------- */
+// 上次寫入的紀錄存在遊戲頁面的 sessionStorage（同一個分頁重新載入後還在），用來比對遊戲有沒有採用
+const LAST_WRITE = "d2edit:lastWrite";
+function summarize(text) {
+  try {
+    const s = JSON.parse(text);
+    const flat = (o) => Object.values(o ?? {}).flatMap((v) => v ?? []);
+    const rar = {};
+    for (const u of s.uniques ?? []) rar[u.rarity] = (rar[u.rarity] ?? 0) + 1;
+    return {
+      gold: s.gold, uniques: (s.uniques ?? []).length, uniquesByRarity: rar,
+      stash: flat(s.stashTabs).length, equipped: Object.values(s.equippedByClass ?? {}).reduce((n, o) => n + Object.keys(o ?? {}).length, 0),
+      gearHash: hashStr(JSON.stringify(Object.values(s.equippedByClass ?? {}).map((o) => Object.values(o ?? {}).map((i) => i.mods)))),
+      gen: s.gen, version: s.version, mode: s.mode ?? "softcore",
+    };
+  } catch (e) { return { error: "無法解析：" + e.message }; }
+}
+function hashStr(t) { let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return (h >>> 0).toString(16); }
 
 /* ---------- 給 iframe 呼叫的功能 ---------- */
 const backend = {
@@ -100,6 +127,9 @@ const backend = {
     const text = await sealText(save);
     realSetItem.call(localStorage, mode(m).key, text);
     lockSaves();
+    const readback = localStorage.getItem(mode(m).key) === text;
+    try { sessionStorage.setItem(LAST_WRITE, JSON.stringify({ time: new Date().toISOString(), key: mode(m).key, bytes: text.length, readback, summary: summarize(text) })); } catch {}
+    if (!readback) throw new Error("寫入後讀回的內容不一致，存檔可能沒有寫進去。");
     return { ok: true, bytes: text.length, reload: true };
   },
   sealText,
@@ -160,6 +190,22 @@ const backend = {
     return found;
   },
   close() { close(); return true; },
+  // 診斷資訊（不含排行榜 ID 等識別碼）
+  diag() {
+    let last = null;
+    try { last = JSON.parse(sessionStorage.getItem(LAST_WRITE) || "null"); } catch {}
+    const keys = Object.keys(localStorage).filter((k) => /^d2/.test(k)).sort()
+      .map((k) => `${k} (${(localStorage.getItem(k) ?? "").length})`);
+    const now = {};
+    for (const [name, m] of Object.entries(MODES)) { const t = localStorage.getItem(m.key); if (t) now[name] = summarize(t); }
+    return {
+      page: location.pathname, editor: HOST, userAgent: navigator.userAgent,
+      d2files: !!document.getElementById("d2-files"), serviceWorker: !!navigator.serviceWorker?.controller,
+      modeKey: localStorage.getItem("d2-survivors/mode/v1"), zh: window.D2I18N ? window.D2I18N.language : "未載入",
+      engine: { ...engineInfo, found: engineInfo.found ? Object.keys(engineInfo.found).join(",") : undefined },
+      storageKeys: keys, savesNow: now, lastWrite: last, writtenThisSession: written,
+    };
+  },
 };
 
 /* ---------- 全螢幕介面 ---------- */

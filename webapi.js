@@ -30,7 +30,7 @@
   }
   const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
 
-  const remote = ["load", "save", "assets", "i18n", "engine", "traces"];
+  const remote = ["load", "save", "assets", "i18n", "engine", "traces", "diag"];
   const api = Object.fromEntries(remote.map((fn) => [fn, (...args) => rpc(fn, args)]));
   Object.assign(api, {
     web: true,

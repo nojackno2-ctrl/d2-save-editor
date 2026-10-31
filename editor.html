@@ -116,6 +116,12 @@
     </ul>
     <p class="bad">開啟後做出來的東西很可能被遊戲判定為外部修改（存檔仍可正常使用，但排行榜不計分）。「反修改偵測」頁仍可掃描與修正。</p>
   </section>
+  <section>
+    <h2>診斷資訊</h2>
+    <p class="dim">遇到問題時按「產生診斷資訊」，再按「複製」貼給開發者。內容是修改器狀態、存檔的件數摘要與最近的操作紀錄，不含排行榜 ID 等識別碼。</p>
+    <div class="bar"><button class="primary" id="diagMake">產生診斷資訊</button><button id="diagCopy">複製</button><span id="diagMsg" class="ok"></span></div>
+    <textarea id="diagText" readonly style="height:320px;margin-top:8px"></textarea>
+  </section>
 </div>
 
 <div class="page" id="craft">
@@ -237,7 +243,14 @@ const GRID = { stash:[10,10], inventory:[10,4], charms:[5,4] };
 let save = null, A = null, cur = null, sel = null; // cur = 目前容器, sel = 目前物品 key
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const status = (t, cls = "") => { const s = $("#status"); s.textContent = t; s.className = cls; };
+const LOG = [];
+const status = (t, cls = "") => {
+  const s = $("#status"); s.textContent = t; s.className = cls;
+  LOG.push(`${new Date().toLocaleTimeString()} ${cls === "bad" ? "✖ " : ""}${t}`);
+  if (LOG.length > 60) LOG.shift();
+};
+window.addEventListener("error", (e) => LOG.push("JS 錯誤：" + e.message));
+window.addEventListener("unhandledrejection", (e) => LOG.push("未處理的錯誤：" + (e.reason?.message ?? e.reason)));
 const getP = (o, p) => p.split(".").reduce((a, k) => a?.[k], o);
 function setP(o, p, v) { const ks = p.split("."); let a = o; for (const k of ks.slice(0, -1)) a = a[k] ??= {}; a[ks.at(-1)] = v; }
 const zhName = (it) => esc(nameZh(it));
@@ -425,6 +438,46 @@ function applyUnlockUI() {
   $("#unlockMode").checked = unlocked();
   document.body.classList.toggle("unlocked", unlocked());
   if (typeof checkGold === "function" && $('[data-path="gold"]')) checkGold();
+}
+
+/* ---------- 診斷資訊 ---------- */
+const EDITOR_BUILD = "2026-10-31b";
+function saveSummary(s) {
+  if (!s) return null;
+  const flat = (o) => Object.values(o ?? {}).flatMap(v => v ?? []);
+  const rar = {};
+  for (const u of s.uniques ?? []) rar[u.rarity] = (rar[u.rarity] ?? 0) + 1;
+  const lb = s.leaderboard ?? {};
+  return {
+    version: s.version, mode: s.mode ?? "softcore", gold: s.gold, uniques: (s.uniques ?? []).length, uniquesByRarity: rar,
+    stash: Object.fromEntries(Object.entries(s.stashTabs ?? {}).map(([k, v]) => [k, v.length])),
+    equipped: Object.fromEntries(Object.entries(s.equippedByClass ?? {}).map(([k, v]) => [k, Object.keys(v ?? {}).length]).filter(([, n]) => n)),
+    mercs: Object.fromEntries(Object.entries(s.mercs ?? {}).map(([k, m]) => [k, Object.keys(m?.hired?.[m.active]?.worn ?? {}).length])),
+    flags: { edited: !!lb.edited, imported: !!lb.imported, rechecked: !!lb.rechecked, off: !!lb.off }, gen: s.gen,
+  };
+}
+async function makeDiag() {
+  $("#diagMsg").textContent = "收集中…";
+  let host = null, faults = null;
+  try { host = await window.api.diag(); } catch (e) { host = { error: e.message }; }
+  try {
+    const items = save ? allItems(save) : [];
+    const f = await window.api.engine("faults", items);
+    faults = Array.isArray(f) ? { checked: items.length, notLegit: items.filter((_, i) => f[i]).map(nameZh).slice(0, 10) } : f;
+  } catch (e) { faults = { error: e.message }; }
+  const lines = {
+    修改器: { build: EDITOR_BUILD, web: !!window.api.web, mode: $("#mode").value, unlocked: unlocked(), seal: lastSeal, chineseEntries: Object.keys(DICT).length },
+    遊戲端: host,
+    目前編輯中的存檔: saveSummary(save),
+    物品合法性: faults,
+    最近操作: LOG.slice(-30),
+  };
+  // 上次寫入 vs 現在遊戲裡的存檔
+  const lw = host?.lastWrite, now = host?.savesNow?.[$("#mode").value];
+  if (lw && now) lines.寫入比對 = lw.summary?.uniques === now.uniques && lw.summary?.gearHash === now.gearHash
+    ? "遊戲裡的存檔與上次寫入的一致" : `不一致：上次寫入收藏 ${lw.summary?.uniques} 件，現在遊戲裡 ${now.uniques} 件（遊戲可能沒有採用修改）`;
+  $("#diagText").value = "D2 倖存者存檔修改器 診斷資訊\n" + JSON.stringify(lines, null, 1);
+  $("#diagMsg").textContent = "完成";
 }
 
 /* ---------- 製作裝備 ---------- */
@@ -811,6 +864,13 @@ if (window.api.web) {
   $("#backups").hidden = true;
   $("#status").textContent = "請在遊戲主選單使用（遊戲進行中的存檔會被覆蓋）";
 }
+$("#diagMake").onclick = makeDiag;
+$("#diagCopy").onclick = async () => {
+  const t = $("#diagText");
+  if (!t.value) await makeDiag();
+  try { await navigator.clipboard.writeText(t.value); } catch { t.select(); document.execCommand("copy"); }
+  $("#diagMsg").textContent = "已複製，可以貼上了";
+};
 $("#unlockMode").onchange = (e) => {
   if (e.target.checked && !confirm("開啟「解除修改限制」？做出來的東西很可能被遊戲判定為外部修改。")) { e.target.checked = false; return; }
   settings.unlock = e.target.checked; saveSettings(); applyUnlockUI();
