@@ -2,6 +2,9 @@
 // 由書籤載入，在 d2survivors.lol 的頁面裡執行：直接讀寫遊戲的 localStorage 存檔，
 // 修改器介面放在全螢幕 iframe 裡，透過 postMessage 跟這裡溝通。
 const HOST = new URL(".", import.meta.url).href;
+// 書籤每次帶不同的 v，這裡載入的其他檔案也帶同一個 v，避免手機瀏覽器用舊的快取
+const VER = new URL(import.meta.url).searchParams.get("v") || String(Date.now());
+const at = (f) => HOST + f + (f.includes("?") ? "&" : "?") + "v=" + VER;
 const MODES = {
   softcore: { key: "d2-survivors/save/v1", seal: "d2s/save-seal/1:Rakanishu-Bishibosh-Coldcrow-Griswold-Pindleskin", traces: ["d2-survivors/save/before-import"] },
   hardcore: { key: "d2-survivors/hc/v1", seal: "d2s/save-seal/hc/1:Blood-Raven-Treehead-Woodfist-Coldworm-Andariel", traces: ["d2-survivors/hc/before-import"] },
@@ -27,11 +30,13 @@ async function sealState(save) {
 
 /* ---------- 寫入後擋住遊戲覆寫 ---------- */
 // 遊戲記憶體裡還是舊存檔，離開前可能再存一次；寫入後就擋掉遊戲對存檔 key 的寫入，關閉修改器時重新載入頁面
-const realSetItem = Storage.prototype.setItem;
+// 記住瀏覽器原本的 setItem（同一頁面重複點書籤時，不要拿到上一次攔截過的版本）
+const realSetItem = (window.__d2editRealSetItem ??= Storage.prototype.setItem);
 let written = false;
 function lockSaves() {
   if (written) return;
   written = true;
+  if (Storage.prototype.setItem !== realSetItem) return; // 之前已經攔截過
   const keys = new Set(Object.values(MODES).map((m) => m.key));
   Storage.prototype.setItem = function (k, v) { if (this === localStorage && keys.has(k)) return; return realSetItem.call(this, k, v); };
 }
@@ -42,7 +47,7 @@ let enginePromise = null;
 const engineInfo = { step: "未啟動" };
 async function startEngine() {
   engineInfo.step = "讀取程式清單";
-  const [{ patch }, signatures] = await Promise.all([import(HOST + "patch.mjs"), fetch(HOST + "signatures.json").then((r) => r.json())]);
+  const [{ patch }, signatures] = await Promise.all([import(at("patch.mjs")), fetch(at("signatures.json")).then((r) => r.json())]);
   // 從頁面已載入的腳本開始，順著 "./xxx.js" 參照把同資料夾的區塊都抓下來
   const base = new URL("/assets/", location.origin).href;
   const seen = new Set(), files = {};
@@ -87,7 +92,7 @@ async function startEngine() {
   w.__itemstats = itemstats;
   return w.eval(`(async () => {
     const mods = await Promise.all(__entries.map((u) => import(u)));
-    const { boot } = await import(${JSON.stringify(HOST + "engine-page.js")});
+    const { boot } = await import(${JSON.stringify(at("engine-page.js"))});
     return boot(Object.assign({}, ...mods), __itemstats);
   })()`);
 }
@@ -145,7 +150,7 @@ const backend = {
   },
   // 中文：不附任何翻譯檔，改用玩家已經在頁面上開啟的「D2 繁體中文」書籤（window.D2I18N）當場翻譯
   async i18n() {
-    const game = await fetch(HOST + "gamedata.json").then((r) => r.json());
+    const game = await fetch(at("gamedata.json")).then((r) => r.json());
     const I = window.D2I18N;
     if (!I || I.language !== "zh-Hant") return { dict: {}, game, missing: true };
     const dict = {};
@@ -230,15 +235,16 @@ async function onMessage(e) {
 }
 
 window.__d2editBackend = backend; // 方便除錯（同一頁面本來就能讀寫這些存檔）
-if (window.__d2editOpen) window.__d2editOpen();
-else {
-  window.__d2editOpen = () => {
-    if (frame) return close();
-    frame = document.createElement("iframe");
-    frame.src = HOST + "editor.html?origin=" + encodeURIComponent(location.origin) + "&mode=" + (localStorage.getItem("d2-survivors/mode/v1") === "hardcore" ? "hardcore" : "softcore");
-    frame.style.cssText = "position:fixed;inset:0;width:100vw;height:100dvh;border:0;z-index:2147483647;background:#14110d";
-    window.addEventListener("message", onMessage);
-    document.body.appendChild(frame);
-  };
-  window.__d2editOpen();
+// 每次點書籤都用這次載入的最新版本：先關掉之前開的修改器（不論是哪個版本）
+const prevClose = window.__d2editClose;
+const wasOpen = !!window.__d2editIsOpen?.();
+if (prevClose) prevClose(true);
+window.__d2editClose = (quiet) => { if (frame) { frame.remove(); frame = null; window.removeEventListener("message", onMessage); } if (!quiet && written) location.reload(); };
+window.__d2editIsOpen = () => !!frame;
+if (!wasOpen) {
+  frame = document.createElement("iframe");
+  frame.src = at("editor.html") + "&origin=" + encodeURIComponent(location.origin) + "&mode=" + (localStorage.getItem("d2-survivors/mode/v1") === "hardcore" ? "hardcore" : "softcore");
+  frame.style.cssText = "position:fixed;inset:0;width:100vw;height:100dvh;border:0;z-index:2147483647;background:#14110d";
+  window.addEventListener("message", onMessage);
+  document.body.appendChild(frame);
 }
