@@ -131,7 +131,7 @@
     <div class="craftwrap">
       <div>
         <div class="bar" style="margin-top:0">
-          <select id="cRar"><option value="all">全部品質</option><option value="unique">暗金</option><option value="set">套裝</option><option value="runeword">符文之語</option></select>
+          <select id="cRar"><option value="all">全部品質</option><option value="unique">暗金</option><option value="set">套裝</option><option value="runeword">符文之語</option><option value="rare">稀有（選底材）</option><option value="magic">魔法（選底材）</option></select>
           <select id="cType"></select>
           <input id="cQ" placeholder="搜尋（中英文皆可）" style="width:170px">
         </div>
@@ -149,7 +149,7 @@
       <span>名稱（英文）</span><input id="xName" placeholder="留空則用底材名稱">
       <span>物品等級</span><input id="xLevel" type="number" value="99">
     </div>
-    <table id="cmods" style="margin-top:8px"><thead><tr><th>中文說明</th><th>屬性代碼</th><th>數值</th><th>固有</th><th></th></tr></thead><tbody></tbody></table>
+    <table id="cmods" style="margin-top:8px"><thead><tr><th>中文說明</th><th>屬性</th><th>數值</th><th>固有</th><th></th></tr></thead><tbody></tbody></table>
     <div class="bar"><button id="xAdd">＋ 新增屬性</button><span class="dim">放到</span><select id="xDest"></select><button class="primary" id="xMake">製作</button></div>
   </section>
 </div>
@@ -220,6 +220,11 @@
     <h2>角色</h2>
     <table><thead><tr><th>職業</th><th>解鎖難度</th><th>技能改造點數</th><th>已付費重置次數</th><th>恐怖等級（開放）</th></tr></thead><tbody id="classes"></tbody></table>
   </section>
+  <section>
+    <h2>技能修改（Skill Modifiers）</h2>
+    <p class="note">照遊戲規則：每個職業最多 10 點，每點可以讓一個技能選一種修改；選項只列出該職業有的技能。</p>
+    <div id="skillModsBox"></div>
+  </section>
 </div>
 
 <div class="page" id="raw">
@@ -229,8 +234,8 @@
 
 <datalist id="statList"></datalist>
 
-<script src="webapi.js?b=mvw6u6is"></script>
-<script src="zh.js?b=mvw6u6is"></script>
+<script src="webapi.js?b=mvw8m8i2"></script>
+<script src="zh.js?b=mvw8m8i2"></script>
 <script>
 const CLASSES = ["amazon","sorceress","necromancer","paladin","barbarian","druid","assassin"];
 const CLASS_ZH = ZH_CLASS;
@@ -529,8 +534,8 @@ async function renderCraft() {
     $("#xBase").innerHTML = Object.keys(TYPE_ZH).filter(t => byType[t]).map(t => `<optgroup label="${TYPE_ZH[t]}">${byType[t].sort((a, b) => a.level - b.level)
       .map(b => `<option value="${esc(b.name)}">${esc(T(b.name))}（${esc(b.name)}，需求 ${b.level}）</option>`).join("")}</optgroup>`).join("");
     $("#xRar").innerHTML = Object.entries(RARITY_ZH).map(([k, v]) => `<option value="${k}" ${k === "unique" ? "selected" : ""}>${v}</option>`).join("");
-    $("#xAdd").onclick = () => $("#cmods tbody").insertAdjacentHTML("beforeend", modRow({ stat: "", value: 0 }));
-    $("#cmods").oninput = (e) => {
+    $("#xAdd").onclick = () => $("#cmods tbody").insertAdjacentHTML("beforeend", craftModRow());
+    $("#cmods").onchange = $("#cmods").oninput = (e) => {
       const tr = e.target.closest("tr"); if (!tr) return;
       const v = tr.querySelector(".val").value;
       tr.querySelector(".zh").textContent = modZh({ stat: tr.querySelector(".stat").value.trim(), value: isNaN(v) || v === "" ? v : Number(v), implicit: tr.querySelector(".imp").checked });
@@ -543,20 +548,25 @@ async function renderCraft() {
 }
 function renderCraftList() {
   const r = $("#cRar").value, t = $("#cType").value, q = $("#cQ").value.toLowerCase();
-  const list = CATALOG.filter(x => !x.unavailable && (r === "all" || x.rarity === r) && (t === "all" || (TYPE_ZH[x.type] ? x.type : "other") === t)
+  // 魔法／稀有沒有固定物品：改列出底材，詞綴由遊戲隨機產生
+  const affix = r === "magic" || r === "rare";
+  const src = affix ? BASES.filter(b => b.type !== "quest").map(b => ({ rarity: r, name: b.name, base: b.name, type: b.type, lvl: b.level, affix: true })) : CATALOG;
+  const list = src.filter(x => !x.unavailable && (affix || r === "all" || x.rarity === r) && (t === "all" || (TYPE_ZH[x.type] ? x.type : "other") === t)
     && (!q || (x.name + nameZh(x) + (x.base ?? "") + baseZh(x)).toLowerCase().includes(q)));
-  $("#cList").innerHTML = list.slice(0, 400).map(x => `<div class="row ${craftSel === x ? "on" : ""}" data-i="${CATALOG.indexOf(x)}">${iconTag(x)}<span class="r-${x.rarity}">${zhName(x)}</span><span class="dim">${esc(baseZh(x))}・需求 ${x.lvl ?? "?"}</span></div>`).join("")
+  const same = (x) => craftSel && craftSel.rarity === x.rarity && craftSel.name === x.name;
+  $("#cList").innerHTML = list.slice(0, 400).map((x, i) => `<div class="row ${same(x) ? "on" : ""}" data-i="${i}">${iconTag(x)}<span class="r-${x.rarity}">${affix ? esc(baseZh(x)) : zhName(x)}</span><span class="dim">${affix ? esc(x.name) : esc(baseZh(x))}・需求 ${x.lvl ?? "?"}</span></div>`).join("")
     + (list.length > 400 ? `<p class="dim">還有 ${list.length - 400} 件，請用搜尋縮小範圍。</p>` : "");
-  for (const el of $("#cList").querySelectorAll("[data-i]")) el.onclick = () => { craftSel = CATALOG[el.dataset.i]; renderCraftList(); renderCraftPick(); };
+  for (const el of $("#cList").querySelectorAll("[data-i]")) el.onclick = () => { craftSel = list[el.dataset.i]; renderCraftList(); renderCraftPick(); };
 }
 async function renderCraftPick() {
   const x = craftSel, box = $("#cPick");
   if (!x) return;
   let rwBases = [];
   if (x.rarity === "runeword") { rwBases = await window.api.engine("runewordBases", x.name); if (!Array.isArray(rwBases)) rwBases = []; }
-  box.innerHTML = `<h2 class="r-${x.rarity}">${zhName(x)}</h2><p class="dim" style="margin:-6px 0 8px">${esc(x.name)}・${rarityZh[x.rarity]}${x.set ? "・" + esc(T(x.set)) : ""}</p>
+  box.innerHTML = `<h2 class="r-${x.rarity}">${x.affix ? esc(baseZh(x)) : zhName(x)}</h2><p class="dim" style="margin:-6px 0 8px">${esc(x.name)}・${rarityZh[x.rarity]}${x.set ? "・" + esc(T(x.set)) : ""}</p>
+    ${x.affix ? '<p class="note">詞綴跟遊戲掉落一樣隨機（合法）。做好可在「物品」頁修改屬性，或多做幾件挑喜歡的。</p>' : ""}
     <div class="f">
-      <span>數值</span><select id="pMax"><option value="1">全部最高（合法）</option><option value="0">隨機（跟掉落一樣）</option></select>
+      ${x.affix ? "" : '<span>數值</span><select id="pMax"><option value="1">全部最高（合法）</option><option value="0">隨機（跟掉落一樣）</option></select>'}
       ${x.rarity === "runeword" ? `<span>底材</span><select id="pBase">${rwBases.map(b => `<option value="${esc(b)}" ${b === x.base ? "selected" : ""}>${esc(T(b))}（${esc(b)}）</option>`).join("")}</select>` : ""}
       <span>數量</span><input id="pN" type="number" value="1" min="1" ${unlocked() ? "" : 'max="40"'}>
       ${unlocked() ? '<span>數值倍率</span><input id="pMul" type="number" value="1" min="0" step="0.5">' : ""}
@@ -567,9 +577,10 @@ async function renderCraftPick() {
   $("#pMake").onclick = makePicked;
 }
 async function makePicked() {
-  const x = craftSel, n = Math.max(1, Math.min(unlocked() ? 999 : 40, Number($("#pN").value) || 1)), max = $("#pMax").value === "1";
+  const x = craftSel, n = Math.max(1, Math.min(unlocked() ? 999 : 40, Number($("#pN").value) || 1)), max = $("#pMax")?.value === "1";
   const mul = unlocked() ? Number($("#pMul")?.value) || 1 : 1;
-  const base = $("#pBase")?.value, dest = $("#pDest").value;
+  const base = x.affix ? x.base : $("#pBase")?.value, dest = $("#pDest").value;
+  if (x.affix && !((await window.api.engine("affixOk")) === true)) return status("這個版本的遊戲找不到魔法／稀有物品的產生函式", "bad");
   status("製作中…");
   const out = await window.api.engine("generateMany", Array.from({ length: n }, () => ({ rarity: x.rarity, name: x.name, base, max, free: unlocked() })), max);
   if (!Array.isArray(out)) return status(out?.error ?? "製作失敗", "bad");
@@ -579,8 +590,20 @@ async function makePicked() {
   catch (e) { status(`做好 ${made} 件後：${e.message}`, "bad"); return; }
   const it = out.find(r => r?.item)?.item;
   if (it) $("#pPrev").innerHTML = it.mods.map(m => esc(modZh(m))).join("<br>");
-  status(`已製作 ${made} 件「${nameZh(x)}」（尚未寫入存檔）`, "ok");
+  status(`已製作 ${made} 件「${x.affix ? (it ? nameZh(it) : baseZh(x)) : nameZh(x)}」（尚未寫入存檔）`, "ok");
 }
+// 製作裝備的屬性下拉選單：遊戲全部屬性 + 存檔裡出現過的（技能等），以中文說明排序
+let STAT_OPTS = null;
+function statOptions() {
+  if (STAT_OPTS) return STAT_OPTS;
+  const stats = new Set(Object.keys(GAME.stats ?? {}).filter(s => !s.startsWith("base:")));
+  for (const o of $("#statList").options) stats.add(o.value);
+  STAT_OPTS = '<option value="">（請選擇屬性）</option>' + [...stats].map(s => [s, modZh({ stat: s, value: "#" })])
+    .sort((a, b) => a[1].localeCompare(b[1], "zh-Hant")).map(([s, z]) => `<option value="${esc(s)}">${esc(z)}</option>`).join("");
+  return STAT_OPTS;
+}
+const craftModRow = () => `<tr><td class="zh"></td><td><select class="stat" style="max-width:320px">${statOptions()}</select></td>
+  <td><input class="val" value="0"></td><td><input type="checkbox" class="imp"></td><td><button class="rm danger">✕</button></td></tr>`;
 function makeCustom() {
   const b = BASES.find(b => b.name === $("#xBase").value);
   const num = (v) => (v.trim() !== "" && !isNaN(v) ? Number(v) : v);
@@ -671,18 +694,67 @@ function applyEdit(c, it, quiet) {
 function refresh() { renderTree(); renderView(); renderEditor(); }
 
 /* ---------- 帳號 / 強化 ---------- */
+// 遊戲的恰西強化表與技能修改表（從物品引擎讀）；讀不到或「解除修改限制」時改用自由輸入
+let RANK_DEFS, SKILL_MODS;
+async function heroDefs() {
+  if (RANK_DEFS !== undefined) return;
+  try { RANK_DEFS = await window.api.engine("rankDefs"); SKILL_MODS = await window.api.engine("skillModDefs", CLASSES); }
+  catch { RANK_DEFS = SKILL_MODS = null; }
+  if (RANK_DEFS?.error) RANK_DEFS = null;
+  if (SKILL_MODS?.error) SKILL_MODS = null;
+}
+const opts = (max) => Array.from({ length: max + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join("");
 function rankGrid(id) {
   const keys = [...new Set([...Object.keys(RANK_ZH), ...Object.keys(save[id] ?? {})])];
-  $("#" + id).innerHTML = keys.map(k => `<label><span>${RANK_ZH[k] ?? k}</span><input type="number" min="0" data-path="${id}.${k}"></label>`).join("");
+  if (!RANK_DEFS || unlocked()) {
+    $("#" + id).innerHTML = keys.map(k => `<label><span>${RANK_ZH[k] ?? k}</span><input type="number" min="0" data-path="${id}.${k}"></label>`).join("");
+    return;
+  }
+  // 照恰西的規則：強化等級 0～上限；額外強化只有可無限升級的項目，而且強化等級要先升滿
+  const defs = Object.entries(RANK_DEFS).filter(([, d]) => id === "ranks" || d.endless);
+  $("#" + id).innerHTML = defs.map(([k, d]) => `<label><span>${RANK_ZH[k] ?? T(d.name)}${id === "ranks" ? `（上限 ${d.maxRank}）` : ""}</span>${id === "ranks"
+    ? `<select data-num data-path="ranks.${k}">${opts(d.maxRank)}</select>`
+    : `<input type="number" min="0" max="999" data-path="extraRanks.${k}">`}</label>`).join("");
 }
-function renderHero() {
-  rankGrid("ranks"); rankGrid("extraRanks");
+// 強化等級沒升滿的項目，不能有額外強化
+function syncExtra() {
+  if (!RANK_DEFS || unlocked()) return;
+  for (const el of document.querySelectorAll('[data-path^="extraRanks."]')) {
+    const k = el.dataset.path.slice(11), full = Number($(`[data-path="ranks.${k}"]`)?.value) >= RANK_DEFS[k].maxRank;
+    el.disabled = !full; el.title = full ? "" : "強化等級升滿才能加額外強化";
+    if (!full) el.value = "";
+  }
+}
+function skillModTable() {
+  if (!SKILL_MODS || unlocked()) { $("#skillModsBox").innerHTML = '<p class="dim">讀不到遊戲的技能修改資料（或已解除修改限制），請用上方表格的點數欄或「原始 JSON」頁修改。</p>'; return; }
+  $("#skillModsBox").innerHTML = CLASSES.filter(c => SKILL_MODS[c]?.length).map(c => `<details><summary>${CLASS_ZH[c]}　<span class="dim" id="smc-${c}"></span></summary>
+    <div class="f" style="margin:6px 0"><span>修改點數</span><select data-num data-path="skillMods.${c}.points" data-cls="${c}">${opts(10)}</select></div>
+    <table><thead><tr><th>技能</th><th>修改</th></tr></thead><tbody>${SKILL_MODS[c].map(s => `<tr><td>${esc(skillZh(s.id))}${s.passive ? '<span class="dim">（被動）</span>' : ""}</td>
+      <td><select data-path="skillMods.${c}.on.${s.id}" data-cls="${c}" style="max-width:420px"><option value="">（不修改）</option>${s.options.map(o => `<option value="${esc(o.id)}" title="${esc(o.describe ?? "")}">${esc(T(o.name))}：${esc(o.describe ?? "")}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></details>`).join("");
+}
+// 每個職業最多 10 點，已選的修改數不能超過點數（點數不夠就自動補，跟遊戲一樣）
+function syncSkillMods(cls) {
+  for (const c of cls ? [cls] : CLASSES) {
+    const pts = $(`[data-path="skillMods.${c}.points"][data-cls]`);
+    if (!pts) continue;
+    const sels = [...document.querySelectorAll(`select[data-path^="skillMods.${c}.on."]`)], used = sels.filter(s => s.value).length;
+    if (used > Number(pts.value)) pts.value = String(Math.min(10, used));
+    const full = used >= 10;
+    for (const s of sels) for (const o of s.options) o.disabled = full && !s.value && o.value !== "";
+    $("#smc-" + c).textContent = `已用 ${used} / ${pts.value} 點`;
+  }
+}
+async function renderHero() {
+  await heroDefs();
+  rankGrid("ranks"); rankGrid("extraRanks"); skillModTable();
+  const freeMods = !SKILL_MODS || unlocked();
   $("#classes").innerHTML = CLASSES.map(c => `<tr><td>${CLASS_ZH[c]}</td>
     <td><select data-path="unlocked.${c}">${DIFFS.map(d => `<option value="${d}">${DIFF_ZH[d]}</option>`).join("")}</select></td>
-    <td><input type="number" min="0" data-path="skillMods.${c}.points"></td>
+    <td>${freeMods ? `<input type="number" min="0" data-path="skillMods.${c}.points">` : '<span class="dim">見下方「技能修改」</span>'}</td>
     <td><input type="number" min="0" data-path="paidResets.${c}"></td>
     <td><input type="number" min="0" data-path="terror.${c}.open"></td></tr>`).join("");
-  for (const el of document.querySelectorAll("[data-path]")) el.value = getP(save, el.dataset.path) ?? "";
+  for (const el of document.querySelectorAll("[data-path]")) el.value = getP(save, el.dataset.path) ?? (el.dataset.num !== undefined ? "0" : "");
+  syncExtra(); syncSkillMods();
   checkGold();
 }
 function collectHero() {
@@ -692,9 +764,19 @@ function collectHero() {
       if (old !== undefined && el.tagName === "SELECT") { const ks = p.split("."); delete getP(save, ks.slice(0, -1).join("."))[ks.at(-1)]; }
       continue;
     }
-    const v = el.type === "number" ? Number(el.value) : el.value;
+    const v = el.type === "number" || el.dataset.num !== undefined ? Number(el.value) : el.value;
+    if (old === undefined && v === 0 && el.dataset.num !== undefined) continue; // 沒動過的 0 不寫進存檔
     if (old !== v) setP(save, p, v);
   }
+  // 技能修改最多 10 個、不超過點數（遊戲讀檔時也只留前面這些）
+  if (SKILL_MODS && !unlocked()) for (const m of Object.values(save.skillMods ?? {})) {
+    if (!m?.on) continue;
+    m.points = Math.min(10, Math.max(m.points ?? 0, Object.keys(m.on).length));
+    for (const k of Object.keys(m.on).slice(m.points)) delete m.on[k];
+  }
+  // 強化等級沒升滿 → 遊戲不認額外強化，一併清掉
+  if (RANK_DEFS && !unlocked() && save.extraRanks) for (const k of Object.keys(save.extraRanks))
+    if (RANK_DEFS[k] && (!RANK_DEFS[k].endless || (save.ranks?.[k] ?? 0) < RANK_DEFS[k].maxRank)) delete save.extraRanks[k];
 }
 function checkGold() { $("#goldWarn").hidden = unlocked() || !(Number($('[data-path="gold"]').value) > 1e10); }
 
@@ -883,9 +965,19 @@ $("#fresh").onclick = () => {
 };
 $("#fromRaw").onclick = () => { try { save = JSON.parse($("#rawText").value); sel = null; renderAll(); status("已套用 JSON（尚未寫入存檔）", "ok"); } catch (e) { status("JSON 格式錯誤：" + e.message, "bad"); } };
 document.addEventListener("input", (e) => { if (e.target.dataset?.path === "gold") checkGold(); });
+document.addEventListener("change", (e) => {
+  const p = e.target.dataset?.path ?? "";
+  if (p.startsWith("ranks.")) syncExtra();
+  if (e.target.dataset.cls) syncSkillMods(e.target.dataset.cls);
+});
 for (const b of document.querySelectorAll("[data-fill]")) b.onclick = () => {
   const id = b.dataset.fill, v = $("#fill-" + id).value;
-  for (const el of document.querySelectorAll(`[data-path^="${id}."]`)) el.value = v;
+  for (const el of document.querySelectorAll(`[data-path^="${id}."]`)) {
+    if (el.disabled) continue;
+    // 下拉選單（有上限）：超過就取最大值
+    el.value = el.tagName === "SELECT" ? String(Math.min(Number(v) || 0, Number(el.options[el.options.length - 1]?.value) || 0)) : v;
+  }
+  if (id === "ranks") syncExtra();
 };
 if (window.api.web) {
   $("#closeWeb").hidden = false;

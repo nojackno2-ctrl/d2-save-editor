@@ -202,7 +202,7 @@ const backend = {
     return { dict, game };
   },
   async engine(fn, ...args) {
-    if (!["catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases"].includes(fn)) throw new Error("不支援的操作");
+    if (!["catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs"].includes(fn)) throw new Error("不支援的操作");
     const e = await engine();
     // 結果來自另一個 iframe，複製一份成這邊的物件
     return JSON.parse(JSON.stringify(await e[fn](...args) ?? null));
