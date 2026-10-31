@@ -333,7 +333,7 @@ async function renderCollection(c, v) {
   const opt = (id, cur, list) => `<select id="${id}">${list.map(([k, l]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   v.innerHTML = `<h2>暗金收藏　<span class="dim">已收藏 ${have} / ${rows.length}</span></h2>
     <div class="bar" style="margin-top:0">
-      <button class="primary" id="unlockAll">一鍵解鎖全部</button><button id="maxAll">一鍵數值最高</button>
+      <button class="primary" id="unlockAll">一鍵解鎖＋全部最高</button><span class="dim">補齊收藏，並把收藏、角色身上、傭兵身上、倉庫、背包、護身符欄的暗金／套裝／符文之語全部調成最高</span>
     </div>
     <div class="bar">
       ${opt("fRar", colF.rarity, [["all", "全部品質"], ["unique", "暗金"], ["set", "套裝"], ["runeword", "符文之語"]])}
@@ -350,8 +350,7 @@ async function renderCollection(c, v) {
   const refilter = () => { colF = { rarity: $("#fRar").value, type: $("#fType").value, owned: $("#fOwn").value, q: $("#fQ").value }; renderCollection(c, v).then(() => { const q = $("#fQ"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }); };
   for (const id of ["#fRar", "#fType", "#fOwn"]) $(id).onchange = refilter;
   $("#fQ").oninput = refilter;
-  $("#unlockAll").onclick = () => unlock(rows.filter(r => r.idx === undefined));
-  $("#maxAll").onclick = () => maxItems(arr.filter(it => ["unique", "set", "runeword"].includes(it.rarity)));
+  $("#unlockAll").onclick = () => unlockAndMax(rows.filter(r => r.idx === undefined), new Set(cat.map(ckey)));
   for (const b of v.querySelectorAll("[data-unlock]")) b.onclick = (e) => { e.stopPropagation(); unlock(rows.filter(r => ckey(r) === b.dataset.unlock)); };
   for (const el of v.querySelectorAll("[data-k]")) el.onclick = () => { sel = Number(el.dataset.k); renderView(); renderEditor(); };
 }
@@ -382,6 +381,23 @@ async function unlock(list) {
     for (const r of out) if (r?.item) { delete r.item.at; arr.push(r.item); n++; if (!r.max) near++; }
     refresh(); status(`已解鎖 ${n} 件，全部為合法物品${near ? `（${near} 件套裝找不到全滿的合法數值，使用最接近最高的）` : "、全部最高數值"}；記得按「寫入存檔」`, "ok");
   } catch (e) { fail(e); }
+}
+// 一鍵：先把已有的全部調最高，再補齊缺的（補的本來就是最高值）
+// 範圍：收藏、角色身上、傭兵身上、倉庫、背包、護身符欄（商店商品不動）
+function ownedGear(s) {
+  const flat = (o) => Object.values(o ?? {}).flatMap(v => v ?? []);
+  return [...(s.uniques ?? []), ...flat(s.stashTabs), ...flat(s.inventoryByClass), ...flat(s.charmsByClass),
+    ...Object.values(s.equippedByClass ?? {}).flatMap(o => Object.values(o ?? {})),
+    ...Object.values(s.mercs ?? {}).flatMap(m => Object.values(m?.hired ?? {}).flatMap(h => Object.values(h?.worn ?? {})))]
+    .filter(it => it && ["unique", "set", "runeword"].includes(it.rarity));
+}
+async function unlockAndMax(missing, known) {
+  const gear = ownedGear(save).filter(it => known.has(ckey(it)));
+  if (!confirm(`將補齊 ${missing.length} 件未收藏的物品，並把 ${gear.length} 件已有的暗金／套裝／符文之語（含角色與傭兵身上）調成最高數值。繼續？`)) return;
+  await maxItems(gear);
+  await unlock(missing);
+  refresh();
+  status(`完成：補齊 ${missing.length} 件、調高 ${gear.length} 件（含角色與傭兵身上）；記得按「寫入存檔」`, "ok");
 }
 async function maxItems(items) {
   if (!items.length) return;
