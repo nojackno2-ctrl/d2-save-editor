@@ -5,7 +5,7 @@
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
   const defaults = {
-    version: 2, enabled: false, panicKey: "F8",
+    version: 2, enabled: false, progressEnabled: false, panicKey: "F8",
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, autoMp: false, mpThreshold: 30, mpCooldownMs: 2000, fallbackHpSlot: 1, fallbackMpSlot: 2 },
     movement: { enabled: true, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
     loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: false, magic: false, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true },
@@ -18,6 +18,10 @@
     return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, v && typeof v === "object" ? merge(v, value?.[k]) : typeof value?.[k] === typeof v ? value[k] : v]));
   }
   let settings = merge(defaults, {}), storageNote = "";
+  // 兩個分頁各有總開關：戰鬥輔助（enabled）、推層與任務（progressEnabled）。
+  const questOn = () => settings.progressEnabled && settings.quest.autoProgress;
+  const terrorMode = () => settings.progressEnabled ? settings.terror.mode : "off";
+  const assistOn = () => settings.enabled;
   try { settings = merge(defaults, JSON.parse(localStorage.getItem(KEY) || "{}")); }
   catch { storageNote = "設定無法讀取，使用預設值"; }
   const bounds = {
@@ -73,7 +77,7 @@
     catch { storageNote = "設定無法儲存，本次仍有效"; }
     refreshControls();
   }
-  function stop(reason = "輔助已停止") { settings.enabled = false; release(); lastAction = reason; save(); }
+  function stop(reason = "輔助已停止") { settings.enabled = false; settings.progressEnabled = false; release(); lastAction = reason; save(); }
   function manual(e) {
     if (!e.isTrusted || host.contains(e.target) || e.target === launcher || e.target === stopButton) return;
     manualUntil = performance.now() + 1200;
@@ -179,7 +183,7 @@
     return true;
   }
   function deathReason(s, danger, now, healingFailed = false) {
-    if (!settings.deathProtection.enabled || !s.p || !s.hp || s.hp.now <= 0 || s.w === protectedWorld) return "";
+    if (!assistOn() || !settings.deathProtection.enabled || !s.p || !s.hp || s.hp.now <= 0 || s.w === protectedWorld) return "";
     if (danger.damage > 0 && danger.damage >= s.hp.now && (healingFailed || !healingAvailable(s, now))) return "預估致命傷害且無可用回血藥水";
     if (s.hp.now / s.hp.max * 100 <= settings.deathProtection.emergencyHpPercent && now - lastHp < settings.potion.hpCooldownMs) return "生命低於緊急門檻且回血藥水冷卻中";
     if (surrounded(s, danger)) return "周圍通道皆受阻，預估無法閃避包圍";
@@ -204,7 +208,7 @@
     retreat = { g, deadline: now + 8000 };
     release();
     settings.terror.mode = "off"; settings.quest.autoProgress = false;
-    if (settings.deathProtection.disableAutomation) settings.enabled = false;
+    if (settings.deathProtection.disableAutomation) { settings.enabled = false; settings.progressEnabled = false; }
     lastAction = "死亡保護：" + reason + "，正在離開本局"; save();
     try {
       // 原版已確認的暫停選單出口：leaveRun -> toMenu -> enterCamp（營地模式）。
@@ -232,14 +236,15 @@
   function accepts(drop) {
     const item = drop.item;
     if (!item) return drop.kind === "gold" && settings.loot.pickupGold;
-    if (item.type === "quest") return settings.quest.autoProgress;
+    if (item.type === "quest") return questOn();
     if (item.type === "rune") { const n = String(item.base).match(/^r(\d{2})$/); return !!n && +n[1] >= settings.loot.minRuneTier; }
     return !!settings.loot.qualityThreshold[item.rarity];
   }
   function lootGoal(s, now) {
-    if (!settings.loot.enabled && !settings.quest.autoProgress) return null;
+    const lootOn = assistOn() && settings.loot.enabled;
+    if (!lootOn && !questOn()) return null;
     if (lootTarget && !lootTarget.dead && now - lootSince > 3500) { blockedLoot.set(lootTarget, now + 15000); lootTarget = null; }
-    const candidates = s.pickups.filter((e) => !e.flippy && !e.discarded && e.loot !== "sell" && (blockedLoot.get(e) || 0) < now && (settings.loot.enabled || e.item?.type === "quest") && accepts(e) && dist(e, s.p) <= settings.loot.searchRadius);
+    const candidates = s.pickups.filter((e) => !e.flippy && !e.discarded && e.loot !== "sell" && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && accepts(e) && dist(e, s.p) <= settings.loot.searchRadius);
     const weight = (e) => e.item?.type === "quest" ? 2000 : ["unique", "set", "runeword"].includes(e.item?.rarity) ? 1000 : e.item ? 500 : 50;
     candidates.sort((a, b) => weight(b) - weight(a) || dist(a, s.p) - dist(b, s.p));
     const target = candidates[0];
@@ -270,7 +275,7 @@
     return null;
   }
   function navigate(s, danger, now) {
-    const g = game, m = settings.movement, progressing = settings.quest.autoProgress || settings.terror.mode !== "off", portal = g.clearing?.portal;
+    const g = game, m = { ...settings.movement, enabled: assistOn() && settings.movement.enabled }, progressing = questOn() || terrorMode() !== "off", portal = g.clearing?.portal;
     if (point(portal) && clearWorld !== s.w) { clearWorld = s.w; clearAt = now; }
     let closeEnemy = false, x = 0, y = 0;
     if (m.enabled) for (const e of s.enemies) {
@@ -284,7 +289,7 @@
     if (dodging) { x += danger.dodgeX; y += danger.dodgeY; }
     const portalDue = progressing && point(portal) && (!settings.loot.backtrackForLoot || now - clearAt >= settings.terror.postClearWaitSec * 1000);
     let goal = !dodging && !closeEnemy && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
-    if (!goal && settings.quest.autoProgress && !portalDue) goal = questGoal(s);
+    if (!goal && questOn() && !portalDue) goal = questGoal(s);
     if (!goal && portalDue) goal = { x: portal.x, y: portal.y, kind: "通關傳送門" };
     if (!goal && progressing && !portal) {
       const enemy = s.enemies.reduce((best, e) => !best || dist(e, s.p) < dist(best, s.p) ? e : best, null);
@@ -322,7 +327,7 @@
     }
   }
   async function advance(g) {
-    if (transition || retreat || !alive || !settings.enabled || settings.terror.mode === "off") return;
+    if (transition || retreat || !alive || terrorMode() === "off") return;
     const t = settings.terror, record = g.save?.terror?.[g.kit?.id];
     if (!record || !g.kit || typeof g.startTerror !== "function") return;
     transition = true;
@@ -343,7 +348,7 @@
     finally { transition = false; }
   }
   function progression(g, now) {
-    if (settings.terror.mode === "off") return false;
+    if (terrorMode() === "off") return false;
     const record = g.save?.terror?.[g.kit?.id];
     if (["camp", "select"].includes(g.state) && !g.swapping && record && g.save?.heroes?.[g.kit?.id]?.kept && record.playing === undefined && !record.replay) {
       void advance(g); return true;
@@ -357,18 +362,18 @@
     if (now - clearAt >= settings.terror.postClearWaitSec * 1000) void advance(g);
     return true;
   }
-  function blocked() { return !settings.enabled || document.hidden || !panel.hidden || window.__d2editIsOpen?.() || performance.now() < manualUntil || paused(); }
+  function blocked() { return (!settings.enabled && !settings.progressEnabled) || document.hidden || !panel.hidden || window.__d2editIsOpen?.() || performance.now() < manualUntil || paused(); }
   function step(g, now) {
     checkRetreat(now);
     if (retreat || blocked()) { release(); return; }
     if (g && progression(g, now)) { release(); return; }
     if (g && g.state !== "playing") {
       release();
-      if (settings.quest.autoProgress && g.state === "dead" && g.afterBaal?.next && typeof g.afterBaal.continue === "function" && now - actionAt > 1500) {
+      if (questOn() && g.state === "dead" && g.afterBaal?.next && typeof g.afterBaal.continue === "function" && now - actionAt > 1500) {
         g.afterBaal.continue(); actionAt = now; return;
       }
       // 推進時才自動選卡，優先進化；不操作商店、賭博或任務獎勵。
-      if ((settings.quest.autoProgress || settings.terror.mode !== "off") && visible(document.getElementById("level-up")) && now - actionAt > 800) {
+      if ((questOn() || terrorMode() !== "off") && visible(document.getElementById("level-up")) && now - actionAt > 800) {
         const cards = [...document.querySelectorAll("#choices button")].filter(visible);
         (cards.find((e) => e.classList.contains("evolves")) || cards[0])?.click(); actionAt = now;
       }
@@ -380,7 +385,7 @@
     let danger = threats(state);
     let reason = g && deathReason(state, danger, now);
     if (reason) { void returnToSafety(g, state, reason, now); return; }
-    const healingFailed = potions(state, danger, now);
+    const healingFailed = assistOn() ? potions(state, danger, now) : false;
     // 喝水後重新讀取生命，避免使用舊血量判斷離場。
     const after = readState(g);
     danger = threats(after);
@@ -460,7 +465,7 @@
     row.append(text, input); fields.append(row); controls.set(path, input);
   }
   function group(label) { const h = document.createElement("h3"); h.textContent = label; fields.append(h); }
-  group("一般與安全"); field("enabled", "啟用輔助總開關"); field("panicKey", "總開關熱鍵", Array.from({ length: 12 }, (_, i) => ["F" + (i + 1), "F" + (i + 1)]));
+  group("一般與安全"); field("enabled", "戰鬥輔助總開關"); field("panicKey", "總開關熱鍵", Array.from({ length: 12 }, (_, i) => ["F" + (i + 1), "F" + (i + 1)]));
   group("生命與藥水");
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["autoMp", "自動補魔力（消耗回復活力藥水）"], ["mpThreshold", "魔力門檻（％）"], ["mpCooldownMs", "魔力藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"], ["fallbackMpSlot", "降級模式魔力藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
@@ -468,9 +473,9 @@
   group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.minRuneTier", "最低符文編號");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
-  tab("progress"); group("恐怖層數"); field("terror.progressEnabled", "自動推恐怖層數"); field("terror.farmEnabled", "固定層數重刷（與推層互斥）"); field("terror.targetFarmTier", "重刷層數（須已通關）"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
+  tab("progress"); group("總開關"); field("progressEnabled", "推層與任務總開關"); group("恐怖層數"); field("terror.progressEnabled", "自動推恐怖層數"); field("terror.farmEnabled", "固定層數重刷（與推層互斥）"); field("terror.targetFarmTier", "重刷層數（須已通關）"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
   group("任務進程"); field("quest.autoProgress", "自動推任務（追蹤目標與選擇升級卡）"); field("quest.prioritizeBoss", "優先接近任務頭目");
-  tab("assist"); group("死亡保護"); field("deathProtection.enabled", "死亡保護（緊急離開本局）"); field("deathProtection.emergencyHpPercent", "緊急生命門檻（％）"); field("deathProtection.disableAutomation", "觸發後關閉輔助總開關");
+  tab("assist"); group("死亡保護"); field("deathProtection.enabled", "死亡保護（緊急離開本局）"); field("deathProtection.emergencyHpPercent", "緊急生命門檻（％）"); field("deathProtection.disableAutomation", "觸發後關閉兩頁總開關");
   function refreshControls() {
     for (const [path, input] of controls) {
       if (input.getAttribute("role") === "switch") { input.setAttribute("aria-checked", String(get(path))); input.textContent = get(path) ? "開啟" : "關閉"; }
@@ -487,7 +492,7 @@
   });
   document.body.append(launcher, stopButton, host); save();
   window.addEventListener("keydown", (e) => {
-    if (e.code === settings.panicKey && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); e.stopImmediatePropagation(); if (settings.enabled) stop(); else { settings.enabled = true; lastAction = "輔助已啟用"; save(); } return; }
+    if (e.code === settings.panicKey && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); e.stopImmediatePropagation(); if (settings.enabled || settings.progressEnabled) stop(); else { settings.enabled = true; lastAction = "輔助已啟用"; save(); } return; }
     manual(e);
   }, { capture: true, signal: abort.signal });
   window.addEventListener("pointerdown", manual, { capture: true, signal: abort.signal }); window.addEventListener("blur", release, { signal: abort.signal }); document.addEventListener("visibilitychange", release, { signal: abort.signal });
@@ -496,11 +501,11 @@
     checkRetreat(performance.now());
     const editorOpen = !!window.__d2editIsOpen?.(), isPaused = paused();
     launcher.style.display = isPaused && !editorOpen && panel.hidden ? "block" : "none";
-    stopButton.style.display = settings.enabled && !isPaused && !editorOpen && panel.hidden ? "block" : "none";
+    stopButton.style.display = (settings.enabled || settings.progressEnabled) && !isPaused && !editorOpen && panel.hidden ? "block" : "none";
     if (!isPaused || editorOpen) panel.hidden = true;
     if (!game) guarded(null, performance.now());
     const s = readState(game);
-    status.textContent = [settings.enabled ? "輔助：啟用" : "輔助：關閉", game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
+    status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／推層與任務：" + (settings.progressEnabled ? "啟用" : "關閉"), game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
   }, 200);
   const api = {
     destroy() { if (!alive) return; alive = false; release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
