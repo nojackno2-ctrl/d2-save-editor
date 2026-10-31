@@ -154,6 +154,14 @@ export function boot(G, itemstatsText) {
       }
       return { ranges };
     },
+    // 統一的屬性範圍資料庫：固定品質物品用遊戲產生器的上下限，其餘依底材可用詞綴。
+    // 回傳 { fixed: { "implicit:stat": [[min,max],...] } | null, affix: { stat: [[min,max],...] } }
+    statRanges(item) {
+      let fixed = null;
+      try { fixed = this.itemModMax(item); } catch (_) {}
+      const info = this.affixInfo(item?.base, item?.rarity);
+      return { fixed, affix: info?.ranges ?? {} };
+    },
     // 依遊戲的詞綴組合規則推導名稱；無法唯一確定時不猜測。
     resolveName(item) {
       const base = bases.get(item.base);

@@ -1,5 +1,11 @@
 # 交接紀錄
 
+- 2026-10-31｜Claude：物品頁與製作頁新增的屬性列，選擇屬性後數值預設為範圍最大值（固定上下限優先，否則取詞綴最大值）；手動改過數值後不再覆寫。語法檢查通過，未實測。
+
+- 2026-10-31｜Claude：統一屬性範圍資料庫：引擎新增 `statRanges`（固定品質用遊戲產生器上下限，否則用底材可用詞綴範圍），物品頁與製作頁共用 `loadStatRanges`／`showRanges`；物品頁改底材或品質會重新載入範圍。同步 `editor` 與 `web`。語法檢查通過，尚未實際遊戲驗證、封裝或發布。
+
+- 2026-10-31｜Codex：發布 v1.0.1。提交 530a997 已由 post-commit hook 推送，GitHub Pages 部署成功，線上五個變更檔與提交內容逐位元相符；GitHub Release 已發布 D2.exe 與 SHA256SUMS.txt，下載後 SHA-256 為 46446181416f1ea81d1ccbd1224c2333854ff0450c51ad5499ca0913a77a2705，與本機一致。electron-builder 停用 Windows 執行檔資源編輯後封裝成功，程式未簽章；封裝內 app.asar 的版本及物品引擎函式已檢查。尚未用實際遊戲存檔進行端對端驗證，詞綴研究資料尚未整合進介面。
+
 - 2026-10-31｜Codex：準備發布 v1.0.1。語法檢查及 `git diff --check` 通過；首次 `npm exec electron-builder -- --win portable` 因 Windows 不允許建立 winCodeSign 的 macOS 符號連結而失敗，改以停用 Windows 執行檔資源編輯重試。
 
 - 2026-10-31｜Codex：檢查網頁版遊戲 `itemArt-Bh8qPZQJ.js`，匯出 708 筆一般詞綴（411 前綴、297 後綴）至 `D:\D2倖存者\裝備屬性分析`；隔離 Electron 分別載入網頁及安裝版遊戲模組，兩份 JSON 完全相同，SHA-256 皆為 8c1fd258de1e5420058a06d34102356cfcb9b14ebd62c9fbcc002f1ed0b4080f。CSV 708 筆主屬性上下限逐筆比對 JSON 通過；複合詞綴附加屬性保留於參數欄。整件裝備的可行詞綴組合與合計上下限尚未驗證。

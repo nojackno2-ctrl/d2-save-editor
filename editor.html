@@ -580,6 +580,7 @@ async function renderCraft() {
     $("#xBase").onchange = $("#xRar").onchange = updateCraftRanges;
     $("#cmods").onchange = $("#cmods").oninput = (e) => {
       const tr = e.target.closest("tr"); if (!tr) return;
+      if (e.target.classList.contains("val")) delete tr.dataset.auto;
       const v = tr.querySelector(".val").value;
       tr.querySelector(".zh").textContent = modZh({ stat: tr.querySelector(".stat").value.trim(), value: isNaN(v) || v === "" ? v : Number(v), implicit: tr.querySelector(".imp").checked });
       updateCraftRanges();
@@ -657,19 +658,14 @@ function statOptions() {
     .sort((a, b) => a[1].localeCompare(b[1], "zh-Hant")).map(([s, z]) => `<option value="${esc(s)}">${esc(z)}</option>`).join("");
   return STAT_OPTS;
 }
-const craftModRow = () => `<tr><td class="zh"></td><td><select class="stat" style="max-width:320px">${statOptions()}</select></td>
+const craftModRow = () => `<tr data-auto="1"><td class="zh"></td><td><select class="stat" style="max-width:320px">${statOptions()}</select></td>
   <td><input class="val" value="0"><small class="limit"></small></td><td><input type="checkbox" class="imp"></td><td><button class="rm danger">✕</button></td></tr>`;
 let craftRangeRequest = 0;
 async function updateCraftRanges() {
-  const request = ++craftRangeRequest, base = $("#xBase").value, rarity = $("#xRar").value;
-  let info;
-  try { info = await window.api.engine("affixInfo", base, rarity, []); } catch (_) {}
+  const request = ++craftRangeRequest;
+  const db = await loadStatRanges({ base: $("#xBase").value, rarity: $("#xRar").value });
   if (request !== craftRangeRequest) return;
-  for (const tr of document.querySelectorAll("#cmods tbody tr")) {
-    const ranges = info?.ranges?.[tr.querySelector(".stat").value];
-    tr.querySelector(".limit").textContent = ranges?.length && !tr.querySelector(".imp").checked
-      ? `可用詞綴範圍：${[...new Set(ranges.map(r => r.join("～")))].join("、")}` : "範圍：未提供";
-  }
+  showRanges("#cmods", db);
 }
 async function makeCustom() {
   const b = BASES.find(b => b.name === $("#xBase").value);
@@ -740,9 +736,10 @@ function renderEditor() {
     <div class="bar"><button class="primary" id="apply">套用修改</button>${["unique", "set", "runeword"].includes(it.rarity) ? '<button id="maxOne">數值最高（合法）</button>' : ""}<button class="danger" id="del">刪除物品</button></div>
     <div class="bar"><select id="dest">${dests}</select><button id="copy">複製到</button><button id="move">移動到</button></div>
     <p class="note">屬性可從下拉選單挑選。範圍以此物品的遊戲產生資料為準；無法判定時顯示「未提供」。修改套裝／魔法／稀有物品的屬性後，可能被遊戲判定為「Not legit」，請到「反修改偵測」頁處理。按上方「寫入存檔」才會真正存檔。</p>`;
-  $("#addMod").onclick = () => { $("#mods tbody").insertAdjacentHTML("beforeend", modRow({ stat: "", value: 0 })); updateModLimits(); };
-  $("#mods").oninput = $("#mods").onchange = (e) => { const tr = e.target.closest("tr"); if (!tr) return; const v = tr.querySelector(".val").value; tr.querySelector(".zh").textContent = modZh({ stat: tr.querySelector(".stat").value.trim(), value: isNaN(v) || v === "" ? v : Number(v), implicit: tr.querySelector(".imp").checked }); updateModLimits(); };
+  $("#addMod").onclick = () => { $("#mods tbody").insertAdjacentHTML("beforeend", modRow({ stat: "", value: 0 }, true)); updateModLimits(); };
+  $("#mods").oninput = $("#mods").onchange = (e) => { const tr = e.target.closest("tr"); if (!tr) return; if (e.target.classList.contains("val")) delete tr.dataset.auto; const v = tr.querySelector(".val").value; tr.querySelector(".zh").textContent = modZh({ stat: tr.querySelector(".stat").value.trim(), value: isNaN(v) || v === "" ? v : Number(v), implicit: tr.querySelector(".imp").checked }); updateModLimits(); };
   loadModLimits(it);
+  $("#e-base").onchange = $("#e-rarity").onchange = () => loadModLimits({ ...it, base: $("#e-base").value, rarity: $("#e-rarity").value });
   $("#mods").onclick = (e) => { if (e.target.classList.contains("rm")) e.target.closest("tr").remove(); };
   $("#dest").value = cur;
   $("#apply").onclick = () => actAsync(async () => { await applyEdit(c, it); });
@@ -751,30 +748,47 @@ function renderEditor() {
   $("#copy").onclick = () => actAsync(async () => { const cp = structuredClone(it); await applyEdit(c, cp, true); cp.id = newId(); placeInto($("#dest").value, cp); refresh(); status("已複製（尚未寫入存檔）", "ok"); });
   $("#move").onclick = () => actAsync(async () => { await applyEdit(c, it, true); if ($("#dest").value === cur) return; const mv = itemAt(c, sel); placeInto($("#dest").value, mv); removeFrom(c, sel); sel = null; refresh(); status("已移動（尚未寫入存檔）", "ok"); });
 }
-let MOD_LIMITS = null;
-function updateModLimits() {
+// 統一的屬性範圍資料庫（物品頁與製作頁共用）：固定品質物品取遊戲產生器上下限，否則取底材可用詞綴範圍
+async function loadStatRanges(item) {
+  try { const r = await window.api.engine("statRanges", item); return r && !r.error ? r : null; } catch (_) { return null; }
+}
+function rangeText(db, stat, implicit, index) {
+  const fixed = db?.fixed?.[`${implicit ? "1" : "0"}:${stat}`]?.[index];
+  if (fixed) return `範圍：${fixed[0]}～${fixed[1]}`;
+  const list = !implicit && db?.affix?.[stat];
+  return list?.length ? `可用詞綴範圍：${[...new Set(list.map(r => r.join("～")))].join("、")}` : "範圍：未提供";
+}
+function rangeMax(db, stat, implicit, index) {
+  const fixed = db?.fixed?.[`${implicit ? "1" : "0"}:${stat}`]?.[index];
+  if (fixed) return fixed[1];
+  const list = !implicit && db?.affix?.[stat];
+  return list?.length ? Math.max(...list.map(r => r[1])) : null;
+}
+function showRanges(table, db) {
   const seen = {};
-  for (const tr of document.querySelectorAll("#mods tbody tr")) {
-    const key = `${tr.querySelector(".imp").checked ? "1" : "0"}:${tr.querySelector(".stat").value}`;
+  for (const tr of document.querySelectorAll(`${table} tbody tr`)) {
+    const stat = tr.querySelector(".stat").value, implicit = tr.querySelector(".imp").checked, key = `${implicit ? 1 : 0}:${stat}`;
     const index = seen[key] ?? 0; seen[key] = index + 1;
-    const range = MOD_LIMITS?.[key]?.[index];
-    tr.querySelector(".limit").textContent = !range ? "範圍：未提供" : `範圍：${range[0]}～${range[1]}`;
+    tr.querySelector(".limit").textContent = stat ? rangeText(db, stat, implicit, index) : "";
+    const max = stat && tr.dataset.auto ? rangeMax(db, stat, implicit, index) : null;
+    if (max !== null && Number.isFinite(max)) { tr.querySelector(".val").value = max; tr.querySelector(".zh").textContent = modZh({ stat, value: max, implicit }); }
   }
 }
+let MOD_LIMITS = null;
+const updateModLimits = () => showRanges("#mods", MOD_LIMITS);
 async function loadModLimits(it) {
   MOD_LIMITS = null;
   const table = $("#mods");
-  try { const limits = await window.api.engine("itemModMax", { rarity: it.rarity, name: it.name, base: it.base });
-    if ($("#mods") !== table) return;
-    MOD_LIMITS = limits && !limits.error ? limits : null;
-  } catch (_) { if ($("#mods") !== table) return; }
+  const db = await loadStatRanges({ rarity: it.rarity, name: it.name, base: it.base });
+  if ($("#mods") !== table) return;
+  MOD_LIMITS = db;
   updateModLimits();
 }
-const modRow = (m) => {
+const modRow = (m, auto) => {
   const options = statOptions();
   const selected = m.stat && !options.includes(`value="${esc(m.stat)}"`) ? `<option value="${esc(m.stat)}">${esc(modZh(m))}</option>` : "";
-  return `<tr data-original="${esc(JSON.stringify(m))}"><td class="zh">${esc(m.stat ? modZh(m) : "")}</td><td><select class="stat">${options}${selected}</select></td>
-  <td><input class="val" value="${esc(m.value)}"><small class="limit">上限：讀取中</small></td><td><input type="checkbox" class="imp" ${m.implicit ? "checked" : ""}></td><td><button class="rm danger">✕</button></td></tr>`
+  return `<tr ${auto ? 'data-auto="1" ' : ""}data-original="${esc(JSON.stringify(m))}"><td class="zh">${esc(m.stat ? modZh(m) : "")}</td><td><select class="stat">${options}${selected}</select></td>
+  <td><input class="val" value="${esc(m.value)}"><small class="limit">範圍：讀取中</small></td><td><input type="checkbox" class="imp" ${m.implicit ? "checked" : ""}></td><td><button class="rm danger">✕</button></td></tr>`
     .replace(`value="${esc(m.stat)}"`, `value="${esc(m.stat)}" selected`);
 };
 function act(fn) { try { fn(); } catch (e) { status(e.message, "bad"); } }
