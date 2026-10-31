@@ -116,6 +116,19 @@ export function boot(G, itemstatsText) {
         } catch (e) { return { error: String(e.message ?? e), name: x.name, rarity: x.rarity }; }
       });
     },
+    // 使用遊戲產生器取得此物品各屬性的最高擲值；其他品質沒有固定的物品上限。
+    itemModMax(item) {
+      if (!defs[item?.rarity]?.has(item.name)) return null;
+      const best = pinned(() => make(item.rarity, item.name, item.base));
+      if (!best) return null;
+      const values = {};
+      for (const m of best.mods ?? []) {
+        if (typeof m.value !== "number" || !Number.isFinite(m.value)) continue;
+        const key = `${m.implicit ? "1" : "0"}:${m.stat}`;
+        (values[key] ??= []).push(m.value);
+      }
+      return values;
+    },
     // 製作裝備用：全部底材（含部位與需求等級）
     affixOk() { return !!G.__makeAffix; },
     // 恰西強化：{ key: { name, maxRank, endless } }；遊戲讀檔時 ranks 會被限制在 maxRank，額外強化只對 endless 項目、且 ranks 已滿時有效（最多 999）

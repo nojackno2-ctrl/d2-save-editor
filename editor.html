@@ -58,7 +58,7 @@
   .r-unique{color:var(--unique)} .r-set{color:var(--set)} .r-rare{color:var(--rare)} .r-magic{color:var(--magic)} .r-runeword{color:var(--runeword)}
   #ed .f { display:grid; grid-template-columns:100px 1fr; gap:4px 8px; align-items:center; margin-bottom:8px; }
   #ed .f input, #ed .f select { width:100%; }
-  #mods input.stat { width:100%; }
+  #mods select.stat { width:100%; max-width:320px; }
   #mods input.val { width:90px; }
   .bar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:8px; }
   .note { color:var(--dim); font-size:12px; margin-top:8px; }
@@ -234,8 +234,8 @@
 
 <datalist id="statList"></datalist>
 
-<script src="webapi.js?b=mvw8m8i2"></script>
-<script src="zh.js?b=mvw8m8i2"></script>
+<script src="webapi.js?b=1793442422"></script>
+<script src="zh.js?b=1793442422"></script>
 <script>
 const CLASSES = ["amazon","sorceress","necromancer","paladin","barbarian","druid","assassin"];
 const CLASS_ZH = ZH_CLASS;
@@ -658,15 +658,16 @@ function renderEditor() {
       ${it.at ? `<span>位置 x,y</span><span><input id="e-x" type="number" style="width:60px" value="${it.at.x}"> <input id="e-y" type="number" style="width:60px" value="${it.at.y}"></span>` : ""}
     </div>
     <h2>屬性（mods）</h2>
-    <table id="mods"><thead><tr><th>中文說明</th><th>屬性代碼</th><th>數值</th><th title="底材固有屬性">固有</th><th></th></tr></thead><tbody>
+    <table id="mods"><thead><tr><th>中文說明</th><th>屬性</th><th>數值／遊戲上限</th><th title="底材固有屬性">固有</th><th></th></tr></thead><tbody>
       ${(it.mods ?? []).map(m => modRow(m)).join("")}
     </tbody></table>
     <div class="bar"><button id="addMod">＋ 新增屬性</button></div>
     <div class="bar"><button class="primary" id="apply">套用修改</button>${["unique", "set", "runeword"].includes(it.rarity) ? '<button id="maxOne">數值最高（合法）</button>' : ""}<button class="danger" id="del">刪除物品</button></div>
     <div class="bar"><select id="dest">${dests}</select><button id="copy">複製到</button><button id="move">移動到</button></div>
-    <p class="note">屬性代碼可從下拉清單挑選（顯示中文說明）。修改套裝／魔法／稀有物品的屬性後，可能被遊戲判定為「Not legit」，請到「反修改偵測」頁處理。按上方「寫入存檔」才會真正存檔。</p>`;
-  $("#addMod").onclick = () => $("#mods tbody").insertAdjacentHTML("beforeend", modRow({ stat: "", value: 0 }));
-  $("#mods").oninput = (e) => { const tr = e.target.closest("tr"); if (!tr) return; const v = tr.querySelector(".val").value; tr.querySelector(".zh").textContent = modZh({ stat: tr.querySelector(".stat").value.trim(), value: isNaN(v) || v === "" ? v : Number(v), implicit: tr.querySelector(".imp").checked }); };
+    <p class="note">屬性可從下拉選單挑選。上限以此物品的遊戲產生資料為準；無固定上限或無法判定時顯示「未提供」。修改套裝／魔法／稀有物品的屬性後，可能被遊戲判定為「Not legit」，請到「反修改偵測」頁處理。按上方「寫入存檔」才會真正存檔。</p>`;
+  $("#addMod").onclick = () => { $("#mods tbody").insertAdjacentHTML("beforeend", modRow({ stat: "", value: 0 })); updateModLimits(); };
+  $("#mods").oninput = $("#mods").onchange = (e) => { const tr = e.target.closest("tr"); if (!tr) return; const v = tr.querySelector(".val").value; tr.querySelector(".zh").textContent = modZh({ stat: tr.querySelector(".stat").value.trim(), value: isNaN(v) || v === "" ? v : Number(v), implicit: tr.querySelector(".imp").checked }); updateModLimits(); };
+  loadModLimits(it);
   $("#mods").onclick = (e) => { if (e.target.classList.contains("rm")) e.target.closest("tr").remove(); };
   $("#apply").onclick = () => { applyEdit(c, it); };
   if ($("#maxOne")) $("#maxOne").onclick = () => maxItems([it]);
@@ -674,8 +675,32 @@ function renderEditor() {
   $("#copy").onclick = () => act(() => { const cp = structuredClone(it); applyEdit(c, cp, true); cp.id = newId(); placeInto($("#dest").value, cp); refresh(); status("已複製（尚未寫入存檔）", "ok"); });
   $("#move").onclick = () => act(() => { applyEdit(c, it, true); if ($("#dest").value === cur) return; const mv = itemAt(c, sel); placeInto($("#dest").value, mv); removeFrom(c, sel); sel = null; refresh(); status("已移動（尚未寫入存檔）", "ok"); });
 }
-const modRow = (m) => `<tr><td class="zh">${esc(m.stat ? modZh(m) : "")}</td><td><input class="stat" list="statList" value="${esc(m.stat)}"></td>
-  <td><input class="val" value="${esc(m.value)}"></td><td><input type="checkbox" class="imp" ${m.implicit ? "checked" : ""}></td><td><button class="rm danger">✕</button></td></tr>`;
+let MOD_LIMITS = null;
+function updateModLimits() {
+  const seen = {};
+  for (const tr of document.querySelectorAll("#mods tbody tr")) {
+    const key = `${tr.querySelector(".imp").checked ? "1" : "0"}:${tr.querySelector(".stat").value}`;
+    const index = seen[key] ?? 0; seen[key] = index + 1;
+    const max = MOD_LIMITS?.[key]?.[index];
+    tr.querySelector(".limit").textContent = max === undefined ? "上限：未提供" : `上限：${max}`;
+  }
+}
+async function loadModLimits(it) {
+  MOD_LIMITS = null;
+  const table = $("#mods");
+  try { const limits = await window.api.engine("itemModMax", { rarity: it.rarity, name: it.name, base: it.base });
+    if ($("#mods") !== table) return;
+    MOD_LIMITS = limits && !limits.error ? limits : null;
+  } catch (_) { if ($("#mods") !== table) return; }
+  updateModLimits();
+}
+const modRow = (m) => {
+  const options = statOptions();
+  const selected = m.stat && !options.includes(`value="${esc(m.stat)}"`) ? `<option value="${esc(m.stat)}">${esc(modZh(m))}</option>` : "";
+  return `<tr><td class="zh">${esc(m.stat ? modZh(m) : "")}</td><td><select class="stat">${options}${selected}</select></td>
+  <td><input class="val" value="${esc(m.value)}"><small class="limit">上限：讀取中</small></td><td><input type="checkbox" class="imp" ${m.implicit ? "checked" : ""}></td><td><button class="rm danger">✕</button></td></tr>`
+    .replace(`value="${esc(m.stat)}"`, `value="${esc(m.stat)}" selected`);
+};
 function act(fn) { try { fn(); } catch (e) { status(e.message, "bad"); } }
 function applyEdit(c, it, quiet) {
   const num = (v) => (v.trim() !== "" && !isNaN(v) ? Number(v) : v);
@@ -918,6 +943,7 @@ function renderAll() {
   const stats = new Set();
   const walk = (o) => { if (Array.isArray(o)) o.forEach(walk); else if (o && typeof o === "object") { if (Array.isArray(o.mods)) o.mods.forEach(m => m?.stat && stats.add(m.stat)); Object.values(o).forEach(walk); } };
   walk(save);
+  STAT_OPTS = null;
   $("#statList").innerHTML = [...stats].sort().map(s => `<option value="${esc(s)}">${esc(modZh({ stat: s, value: "#" }))}</option>`).join("");
   if (!cur || !contById(cur)) cur = "st:shared1";
   showPage(page);
