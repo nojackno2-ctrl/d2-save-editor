@@ -1,8 +1,7 @@
 // 在隱藏視窗裡執行，G 是遊戲模組（engine.js 加上的 __ 前綴匯出）
 const ILVL = 99;
-const SEED_TRIES = 8000;      // 每件物品最多試幾個種子找「全部最高」的合法 roll
+const SEED_TRIES = 4000;      // 每件物品最多試幾個種子找「全部最高」的合法 roll
 const SEED_MAX_SPACE = 20000; // 可能組合在這以內時，大多找得到全滿的種子
-const SEED_TRIES_BIG = 8000;  // 組合很多的物品也多試，找不到就用最接近最高的
 
 export function boot(G, itemstatsText) {
   const stats = JSON.parse(itemstatsText);
@@ -65,20 +64,18 @@ export function boot(G, itemstatsText) {
     const best = pinned(() => make(rarity, name, baseName));
     if (!best) return null;
     const want = key(best);
-    // 一律用遊戲可驗證的種子：找得到全滿的就用，找不到就用最接近最高的合法結果。
-    // （不能用「拿掉 stats」的方式跳過檢查：新版遊戲讀檔時會把沒有 stats、屬性又多的物品整件丟掉）
-    const tries = rarity === "set" || space(rarity, name) <= SEED_MAX_SPACE ? SEED_TRIES * (rarity === "set" ? 10 : 1) : SEED_TRIES_BIG;
-    let near = null, nearScore = -Infinity;
-    for (let i = 0; i < tries; i++) {
-      const seed = Math.floor(Math.random() * 4294967296), it = seededMake(seed, rarity, name, baseName);
-      if (!it) break;
-      if (key(it) === want) return { item: it, legit: true, max: true };
-      const score = it.mods.reduce((a, m) => a + (typeof m.value === "number" ? m.value : 0), 0) + (it.defense ?? 0);
-      if (score > nearScore) { near = it; nearScore = score; }
+    // 先找「全部最高」的種子：找得到就跟遊戲掉落的完全一樣（含 roll）。
+    // 找不到（屬性組合太多）就用全部最高、保留 stats、不帶 roll：遊戲的合法性檢查一樣通過，讀檔也不會改回去。
+    // （不能拿掉 stats：新版遊戲讀檔時會把沒有 stats、屬性又多的物品整件丟掉）
+    if (space(rarity, name) <= SEED_MAX_SPACE) {
+      for (let i = 0; i < SEED_TRIES; i++) {
+        const seed = Math.floor(Math.random() * 4294967296), it = seededMake(seed, rarity, name, baseName);
+        if (!it) break;
+        if (key(it) === want) return { item: it, legit: true, max: true };
+      }
     }
-    if (near) return { item: near, legit: true, max: false };
-    // 連一次都產生不出來（沒有 stats 的物品）：直接用最高值
     best.id = newId();
+    delete best.roll;
     return { item: best, legit: true, max: true };
   }
 
