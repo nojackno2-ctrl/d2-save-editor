@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D2 倖存者 存檔修改器</title>
+<style>
+  :root { --bg:#14110d; --panel:#1f1a14; --line:#3a3026; --text:#e8dcc4; --dim:#9c8f78; --gold:#d4a84a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.7 "Microsoft JhengHei", system-ui, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:20px 16px 48px; }
+  h1 { color:var(--gold); font-size:22px; margin:0 0 4px; }
+  h2 { color:var(--gold); font-size:17px; margin:0 0 8px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin-top:14px; }
+  .dim { color:var(--dim); }
+  ol { padding-left:22px; margin:6px 0; }
+  li { margin:4px 0; }
+  textarea { width:100%; height:84px; background:#0e0c09; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; font:12px Consolas, monospace; }
+  button, .drag { display:inline-block; background:var(--gold); color:#1a1408; border:0; border-radius:6px; padding:9px 16px; font:inherit; font-weight:bold; cursor:pointer; text-decoration:none; }
+  .ok { color:#7fbf6a; }
+</style>
+</head>
+<body>
+<main>
+  <h1>D2 倖存者 存檔修改器（網頁版）</h1>
+  <p class="dim">給在瀏覽器（電腦或手機）玩 d2survivors.lol 的玩家。用書籤在遊戲頁面上開啟修改器，直接讀寫瀏覽器裡的存檔，不經過遊戲的匯入功能，不會留下匯入紀錄。</p>
+
+  <section>
+    <h2>1. 複製書籤程式碼</h2>
+    <textarea id="code" readonly>javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())</textarea>
+    <p><button id="copy">📋 複製書籤程式碼</button> <span id="copied" class="ok"></span></p>
+    <p class="dim">電腦：也可以直接把這個按鈕拖到書籤列 → <a class="drag" href="javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())">D2 修改器</a></p>
+  </section>
+
+  <section>
+    <h2>2. 加入書籤</h2>
+    <p><b>Android（Chrome）</b></p>
+    <ol>
+      <li>隨便把一個網頁加入書籤（例如這一頁）。</li>
+      <li>到「書籤」找到它 → 編輯。名稱改成 <b>D2 修改器</b>，網址整個刪掉，貼上剛剛複製的程式碼，儲存。</li>
+    </ol>
+    <p><b>iPhone（Safari）</b></p>
+    <ol>
+      <li>按分享 → 加入書籤，儲存。</li>
+      <li>打開書籤 → 編輯 → 點剛剛那個書籤。名稱改成 <b>D2 修改器</b>，網址刪掉貼上程式碼，完成。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>3. 使用</h2>
+    <ol>
+      <li>打開 <a href="https://d2survivors.lol/play/" style="color:var(--gold)">d2survivors.lol/play</a>，停在<b>主選單</b>（不要在遊戲進行中）。</li>
+      <li><b>Android</b>：在網址列輸入「D2 修改器」，點下面出現的書籤（從書籤清單點不會執行）。<br><b>iPhone／電腦</b>：直接點書籤。</li>
+      <li>修改器會蓋在遊戲上。改完按「寫入存檔」，再按「關閉」，遊戲會重新載入並套用。</li>
+    </ol>
+    <p class="dim">修改前建議先到「存檔管理」按「建立快照」，會下載一份備份檔。物品引擎直接使用遊戲本身的程式產生物品，第一次開啟需要連網。</p>
+  </section>
+</main>
+<script>
+  document.getElementById("copy").onclick = async () => {
+    const t = document.getElementById("code");
+    try { await navigator.clipboard.writeText(t.value); } catch { t.select(); document.execCommand("copy"); }
+    document.getElementById("copied").textContent = "已複製";
+  };
+</script>
+</body>
+</html>

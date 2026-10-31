@@ -1,0 +1,15 @@
+{
+  "_": "物品引擎用：在遊戲壓縮後的程式碼裡找出函式名稱（第一個擷取群組）。N 會換成名稱的樣式。",
+  "setData": "function (N)\\(e\\)\\{N=e\\?\\.uniques&&e\\.stats\\?",
+  "makeUnique": "function (N)\\(e,t,n\\)\\{let r=N\\.get\\(e\\.base\\),i=N\\(e\\.name,n\\),a=N\\(\\{rarity:`unique`",
+  "makeSet": "function (N)\\(e,t,n\\)\\{let r=N\\.get\\(e\\.base\\),i=N\\(e\\.name,n\\);return\\{id:N\\(\\),base:r\\.name,type:r\\.type,rarity:`set`",
+  "makeRuneword": "function (N)\\(e,t,n,r,i\\)\\{let a=N\\(e\\.name,e\\.runes,N\\(t\\),i\\)",
+  "seeded": "function (N)\\(e,t\\)\\{let n=Math\\.random;Math\\.random=",
+  "isType": "function (N)\\(e,t\\)\\{return e===t\\?Object\\.hasOwn\\(",
+  "itemFault": "function (N)\\(e\\)\\{if\\(e\\.type===`quest`\\)return null;let t=",
+  "saveFaults": "function (N)\\(e,t=5\\)\\{let n=\\[\\];Number\\.isFinite\\(e\\.gold\\)",
+  "uniques": "(N)=\\[N\\(`Pelta Lunata`",
+  "sets": "(N)=\\[N\\(`Civerb's Ward`",
+  "runewords": "(N)=\\[N\\(`Ancients' Pledge`",
+  "bases": "(N)=\\[N\\(`Cap`,`head`"
+}
