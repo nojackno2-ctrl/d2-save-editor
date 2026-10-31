@@ -73,12 +73,12 @@
     nav button { white-space:nowrap; padding:8px 10px; }
     .page { padding:10px; }
     #items.on { display:flex; flex-direction:column; overflow:auto; }
-    #items .pane { overflow:visible; }
+    #items .pane { flex:none; overflow:visible; }
     #tree { display:flex; flex-wrap:wrap; gap:2px; }
     #tree .grp { width:100%; margin-top:4px; }
     .craftwrap { grid-template-columns:1fr; }
     .craftform, #ed .f, #cPick .f { grid-template-columns:90px minmax(0, 1fr); }
-    .list { min-width:0 !important; max-height:60vh !important; }
+    .list { min-width:0 !important; height:auto !important; max-height:none !important; overflow:visible !important; }
     #mods input.val { width:70px; }
     .grid { grid-template-columns:1fr; }
     textarea { height:60vh; }
