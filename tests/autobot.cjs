@@ -77,7 +77,7 @@ let server, win;
    reset();await install({...enabled,terror:{mode:'farm',targetFarmTier:3,postClearWaitSec:1}});game.world.terror={tier:2,affixes:[]};game.tierDone={tier:2};game.state='dead';tick();time+=1100;tick();await Promise.resolve();check('不重刷未通關層數',!game.calls.length && JSON.parse(localStorage.getItem('d2autobot:settings')).enabled===false);
    reset();await install({...enabled,terror:{mode:'progress',postClearWaitSec:1}});game.world.terror={tier:2,affixes:[]};game.tierDone={tier:2};game.state='dead';tick();time+=1100;tick();await Promise.resolve();check('推層選擇可喝水關卡',game.calls.some(x=>x[0]==='terror'&&x[1]===1));
    reset();await install(enabled);game.state='playing';game.world.player.life=10;window.__d2editIsOpen=()=>true;tick();check('修改器開啟時不動作',!game.calls.length);window.__d2editIsOpen=()=>false;
-   window.dispatchEvent(new KeyboardEvent('keydown',{code:'F8',key:'F8'}));check('熱鍵關閉總開關',JSON.parse(localStorage.getItem('d2autobot:settings')).enabled===false);
+   window.dispatchEvent(new KeyboardEvent('keydown',{code:'F8',key:'F8'}));check('F8 不再切換總開關',JSON.parse(localStorage.getItem('d2autobot:settings')).enabled===true);
    await install(enabled);await install(enabled);check('重載不重複建立介面',document.querySelectorAll('#d2autobot-launcher').length===1);
    reset();await install({...enabled,terror:{mode:'farm',targetFarmTier:2}});game.state='camp';tick();await Promise.resolve();check('營地主動開始固定層數',game.calls.some(x=>x[0]==='replay'));
    reset();await install({...enabled,terror:{mode:'farm',targetFarmTier:2}});game.state='camp';game.save.terror.sorceress.playing=0;tick();check('保留尚未結束的存檔關卡',!game.calls.length);

@@ -5,7 +5,7 @@
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
   const defaults = {
-    version: 2, enabled: false, progressEnabled: false, panicKey: "F8",
+    version: 2, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, autoMp: false, mpThreshold: 30, mpCooldownMs: 2000, fallbackHpSlot: 1, fallbackMpSlot: 2 },
     movement: { enabled: true, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
     loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: false, magic: false, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true },
@@ -49,7 +49,6 @@
     }
     for (const path of ["loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot", "potion.fallbackMpSlot"]) put(path, Math.round(get(path)));
     if (!["off", "progress", "farm"].includes(settings.terror.mode)) settings.terror.mode = "off";
-    if (!/^F(?:[1-9]|1[0-2])$/.test(settings.panicKey)) settings.panicKey = "F8";
     settings.version = 2;
   }
   normalize();
@@ -441,7 +440,7 @@
     button,input,select{font:inherit;min-height:44px}button,select,input[type=number]{background:#2a231a;color:#fff0cb;border:1px solid #9c7e41;border-radius:5px;padding:5px 10px}
     .toggle{min-width:112px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:10px}.toggle::before{content:"";width:16px;height:16px;border-radius:50%;background:#b0a49c}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:110px}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px}
     @media(max-width:600px){.backdrop{padding:0}.box{width:100%;max-height:100dvh;height:100dvh;border-radius:0;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}}
-  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">推層與任務</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。熱鍵可切換總開關，手機可點上方「停止輔助」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button></section></div>`;
+  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">推層與任務</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點上方「停止輔助」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button></section></div>`;
   const panel = root.querySelector(".backdrop"), status = root.querySelector(".status"), controls = new Map();
   const panes = Object.fromEntries([...root.querySelectorAll("[data-pane]")].map((el) => [el.dataset.pane, el]));
   let fields = panes.assist;
@@ -465,7 +464,7 @@
     row.append(text, input); fields.append(row); controls.set(path, input);
   }
   function group(label) { const h = document.createElement("h3"); h.textContent = label; fields.append(h); }
-  group("一般與安全"); field("enabled", "戰鬥輔助總開關"); field("panicKey", "總開關熱鍵", Array.from({ length: 12 }, (_, i) => ["F" + (i + 1), "F" + (i + 1)]));
+  group("一般與安全"); field("enabled", "戰鬥輔助總開關");;
   group("生命與藥水");
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["autoMp", "自動補魔力（消耗回復活力藥水）"], ["mpThreshold", "魔力門檻（％）"], ["mpCooldownMs", "魔力藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"], ["fallbackMpSlot", "降級模式魔力藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
@@ -492,7 +491,6 @@
   });
   document.body.append(launcher, stopButton, host); save();
   window.addEventListener("keydown", (e) => {
-    if (e.code === settings.panicKey && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); e.stopImmediatePropagation(); if (settings.enabled || settings.progressEnabled) stop(); else { settings.enabled = true; lastAction = "輔助已啟用"; save(); } return; }
     manual(e);
   }, { capture: true, signal: abort.signal });
   window.addEventListener("pointerdown", manual, { capture: true, signal: abort.signal }); window.addEventListener("blur", release, { signal: abort.signal }); document.addEventListener("visibilitychange", release, { signal: abort.signal });
