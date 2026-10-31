@@ -41,6 +41,24 @@ function lockSaves() {
   Storage.prototype.setItem = function (k, v) { if (this === localStorage && keys.has(k)) return; return realSetItem.call(this, k, v); };
 }
 
+/* ---------- 遊戲資料網址 ---------- */
+// 跟遊戲一樣依頁面上的 #d2-files 清單加上 ?h=版本；不加的話會拿到網站上舊版的檔案（例如沒有符文之語）
+let manifestP = null;
+function manifest() {
+  return (manifestP ??= (async () => {
+    try { const t = document.getElementById("d2-files")?.textContent; if (t) return JSON.parse(t); } catch {}
+    try {
+      const h = await fetch(new URL("/play/", location.origin), { cache: "no-store" }).then((r) => r.text());
+      const m = h.match(/<script[^>]*id="d2-files"[^>]*>([\s\S]*?)<\/script>/);
+      return m ? JSON.parse(m[1]) : null;
+    } catch { return null; }
+  })());
+}
+async function d2url(file) {
+  const man = await manifest(), i = file.lastIndexOf("/"), dir = i < 0 ? "" : file.slice(0, i), h = man?.hashes?.[dir];
+  return new URL("/d2/" + file + (h ? "?h=" + h : ""), location.origin).href;
+}
+
 /* ---------- 物品引擎：載入遊戲自己的產生器 ---------- */
 let enginePromise = null;
 // 診斷用：引擎啟動到哪一步、找到哪些程式區塊
@@ -78,7 +96,7 @@ async function startEngine() {
     const abs = src.replace(/(["'`])\.\/([\w.-]+\.js)\1/g, (_, q, d) => q + base + d + q);
     map[base + f] = URL.createObjectURL(new Blob([abs], { type: "text/javascript" }));
   }
-  const statsUrl = window.__D2EDIT_ITEMSTATS || new URL("/d2/itemstats.json", location.origin).href;
+  const statsUrl = window.__D2EDIT_ITEMSTATS || (await d2url("itemstats.json"));
   engineInfo.step = "讀取物品資料";
   const itemstats = await fetch(statsUrl).then((r) => { engineInfo.itemstats = r.status; if (!r.ok) throw new Error("讀不到遊戲物品資料（請先進入過遊戲一次）。"); return r.text(); });
   engineInfo.step = "載入產生器";
@@ -139,11 +157,11 @@ const backend = {
   },
   sealText,
   async assets() {
-    const dir = new URL("/d2", location.origin).href;
+    const dir = new URL("/d2", location.origin).href, man = await manifest();
     try {
-      const j = await fetch(dir + "/items.json").then((r) => r.json());
+      const j = await fetch(await d2url("items.json")).then((r) => r.json());
       const slim = (o) => Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [k, (v.inv ?? []).map((i) => [i.file, i.width, i.height])]));
-      return { dir, bases: slim(j.bases), uniques: slim(j.uniques), sets: slim(j.sets), quest: slim(j.quest), runes: slim(j.runes), gems: slim(j.gems) };
+      return { dir, hashes: man?.hashes, webp: man?.webp, bases: slim(j.bases), uniques: slim(j.uniques), sets: slim(j.sets), quest: slim(j.quest), runes: slim(j.runes), gems: slim(j.gems) };
     } catch {
       return { dir, bases: {}, uniques: {}, sets: {}, quest: {}, runes: {}, gems: {} };
     }
@@ -174,7 +192,7 @@ const backend = {
       for (const b of await e.bases()) put(b.name);
     } catch {}
     try {
-      const stats = await fetch(window.__D2EDIT_ITEMSTATS || new URL("/d2/itemstats.json", location.origin).href).then((r) => r.json());
+      const stats = await fetch(window.__D2EDIT_ITEMSTATS || (await d2url("itemstats.json"))).then((r) => r.json());
       for (const s of Object.values(stats.skills ?? {})) put(s.name);
     } catch {}
     for (const m of Object.values(MODES)) {
