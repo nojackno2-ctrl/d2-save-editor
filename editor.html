@@ -356,26 +356,37 @@ async function renderCollection(c, v) {
   for (const el of v.querySelectorAll("[data-k]")) el.onclick = () => { sel = Number(el.dataset.k); renderView(); renderEditor(); };
 }
 // 用遊戲自己的產生器做出最高數值的物品
-async function generate(list) {
-  const r = await window.api.engine("generateMany", list.map(x => ({ rarity: x.rarity, name: x.name, base: x.rarity === "runeword" ? x.base : undefined, free: unlocked() })), true);
-  if (r?.error) throw new Error(r.error);
-  return r;
+// 分批產生並顯示進度（手機比較慢，一次做太多會像沒反應）
+async function generate(list, label = "產生物品") {
+  const out = [], BATCH = 20;
+  for (let i = 0; i < list.length; i += BATCH) {
+    status(`${label}中… ${Math.min(i, list.length)} / ${list.length}`);
+    const part = list.slice(i, i + BATCH);
+    const r = await window.api.engine("generateMany", part.map(x => ({ rarity: x.rarity, name: x.name, base: x.rarity === "runeword" ? x.base : undefined, free: unlocked() })), true);
+    if (!Array.isArray(r)) throw new Error(r?.error ?? "物品引擎沒有回應");
+    out.push(...r);
+  }
+  return out;
+}
+// 錯誤要讓人看得到：狀態列之外再跳出提示
+function fail(e) {
+  const msg = e?.message ?? String(e);
+  status(msg, "bad");
+  alert("操作失敗：" + msg);
 }
 async function unlock(list) {
   if (!list.length) return status("已經全部收藏了", "ok");
-  status(`產生 ${list.length} 件物品中…`);
   try {
     const out = await generate(list), arr = save.uniques ??= [];
     let n = 0, near = 0;
     for (const r of out) if (r?.item) { delete r.item.at; arr.push(r.item); n++; if (!r.max) near++; }
-    refresh(); status(`已解鎖 ${n} 件，全部為合法物品${near ? `（${near} 件套裝找不到全滿的合法數值，使用最接近最高的）` : "、全部最高數值"}；尚未寫入存檔`, "ok");
-  } catch (e) { status(e.message, "bad"); }
+    refresh(); status(`已解鎖 ${n} 件，全部為合法物品${near ? `（${near} 件套裝找不到全滿的合法數值，使用最接近最高的）` : "、全部最高數值"}；記得按「寫入存檔」`, "ok");
+  } catch (e) { fail(e); }
 }
 async function maxItems(items) {
   if (!items.length) return;
-  status(`把 ${items.length} 件物品調成最高數值中…`);
   try {
-    const out = await generate(items);
+    const out = await generate(items, "調成最高數值");
     let n = 0, near = 0;
     out.forEach((r, i) => {
       if (!r?.item) return;
@@ -384,8 +395,8 @@ async function maxItems(items) {
       Object.assign(it, r.item, { id: keep.id }, keep.at && { at: keep.at }); // 保留原本的物品 ID 與位置
       n++; if (!r.max) near++;
     });
-    refresh(); status(`${n} 件已調成最高數值，全部為合法物品${near ? `（${near} 件套裝使用最接近最高的合法數值）` : ""}；尚未寫入存檔`, "ok");
-  } catch (e) { status(e.message, "bad"); }
+    refresh(); status(`${n} 件已調成最高數值，全部為合法物品${near ? `（${near} 件套裝使用最接近最高的合法數值）` : ""}；記得按「寫入存檔」`, "ok");
+  } catch (e) { fail(e); }
 }
 
 /* ---------- 設定 ---------- */
