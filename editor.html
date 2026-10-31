@@ -234,8 +234,8 @@
 
 <datalist id="statList"></datalist>
 
-<script src="webapi.js?b=1793442422"></script>
-<script src="zh.js?b=1793442422"></script>
+<script src="webapi.js?b=1793443161"></script>
+<script src="zh.js?b=1793443161"></script>
 <script>
 const CLASSES = ["amazon","sorceress","necromancer","paladin","barbarian","druid","assassin"];
 const CLASS_ZH = ZH_CLASS;
@@ -954,7 +954,7 @@ async function load() {
     A = await window.api.assets();
     const zh = await window.api.i18n();
     zhInit(zh);
-    if (zh.missing) setTimeout(() => status(window.api.web ? "目前顯示英文：先點「D2 繁體中文」書籤（並切到中文）再開修改器，就會顯示中文。" : "找不到中文字典（D2SurvivorsLauncher），目前顯示英文。", "bad"), 1500);
+    if (zh.missing) setTimeout(() => status("繁體中文字典載入失敗，部分內容可能顯示英文。", "bad"), 1500);
   }
   const r = await window.api.load($("#mode").value);
   if (r.error) return status(r.error, "bad");

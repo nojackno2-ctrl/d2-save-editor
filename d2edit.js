@@ -166,12 +166,14 @@ const backend = {
       return { dir, bases: {}, uniques: {}, sets: {}, quest: {}, runes: {}, gems: {} };
     }
   },
-  // 中文：不附任何翻譯檔，改用玩家已經在頁面上開啟的「D2 繁體中文」書籤（window.D2I18N）當場翻譯
+  // 中文：內建繁體字典，若遊戲頁面另有翻譯器，再補充其翻譯。
   async i18n() {
     const game = await fetch(at("gamedata.json")).then((r) => r.json());
+    let dict;
+    try { const response = await fetch(at("zh-TW.json")); if (!response.ok) throw new Error("字典讀取失敗"); dict = await response.json(); }
+    catch { dict = {}; }
     const I = window.D2I18N;
-    if (!I || I.language !== "zh-Hant") return { dict: {}, game, missing: true };
-    const dict = {};
+    if (!I || I.language !== "zh-Hant") return { dict, game, missing: !Object.keys(dict).length };
     const put = (en) => { if (en && !(en in dict)) { const zh = I.translate(en); if (zh && zh !== en) dict[en] = zh; } };
     // 屬性樣板：# 代入特殊數字翻整句，再把數字換回 {0}{1}{2}
     const SENT = ["12345", "23456", "34567"];
