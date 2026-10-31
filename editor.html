@@ -82,6 +82,34 @@
     #mods input.val { width:70px; }
     .grid { grid-template-columns:1fr; }
     textarea { height:60vh; }
+    header { padding-top:max(8px, env(safe-area-inset-top)); }
+    header select, header button, nav button, .bar button { min-height:44px; }
+    #status { flex-basis:100%; overflow-wrap:anywhere; }
+    nav { flex-shrink:0; scrollbar-width:thin; overscroll-behavior-x:contain; }
+    .page { min-height:0; padding-bottom:max(10px, env(safe-area-inset-bottom)); }
+    section, .pane { min-width:0; padding:10px; }
+    section, #items .pane { overflow-x:auto; }
+    input, select, textarea { font-size:16px; max-width:100%; }
+    input[type=checkbox] { width:22px; height:22px; accent-color:var(--gold); }
+    #tree div:not(.grp) { padding:10px 12px; }
+    .slots .row, .list .row { min-height:44px; flex-wrap:wrap; }
+    .slots .row span, .list .row span { overflow-wrap:anywhere; }
+    .bar select { min-width:0; max-width:100%; min-height:44px; }
+    #mods, #cmods { display:block; }
+    #mods thead, #cmods thead { display:none; }
+    #mods tbody, #cmods tbody { display:grid; gap:10px; }
+    #mods tr, #cmods tr { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:6px 10px; padding:10px; border:1px solid var(--line); border-radius:6px; }
+    #mods td, #cmods td { min-width:0; padding:0; border:0; }
+    #mods td:nth-child(1), #mods td:nth-child(2), #mods td:nth-child(3),
+    #cmods td:nth-child(1), #cmods td:nth-child(2), #cmods td:nth-child(3) { grid-column:1 / -1; }
+    #mods td:nth-child(2)::before, #cmods td:nth-child(2)::before { content:"屬性"; display:block; color:var(--dim); }
+    #mods td:nth-child(3)::before, #cmods td:nth-child(3)::before { content:"數值與範圍"; display:block; color:var(--dim); }
+    #mods td:nth-child(4), #cmods td:nth-child(4) { display:flex; align-items:center; gap:8px; }
+    #mods td:nth-child(4)::before, #cmods td:nth-child(4)::before { content:"固有"; color:var(--dim); }
+    #mods select.stat, #cmods select.stat { width:100%; max-width:none !important; min-height:44px; }
+    #mods input.val, #cmods input.val { width:100%; min-height:44px; }
+    #mods .limit, #cmods .limit { display:block; overflow-wrap:anywhere; }
+    #mods .rm, #cmods .rm { min-width:44px; min-height:44px; }
   }
 </style>
 </head>
