@@ -46,6 +46,11 @@ async function startEngine() {
   const queue = [...document.querySelectorAll("script[src],link[rel=modulepreload]")].map((e) => e.src || e.href)
     .concat(performance.getEntriesByType("resource").map((e) => e.name))
     .filter((u) => u.startsWith(base) && u.endsWith(".js")).map((u) => u.slice(base.length));
+  // 目前頁面不一定載入了物品程式（例如停在設定頁），所以也從遊戲主頁的程式清單開始找
+  for (const page of ["/play/", "/"]) {
+    const html = await fetch(new URL(page, location.origin), { cache: "no-store" }).then((r) => (r.ok ? r.text() : "")).catch(() => "");
+    for (const m of html.matchAll(/\/assets\/([\w.-]+\.js)/g)) queue.push(m[1]);
+  }
   while (queue.length) {
     const f = queue.shift();
     if (seen.has(f)) continue;
