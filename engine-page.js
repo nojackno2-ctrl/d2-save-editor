@@ -36,7 +36,7 @@ export function boot(G, itemstatsText) {
     if (it?.stats) it.roll = [1, seed, ILVL];
     return it;
   }
-  const pinned = (fn) => { const r = Math.random; Math.random = () => 0.9999999; try { return fn(); } finally { Math.random = r; } };
+  const pinned = (fn, value = 0.9999999) => { const r = Math.random; Math.random = () => value; try { return fn(); } finally { Math.random = r; } };
   const key = (it) => JSON.stringify([it.mods, it.defense ?? null]);
   // 可變動屬性組合數（太大就不值得找種子）
   function space(rarity, name) {
@@ -119,15 +119,117 @@ export function boot(G, itemstatsText) {
     // 使用遊戲產生器取得此物品各屬性的最高擲值；其他品質沒有固定的物品上限。
     itemModMax(item) {
       if (!defs[item?.rarity]?.has(item.name)) return null;
-      const best = pinned(() => make(item.rarity, item.name, item.base));
-      if (!best) return null;
-      const values = {};
-      for (const m of best.mods ?? []) {
-        if (typeof m.value !== "number" || !Number.isFinite(m.value)) continue;
-        const key = `${m.implicit ? "1" : "0"}:${m.stat}`;
-        (values[key] ??= []).push(m.value);
-      }
+      const low = pinned(() => make(item.rarity, item.name, item.base), 0);
+      const high = pinned(() => make(item.rarity, item.name, item.base));
+      if (!low || !high) return null;
+      const collect = (it) => {
+        const out = {};
+        for (const m of it.mods ?? []) {
+          if (typeof m.value !== "number" || !Number.isFinite(m.value)) continue;
+          const key = `${m.implicit ? "1" : "0"}:${m.stat}`;
+          (out[key] ??= []).push(m.value);
+        }
+        return out;
+      };
+      const mins = collect(low), maxs = collect(high), values = {};
+      for (const [key, list] of Object.entries(maxs)) values[key] = list.map((max, i) => {
+        const min = mins[key]?.[i];
+        return min === undefined ? null : [Math.min(min, max), Math.max(min, max)];
+      });
       return values;
+    },
+    affixInfo(baseName, rarity, mods = []) {
+      const base = bases.get(baseName);
+      if (!base || !G.__affixes || !G.__affixApplies) return null;
+      const affixes = G.__affixes.filter(a => G.__affixApplies(a, base, a.cls) && !(rarity === "rare" && a.d2?.magicOnly));
+      const ranges = {};
+      const add = (stat, min, max) => {
+        if (!stat || !Number.isFinite(min) || !Number.isFinite(max)) return;
+        (ranges[stat] ??= []).push([min, max]);
+      };
+      for (const a of affixes) {
+        add(a.stat, a.min, a.max);
+        for (const stat of a.d2?.alike ?? []) add(stat, a.min, a.max);
+        if (a.d2?.also) add(a.d2.also.stat, a.d2.also.min, a.d2.also.max);
+      }
+      return { ranges };
+    },
+    // 依遊戲的詞綴組合規則推導名稱；無法唯一確定時不猜測。
+    resolveName(item) {
+      const base = bases.get(item.base);
+      if (!base) return { error: "找不到指定底材。" };
+      if (item.rarity === "normal") {
+        if (base.type === "ring" || base.type === "amulet" || base.type === "charm" || base.itype === "circ")
+          return { error: "遊戲不會產生此底材的普通品質物品。" };
+        return { name: base.name };
+      }
+      if (item.rarity === "rare") {
+        if (item.name && item.previousRarity === "rare") return { name: item.name };
+        const generated = generateAffix("rare", base.name, true)?.item;
+        return generated?.rarity === "rare" ? { name: generated.name } : { error: "遊戲無法為此底材產生稀有名稱。" };
+      }
+      if (item.rarity === "magic") {
+        if (!G.__affixes || !G.__affixApplies) return { error: "遊戲詞綴資料不可用。" };
+        const mods = (item.mods ?? []).filter(m => !m.implicit && !m.auto);
+        const matches = G.__affixes.filter(a => G.__affixApplies(a, base, a.cls)).flatMap(a => {
+          const out = [];
+          for (let i = 0; i < mods.length; i++) {
+            const m = mods[i], d = a.d2 ?? {}, alike = d.alike ?? [];
+            if (m.stat !== a.stat || m.value < a.min || m.value > a.max || m.length !== d.length) continue;
+            const used = [i]; let valid = true;
+            for (const stat of alike) {
+              const j = mods.findIndex((x, n) => !used.includes(n) && x.stat === stat && x.value === m.value);
+              if (j < 0) { valid = false; break; } used.push(j);
+            }
+            if (valid && d.also) {
+              const j = mods.findIndex((x, n) => !used.includes(n) && x.stat === d.also.stat && x.value >= d.also.min && x.value <= d.also.max);
+              if (j < 0) valid = false; else used.push(j);
+            }
+            if (valid) out.push({ affix: a, used });
+          }
+          return out;
+        });
+        const prefixes = [null, ...matches.filter(x => x.affix.kind === "prefix")];
+        const suffixes = [null, ...matches.filter(x => x.affix.kind === "suffix")];
+        const names = new Set();
+        for (const p of prefixes) for (const q of suffixes) {
+          if (!p && !q) continue;
+          const indices = [...(p?.used ?? []), ...(q?.used ?? [])];
+          if (indices.length !== mods.length || new Set(indices).size !== mods.length) continue;
+          names.add([p?.affix.name, base.name, q?.affix.name].filter(Boolean).join(" "));
+        }
+        if (names.has(item.name) && item.previousRarity === "magic") return { name: item.name };
+        if (names.size === 1) return { name: [...names][0] };
+        return { error: names.size ? "這組屬性對應多個遊戲詞綴名稱，無法唯一決定名稱。" : "這組屬性無法對應遊戲的魔法詞綴名稱。" };
+      }
+      const entries = defs[item.rarity];
+      if (!entries) return { error: "不支援的物品品質。" };
+      const compatible = (def) => item.rarity === "runeword"
+        ? def.types.some(t => G.__isType(base.itype, t)) && !def.excluded?.some(t => G.__isType(base.itype, t))
+        : def.base === base.name;
+      const existing = entries.get(item.name);
+      if (existing && item.previousRarity === item.rarity && compatible(existing)) return { name: existing.name };
+      const signature = (mods) => (mods ?? []).map(m => `${m.implicit ? 1 : 0}:${m.stat}`).sort().join("|");
+      const wanted = signature(item.mods), candidates = [];
+      for (const def of entries.values()) {
+        if (!compatible(def)) continue;
+        try {
+          const low = pinned(() => make(item.rarity, def.name, base.name), 0);
+          const high = pinned(() => make(item.rarity, def.name, base.name));
+          if (!low || !high || signature(low.mods) !== wanted || signature(high.mods) !== wanted) continue;
+          const remaining = [...(item.mods ?? [])];
+          const ok = low.mods.every((m, i) => {
+            const h = high.mods[i];
+            if (!h || m.stat !== h.stat || !!m.implicit !== !!h.implicit) return false;
+            const j = remaining.findIndex(x => x.stat === m.stat && !!x.implicit === !!m.implicit &&
+              (typeof m.value === "number" && typeof h.value === "number" ? x.value >= Math.min(m.value, h.value) && x.value <= Math.max(m.value, h.value) : x.value === m.value));
+            if (j < 0) return false; remaining.splice(j, 1); return true;
+          });
+          if (ok) candidates.push(def.name);
+        } catch (_) {}
+      }
+      if (candidates.length === 1) return { name: candidates[0] };
+      return { error: candidates.length ? "這組屬性符合多件固定物品，無法唯一決定名稱。" : "這組屬性不符合任何可辨識的固定物品，無法決定名稱。" };
     },
     // 製作裝備用：全部底材（含部位與需求等級）
     affixOk() { return !!G.__makeAffix; },
