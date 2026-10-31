@@ -358,12 +358,15 @@ async function renderCollection(c, v) {
     ${Object.keys(TYPE_ZH).filter(t => groups[t]).map(t => `<div class="grp" style="color:var(--gold);margin:8px 0 2px;font-weight:bold">${TYPE_ZH[t]}（${groups[t].length}）</div>` +
       groups[t].sort((a, b) => (a.lvl ?? 0) - (b.lvl ?? 0)).map(r => r.idx !== undefined
         ? `<div class="row ${sel === r.idx ? "on" : ""}" data-k="${r.idx}">${iconTag(arr[r.idx])}<span class="r-${r.rarity}">${zhName(arr[r.idx])}</span><span class="dim">${esc(baseZh(arr[r.idx]))}</span></div>`
+        : r.unavailable
+        ? `<div class="row" style="opacity:.35">${iconTag(r)}<span class="r-${r.rarity}">${zhName(r)}</span><span class="dim">未收藏・這個遊戲模式做不出來</span></div>`
         : `<div class="row" style="opacity:.45">${iconTag(r)}<span class="r-${r.rarity}">${zhName(r)}</span><span class="dim">${esc(baseZh(r))}・未收藏</span><button data-unlock="${esc(ckey(r))}" style="margin-left:auto;padding:1px 8px">解鎖</button></div>`).join("")).join("")}
     </div>`;
   const refilter = () => { colF = { rarity: $("#fRar").value, type: $("#fType").value, owned: $("#fOwn").value, q: $("#fQ").value }; renderCollection(c, v).then(() => { const q = $("#fQ"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }); };
   for (const id of ["#fRar", "#fType", "#fOwn"]) $(id).onchange = refilter;
   $("#fQ").oninput = refilter;
-  $("#unlockAll").onclick = () => unlockAndMax(rows.filter(r => r.idx === undefined), new Set(cat.map(ckey)));
+  // 這個模式做不出來的（網頁版的符文之語）不補，已有的也保持原樣
+  $("#unlockAll").onclick = () => unlockAndMax(rows.filter(r => r.idx === undefined && !r.unavailable), new Set(cat.filter(x => !x.unavailable).map(ckey)));
   for (const b of v.querySelectorAll("[data-unlock]")) b.onclick = (e) => { e.stopPropagation(); unlock(rows.filter(r => ckey(r) === b.dataset.unlock)); };
   for (const el of v.querySelectorAll("[data-k]")) el.onclick = () => { sel = Number(el.dataset.k); renderView(); renderEditor(); };
 }
@@ -386,14 +389,19 @@ function fail(e) {
   status(msg, "bad");
   alert("操作失敗：" + msg);
 }
+// 遊戲讀檔時會丟掉的、這個版本做不出來的：列出名稱讓人知道
+function skipped(out) {
+  const bad = out.filter(r => !r?.item);
+  if (!bad.length) return "";
+  LOG.push("無法加入：" + bad.map(r => `${r.name ?? "?"}${r.rejected ? "（遊戲不接受）" : r.error ? "（" + r.error + "）" : "（做不出來）"}`).join("、"));
+  return `；${bad.length} 件目前遊戲版本不接受或做不出來，已略過（詳見診斷資訊）`;
+}
 async function unlock(list) {
-  if (!list.length) return status("已經全部收藏了", "ok");
-  try {
-    const out = await generate(list), arr = save.uniques ??= [];
-    let n = 0, near = 0;
-    for (const r of out) if (r?.item) { delete r.item.at; arr.push(r.item); n++; if (!r.max) near++; }
-    refresh(); status(`已解鎖 ${n} 件，全部為合法物品${near ? `（${near} 件套裝找不到全滿的合法數值，使用最接近最高的）` : "、全部最高數值"}；記得按「寫入存檔」`, "ok");
-  } catch (e) { fail(e); }
+  if (!list.length) return { n: 0, msg: "" };
+  const out = await generate(list), arr = save.uniques ??= [];
+  let n = 0, near = 0;
+  for (const r of out) if (r?.item) { delete r.item.at; arr.push(r.item); n++; if (!r.max) near++; }
+  return { n, near, msg: skipped(out) };
 }
 // 一鍵：先把已有的全部調最高，再補齊缺的（補的本來就是最高值）
 // 範圍：收藏、角色身上、傭兵身上、倉庫、背包、護身符欄（商店商品不動）
@@ -407,10 +415,25 @@ function ownedGear(s) {
 async function unlockAndMax(missing, known) {
   const gear = ownedGear(save).filter(it => known.has(ckey(it)));
   if (!confirm(`將補齊 ${missing.length} 件未收藏的物品，並把 ${gear.length} 件已有的暗金／套裝／符文之語（含角色與傭兵身上）調成最高數值。繼續？`)) return;
-  await maxItems(gear);
-  await unlock(missing);
-  refresh();
-  status(`完成：補齊 ${missing.length} 件、調高 ${gear.length} 件（含角色與傭兵身上）；記得按「寫入存檔」`, "ok");
+  try {
+    const a = await maxItemsRaw(gear), b = await unlock(missing);
+    refresh();
+    const near = a.near + (b.near ?? 0);
+    status(`完成：補齊 ${b.n} 件、調高 ${a.n} 件（含角色與傭兵身上）${near ? `，其中 ${near} 件找不到全滿的合法數值，用最接近最高的` : ""}${a.msg}${b.msg}；記得按「寫入存檔」`, "ok");
+  } catch (e) { fail(e); }
+}
+// 把物品重新產生成最高數值（保留 ID 與位置）；遊戲不接受的保持原樣
+async function maxItemsRaw(items) {
+  const out = await generate(items, "調成最高數值");
+  let n = 0, near = 0;
+  out.forEach((r, i) => {
+    if (!r?.item) return;
+    const it = items[i], keep = { id: it.id, at: it.at };
+    for (const k of Object.keys(it)) delete it[k];
+    Object.assign(it, r.item, { id: keep.id }, keep.at && { at: keep.at });
+    n++; if (!r.max) near++;
+  });
+  return { n, near, msg: skipped(out) };
 }
 async function maxItems(items) {
   if (!items.length) return;
@@ -441,7 +464,7 @@ function applyUnlockUI() {
 }
 
 /* ---------- 診斷資訊 ---------- */
-const EDITOR_BUILD = "2026-10-31b";
+const EDITOR_BUILD = "2026-10-31c";
 function saveSummary(s) {
   if (!s) return null;
   const flat = (o) => Object.values(o ?? {}).flatMap(v => v ?? []);
@@ -512,7 +535,7 @@ async function renderCraft() {
 }
 function renderCraftList() {
   const r = $("#cRar").value, t = $("#cType").value, q = $("#cQ").value.toLowerCase();
-  const list = CATALOG.filter(x => (r === "all" || x.rarity === r) && (t === "all" || (TYPE_ZH[x.type] ? x.type : "other") === t)
+  const list = CATALOG.filter(x => !x.unavailable && (r === "all" || x.rarity === r) && (t === "all" || (TYPE_ZH[x.type] ? x.type : "other") === t)
     && (!q || (x.name + nameZh(x) + (x.base ?? "") + baseZh(x)).toLowerCase().includes(q)));
   $("#cList").innerHTML = list.slice(0, 400).map(x => `<div class="row ${craftSel === x ? "on" : ""}" data-i="${CATALOG.indexOf(x)}">${iconTag(x)}<span class="r-${x.rarity}">${zhName(x)}</span><span class="dim">${esc(baseZh(x))}・需求 ${x.lvl ?? "?"}</span></div>`).join("")
     + (list.length > 400 ? `<p class="dim">還有 ${list.length - 400} 件，請用搜尋縮小範圍。</p>` : "");

@@ -1,7 +1,8 @@
 // 在隱藏視窗裡執行，G 是遊戲模組（engine.js 加上的 __ 前綴匯出）
 const ILVL = 99;
-const SEED_TRIES = 4000;      // 每件物品最多試幾個種子找「全部最高」的合法 roll
-const SEED_MAX_SPACE = 20000; // 可能組合太多時就不找了，直接用最高值
+const SEED_TRIES = 8000;      // 每件物品最多試幾個種子找「全部最高」的合法 roll
+const SEED_MAX_SPACE = 20000; // 可能組合在這以內時，大多找得到全滿的種子
+const SEED_TRIES_BIG = 8000;  // 組合很多的物品也多試，找不到就用最接近最高的
 
 export function boot(G, itemstatsText) {
   const stats = JSON.parse(itemstatsText);
@@ -54,9 +55,8 @@ export function boot(G, itemstatsText) {
       const it = max ? pinned(() => make(rarity, name, baseName)) : make(rarity, name, baseName);
       if (!it) return null;
       it.id = newId();
-      delete it.roll;
-      delete it.stats;
-      return { item: it, legit: rarity !== "set", max };
+      delete it.roll; // 保留 stats：新版遊戲讀檔會丟掉沒有 stats 的物品
+      return { item: it, legit: false, max };
     }
     if (!max) {
       const it = seededMake(Math.floor(Math.random() * 4294967296), rarity, name, baseName);
@@ -65,8 +65,9 @@ export function boot(G, itemstatsText) {
     const best = pinned(() => make(rarity, name, baseName));
     if (!best) return null;
     const want = key(best);
-    // 套裝沒有「略過檢查」的方式，一定要合法種子：多試一些，找不到就用最接近最高的合法結果
-    const tries = rarity === "set" ? SEED_TRIES * 10 : space(rarity, name) <= SEED_MAX_SPACE ? SEED_TRIES : 0;
+    // 一律用遊戲可驗證的種子：找得到全滿的就用，找不到就用最接近最高的合法結果。
+    // （不能用「拿掉 stats」的方式跳過檢查：新版遊戲讀檔時會把沒有 stats、屬性又多的物品整件丟掉）
+    const tries = rarity === "set" || space(rarity, name) <= SEED_MAX_SPACE ? SEED_TRIES * (rarity === "set" ? 10 : 1) : SEED_TRIES_BIG;
     let near = null, nearScore = -Infinity;
     for (let i = 0; i < tries; i++) {
       const seed = Math.floor(Math.random() * 4294967296), it = seededMake(seed, rarity, name, baseName);
@@ -75,11 +76,9 @@ export function boot(G, itemstatsText) {
       const score = it.mods.reduce((a, m) => a + (typeof m.value === "number" ? m.value : 0), 0) + (it.defense ?? 0);
       if (score > nearScore) { near = it; nearScore = score; }
     }
-    if (rarity === "set" && near) return { item: near, legit: true, max: false };
-    // 暗金／符文之語：拿掉 stats 後遊戲會略過檢查
+    if (near) return { item: near, legit: true, max: false };
+    // 連一次都產生不出來（沒有 stats 的物品）：直接用最高值
     best.id = newId();
-    delete best.roll;
-    delete best.stats;
     return { item: best, legit: true, max: true };
   }
 
@@ -89,12 +88,24 @@ export function boot(G, itemstatsText) {
       const out = [];
       for (const d of G.__uniques) out.push({ rarity: "unique", name: d.name, base: d.base, type: bases.get(d.base)?.type, lvl: d.lvl });
       for (const d of G.__sets) out.push({ rarity: "set", name: d.name, base: d.base, type: bases.get(d.base)?.type, lvl: d.lvl, set: d.set });
-      for (const d of G.__runewords) { const b = runewordBase(d); out.push({ rarity: "runeword", name: d.name, base: b?.name, type: b?.type, lvl: d.lvl }); }
+      // 網頁版「網站提供遊戲資料」模式的物品資料沒有符文之語，遊戲本身在這個模式也做不出來
+      const rwOk = !!stats.runewords && !!stats.runes;
+      for (const d of G.__runewords) {
+        const b = rwOk ? runewordBase(d) : null;
+        out.push({ rarity: "runeword", name: d.name, base: b?.name ?? d.types?.[0], type: b?.type ?? "weapon", lvl: d.lvl, ...(!rwOk && { unavailable: true }) });
+      }
       return out;
     },
     // list: [{ rarity, name, base? }]
+    // 產生後再用遊戲讀檔時的整理函式檢查一次，遊戲會丟掉的就不交出去
     generateMany(list, max) {
-      return list.map((x) => { try { return generate(x.rarity, x.name, x.max ?? max, x.base, x.free); } catch (e) { return { error: String(e.message ?? e) }; } });
+      return list.map((x) => {
+        try {
+          const r = generate(x.rarity, x.name, x.max ?? max, x.base, x.free);
+          if (r?.item && G.__sanitize && !G.__sanitize(JSON.parse(JSON.stringify(r.item)))) return { rejected: true, name: x.name, rarity: x.rarity };
+          return r ?? { failed: true, name: x.name, rarity: x.rarity };
+        } catch (e) { return { error: String(e.message ?? e), name: x.name, rarity: x.rarity }; }
+      });
     },
     // 製作裝備用：全部底材（含部位與需求等級）
     bases() { return G.__bases.map((b) => ({ name: b.name, type: b.type, itype: b.itype, level: b.level ?? 0, size: b.size })); },

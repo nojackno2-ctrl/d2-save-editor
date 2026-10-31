@@ -11,5 +11,6 @@
   "uniques": "(N)=\\[N\\(`Pelta Lunata`",
   "sets": "(N)=\\[N\\(`Civerb's Ward`",
   "runewords": "(N)=\\[N\\(`Ancients' Pledge`",
-  "bases": "(N)=\\[N\\(`Cap`,`head`"
+  "bases": "(N)=\\[N\\(`Cap`,`head`",
+  "sanitize": "function (N)\\(e\\)\\{if\\(typeof e!=`object`\\|\\|!e\\|\\|Array\\.isArray\\(e\\)\\)return null;let\\{id:t,base:n,type:r,rarity:i,name:a,level:o,mods:s"
 }
