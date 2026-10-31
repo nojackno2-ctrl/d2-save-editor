@@ -204,7 +204,7 @@ const backend = {
     return { dict, game };
   },
   async engine(fn, ...args) {
-    if (!["catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName"].includes(fn)) throw new Error("不支援的操作");
+    if (!["catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName", "validateItems", "allowedStatsMany"].includes(fn)) throw new Error("不支援的操作");
     const e = await engine();
     // 結果來自另一個 iframe，複製一份成這邊的物件
     return JSON.parse(JSON.stringify(await e[fn](...args) ?? null));
@@ -238,6 +238,7 @@ let frame = null;
 function close() {
   frame?.remove();
   frame = null;
+  window.__d2editLauncher && (window.__d2editLauncher.style.display = "none");
   window.removeEventListener("message", onMessage);
   if (written) location.reload();
 }
@@ -255,16 +256,50 @@ async function onMessage(e) {
 }
 
 window.__d2editBackend = backend; // 方便除錯（同一頁面本來就能讀寫這些存檔）
-// 每次點書籤都用這次載入的最新版本：先關掉之前開的修改器（不論是哪個版本）
+// 每次點書籤都用這次載入的最新版本：先關掉之前開的修改器與按鈕（不論是哪個版本）
 const prevClose = window.__d2editClose;
-const wasOpen = !!window.__d2editIsOpen?.();
 if (prevClose) prevClose(true);
+window.__d2editLauncher?.remove();
+window.__d2editStopWatch?.();
 window.__d2editClose = (quiet) => { if (frame) { frame.remove(); frame = null; window.removeEventListener("message", onMessage); } if (!quiet && written) location.reload(); };
 window.__d2editIsOpen = () => !!frame;
-if (!wasOpen) {
+function openEditor() {
+  if (frame) return;
   frame = document.createElement("iframe");
   frame.src = at("editor.html") + "&origin=" + encodeURIComponent(location.origin) + "&mode=" + (localStorage.getItem("d2-survivors/mode/v1") === "hardcore" ? "hardcore" : "softcore");
   frame.style.cssText = "position:fixed;inset:0;width:100vw;height:100dvh;border:0;z-index:2147483647;background:#14110d";
   window.addEventListener("message", onMessage);
   document.body.appendChild(frame);
 }
+// 點書籤後不直接開啟：留在遊戲中，按暫停時畫面右上角才出現「修改器」按鈕
+const zhUI = String((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase().startsWith("zh");
+const launcher = document.createElement("button");
+launcher.type = "button";
+launcher.textContent = zhUI ? "修改器" : "Editor";
+launcher.title = zhUI ? "開啟 D2 倖存者存檔修改器" : "Open the D2 Survivors save editor";
+launcher.style.cssText = "position:fixed;top:max(12px, env(safe-area-inset-top));right:max(12px, env(safe-area-inset-right));z-index:2147483646;display:none;"
+  + "padding:8px 14px;min-height:40px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.92);color:#d4a84a;font:bold 15px 'Microsoft JhengHei',system-ui,sans-serif;cursor:pointer";
+launcher.onclick = (e) => { e.preventDefault(); e.stopPropagation(); openEditor(); };
+for (const ev of ["pointerdown", "mousedown", "touchstart", "keydown"]) launcher.addEventListener(ev, (e) => e.stopPropagation());
+document.body.appendChild(launcher);
+window.__d2editLauncher = launcher;
+// 遊戲的暫停選單畫在 canvas 上：暫停時 body 會加上 frontend-over-run（實測 d2survivors.lol 營地與冒險中皆同）；舊版或其他畫面用 #paused
+const pausedNow = () => {
+  if (document.body.classList.contains("frontend-over-run")) return true;
+  const p = document.getElementById("paused");
+  return !!p && !p.classList.contains("hidden") && getComputedStyle(p).display !== "none";
+};
+const sync = () => { launcher.style.display = pausedNow() && !frame ? "block" : "none"; };
+let watched = null;
+const observer = new MutationObserver(() => {
+  const p = document.getElementById("paused");
+  if (p && p !== watched) { watched = p; observer.observe(p, { attributes: true, attributeFilter: ["class", "style"] }); }
+  sync();
+});
+observer.observe(document.body, { childList: true, subtree: false, attributes: true, attributeFilter: ["class"] });
+const p0 = document.getElementById("paused");
+if (p0) { watched = p0; observer.observe(p0, { attributes: true, attributeFilter: ["class", "style"] }); }
+const timer = setInterval(sync, 500); // 保險：遊戲用其他方式切換畫面時也會更新
+window.__d2editStopWatch = () => { observer.disconnect(); clearInterval(timer); };
+sync();
+import(at("autobot.js")).catch((err) => console.warn("輔助工具載入失敗：", err));

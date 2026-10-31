@@ -91,7 +91,215 @@ export function boot(G, itemstatsText) {
     return { item: best, legit: true, max: true };
   }
 
+  // 詞綴比對：回傳每個詞綴可涵蓋的屬性列（含 alike／also 複合屬性）
+  function affixMatches(base, rarity, mods) {
+    return G.__affixes.filter(a => G.__affixApplies(a, base, a.cls) && !(rarity === "rare" && a.d2?.magicOnly)).flatMap(a => {
+      const out = [];
+      for (let i = 0; i < mods.length; i++) {
+        const m = mods[i], d = a.d2 ?? {}, alike = d.alike ?? [];
+        if (m.stat !== a.stat || typeof m.value !== "number" || m.value < a.min || m.value > a.max || m.length !== d.length) continue;
+        const used = [i]; let valid = true;
+        for (const stat of alike) {
+          const j = mods.findIndex((x, n) => !used.includes(n) && x.stat === stat && x.value === m.value);
+          if (j < 0) { valid = false; break; } used.push(j);
+        }
+        if (!valid) continue;
+        if (!d.also) { out.push({ affix: a, used }); continue; }
+        // 同一屬性可能出現多組（例如兩個閃電傷害詞綴），每個可能的搭配都列出
+        mods.forEach((x, j) => { if (!used.includes(j) && x.stat === d.also.stat && x.value >= d.also.min && x.value <= d.also.max) out.push({ affix: a, used: [...used, j] }); });
+      }
+      return out;
+    });
+  }
+  // 原版規則（Diablo II）：魔法最多 1 前綴 + 1 後綴；稀有 2～6 個詞綴（Arreat Summit 官方說明）、前後綴各最多 3 個；稀有珠寶最多 4 個；同群組不可重複
+  const AFFIX_LIMIT = { magic: { pre: 1, suf: 1, min: 1, max: 2 }, rare: { pre: 3, suf: 3, min: 2, max: 6 }, rareJewel: { pre: 3, suf: 3, min: 2, max: 4 } };
+  const limitOf = (base, rarity) => AFFIX_LIMIT[rarity === "rare" && (base.type === "jewel" || base.itype === "jewl") ? "rareJewel" : rarity];
+  function affixPlan(base, rarity, mods) {
+    const lim = limitOf(base, rarity), matches = affixMatches(base, rarity, mods);
+    const covered = new Array(mods.length).fill(false), groups = new Set(), pick = [];
+    let pre = 0, suf = 0;
+    const dfs = () => {
+      const i = covered.indexOf(false);
+      if (i < 0) return pick.length >= lim.min && pick.length <= lim.max;
+      for (const x of matches) {
+        if (!x.used.includes(i) || x.used.some(j => covered[j])) continue;
+        const isPre = x.affix.kind === "prefix", g = x.affix.d2?.group ?? "n:" + x.affix.name;
+        if ((isPre ? pre >= lim.pre : suf >= lim.suf) || groups.has(g)) continue;
+        x.used.forEach(j => covered[j] = true); groups.add(g); pick.push(x); isPre ? pre++ : suf++;
+        if (dfs()) return true;
+        x.used.forEach(j => covered[j] = false); groups.delete(g); pick.pop(); isPre ? pre-- : suf--;
+      }
+      return false;
+    };
+    return dfs() ? pick.map(x => x.affix) : null;
+  }
+  // 底材固有屬性：以遊戲產生器取樣
+  const implicitCache = new Map();
+  function baseImplicits(base) {
+    if (implicitCache.has(base.name)) return implicitCache.get(base.name);
+    const r = {};
+    for (let i = 0; i < 6 || (i < 400 && Object.keys(r).some(k => r[k].auto)); i++) {
+      const it = G.__seeded(Math.floor(Math.random() * 4294967296), () => G.__makeAffix(base, "magic", ILVL, ILVL));
+      for (const m of it?.mods ?? []) if (m.implicit || m.auto) {
+        const k = m.stat, v = r[k] ??= [m.value, m.value];
+        if (m.auto) v.auto = true;
+        v[0] = Math.min(v[0], m.value); v[1] = Math.max(v[1], m.value);
+      }
+    }
+    implicitCache.set(base.name, r);
+    return r;
+  }
+  // 固定品質：屬性種類、數量與每項上下限都必須與物品定義相符
+  function fixedProblems(rarity, def, base, item) {
+    const low = pinned(() => make(rarity, def.name, base.name), 0), high = pinned(() => make(rarity, def.name, base.name));
+    if (!low || !high) return ["error.generate"];
+    const out = [], remaining = [...(item.mods ?? [])];
+    // 無形物品：底材防禦與基礎傷害提高（最多 1.5 倍）
+    const eth = item.ethereal ? 1.5 : 1;
+    low.mods.forEach((m, i) => {
+      const h = high.mods[i], lo = Math.min(m.value, h.value), hi = Math.max(m.value, h.value) * (m.implicit && typeof m.value === "number" ? eth : 1) + (m.implicit && eth > 1 ? 1 : 0);
+      // 隨機技能類屬性（例如奧瑪斯長袍）每次產生的技能不同：只要同一類即可
+      const kind = (s) => s.split(":")[0], random = m.stat !== h?.stat && m.stat.includes(":");
+      // 觸發／充能技能的等級隨物品等級變化（例如 proc:struck:blizzard:20 → 低等級掉落為 16）：同技能、等級不超過原版最高即可
+      const lv = /^(proc|charge):(.+):(\d+)$/.exec(m.stat), lvOk = (x) => { const k = /^(proc|charge):(.+):(\d+)$/.exec(x.stat); return k && k[1] === lv[1] && k[2] === lv[2] && Number(k[3]) >= 1 && Number(k[3]) <= Number(lv[3]); };
+      const same = remaining.filter(x => (random ? kind(x.stat) === kind(m.stat) : lv ? lvOk(x) : x.stat === m.stat) && !!x.implicit === !!m.implicit);
+      if (!same.length) return out.push({ code: "missing", stat: m.stat });
+      const j = remaining.indexOf(same.find(x => typeof m.value === "number" ? x.value >= lo - 1e-9 && x.value <= hi + 1e-9 : x.value === m.value) ?? same[0]);
+      const x = remaining[j];
+      if (typeof m.value === "number" ? !(x.value >= lo - 1e-9 && x.value <= hi + 1e-9) : x.value !== m.value) out.push({ code: "range", stat: m.stat, value: x.value, min: lo, max: hi });
+      remaining.splice(j, 1);
+    });
+    for (const x of remaining) out.push({ code: "extra", stat: x.stat });
+    if (typeof item.defense === "number" && typeof low.defense === "number") {
+      const lo = Math.min(low.defense, high.defense), hi = Math.ceil(Math.max(low.defense, high.defense) * eth);
+      if (item.defense < lo || item.defense > hi) out.push({ code: "defense", value: item.defense, min: lo, max: hi });
+    }
+    return out;
+  }
+  // 編輯中（尚未完成）的詞綴組合：複合詞綴可以只出現一部分，數量只看上限
+  function partialFeasible(base, rarity, mods) {
+    const lim = limitOf(base, rarity);
+    const list = G.__affixes.filter(a => G.__affixApplies(a, base, a.cls) && !(rarity === "rare" && a.d2?.magicOnly));
+    const matches = [];
+    for (const a of list) {
+      const d = a.d2 ?? {}, parts = [[a.stat, a.min, a.max, d.length], ...(d.alike ?? []).map(s => [s, a.min, a.max]), ...(d.also ? [[d.also.stat, d.also.min, d.also.max]] : [])];
+      const opts = parts.map(([s, lo, hi, len]) => [-1, ...mods.map((m, i) => i).filter(i => mods[i].stat === s && typeof mods[i].value === "number" && mods[i].value >= lo && mods[i].value <= hi && (len === undefined || mods[i].length === undefined || mods[i].length === len))]);
+      const walk = (k, used) => {
+        if (k === parts.length) { const u = used.filter(i => i >= 0); if (u.length && new Set(u).size === u.length) matches.push({ affix: a, used: u }); return; }
+        for (const i of opts[k]) walk(k + 1, [...used, i]);
+      };
+      walk(0, []);
+    }
+    const covered = new Array(mods.length).fill(false), groups = new Set();
+    let pre = 0, suf = 0, n = 0;
+    const dfs = () => {
+      const i = covered.indexOf(false);
+      if (i < 0) return n <= lim.max;
+      for (const x of matches) {
+        if (!x.used.includes(i) || x.used.some(j => covered[j])) continue;
+        const isPre = x.affix.kind === "prefix", g = x.affix.d2?.group ?? "n:" + x.affix.name;
+        if ((isPre ? pre >= lim.pre : suf >= lim.suf) || groups.has(g) || n >= lim.max) continue;
+        x.used.forEach(j => covered[j] = true); groups.add(g); isPre ? pre++ : suf++; n++;
+        if (dfs()) return true;
+        x.used.forEach(j => covered[j] = false); groups.delete(g); isPre ? pre-- : suf--; n--;
+      }
+      return false;
+    };
+    return dfs();
+  }
+  // 在目前屬性之外，依原版規則還能加入哪些屬性：[{ stat, implicit, value }]（value 為建議值＝原版最大值）
+  function allowedStats(item, mods) {
+    const base = bases.get(item.base);
+    if (!base) return [];
+    const out = [], add = (stat, implicit, value, length) => {
+      const x = out.find(x => x.stat === stat && x.implicit === implicit);
+      if (!x) out.push({ stat, implicit, value, ...(length !== undefined && { length }) });
+      else if (typeof value === "number" && value > x.value) { x.value = value; if (length !== undefined) x.length = length; }
+    };
+    if (defs[item.rarity]) {
+      // 指定物品時只看它；訂製時（尚無名稱）看此底材所有仍符合目前屬性的固定物品
+      const named = defs[item.rarity].get(item.name);
+      const list = named ? [named] : [...defs[item.rarity].values()].filter(d => item.rarity === "runeword"
+        ? d.types.some(t => G.__isType(base.itype, t)) && !d.excluded?.some(t => G.__isType(base.itype, t)) && Math.max(...(stats.bases[base.name]?.sockets ?? [0])) >= d.runes.length
+        : d.base === base.name);
+      for (const def of list) {
+        let high; try { high = pinned(() => make(item.rarity, def.name, base.name)); } catch { continue; }
+        const remaining = [...mods], left = [];
+        for (const m of high?.mods ?? []) {
+          const j = remaining.findIndex(x => x.stat === m.stat && !!x.implicit === !!m.implicit);
+          if (j >= 0) remaining.splice(j, 1); else left.push(m);
+        }
+        if (remaining.length) continue; // 目前屬性已不屬於這件物品
+        for (const m of left) add(m.stat, !!m.implicit, m.value);
+      }
+      return out;
+    }
+    const imp = baseImplicits(base);
+    for (const [stat, r] of Object.entries(imp)) if (!mods.some(m => m.stat === stat && (m.implicit || m.auto))) add(stat, true, r[1]);
+    if (!AFFIX_LIMIT[item.rarity]) return out;
+    const free = mods.filter(m => !m.implicit && !m.auto);
+    if (!partialFeasible(base, item.rarity, free)) return out;
+    for (const a of G.__affixes.filter(a => G.__affixApplies(a, base, a.cls) && !(item.rarity === "rare" && a.d2?.magicOnly))) {
+      const d = a.d2 ?? {};
+      for (const [stat, value, len] of [[a.stat, a.max, d.length], ...(d.alike ?? []).map(s => [s, a.max]), ...(d.also ? [[d.also.stat, d.also.max]] : [])]) {
+        if (partialFeasible(base, item.rarity, [...free, { stat, value, ...(len !== undefined && { length: len }) }])) add(stat, false, value, len);
+      }
+    }
+    return out;
+  }
+  // 依原版規則檢查一件物品；回傳問題清單（空陣列 = 合理）
+  function validate(item) {
+    const out = [];
+    if (!item || typeof item !== "object") return [{ code: "format" }];
+    if (item.type === "quest" || ["rune", "gem", "quest"].includes(bases.get(item.base)?.type)) return out;
+    const base = bases.get(item.base);
+    // 特殊物品（例如 Wirt's Leg）不在底材表：沒有屬性就放行
+    if (!base) return defs[item.rarity]?.has(item.name) || !item.base || (item.base === item.name && !(item.mods ?? []).length) ? out : [{ code: "base" }];
+    if (base.type !== item.type && item.type) out.push({ code: "type" });
+    const mods = item.mods ?? [];
+    if (mods.some(m => typeof m.value === "number" && !Number.isFinite(m.value))) out.push({ code: "nan" });
+    if (defs[item.rarity]) {
+      const def = defs[item.rarity].get(item.name);
+      if (!def) return [...out, { code: "name" }];
+      const okBase = item.rarity === "runeword"
+        ? def.types.some(t => G.__isType(base.itype, t)) && !def.excluded?.some(t => G.__isType(base.itype, t)) && Math.max(...(stats.bases[base.name]?.sockets ?? [0])) >= def.runes.length
+        : def.base === base.name;
+      if (!okBase) return [...out, { code: "defBase" }];
+      return [...out, ...fixedProblems(item.rarity, def, base, item)];
+    }
+    if (!["normal", "magic", "rare"].includes(item.rarity)) return [...out, { code: "rarity" }];
+    if (item.rarity === "normal" && (base.type === "ring" || base.type === "amulet" || base.type === "charm" || base.itype === "circ")) out.push({ code: "normalBase" });
+    if (item.rarity === "rare" && base.type === "charm") out.push({ code: "rareCharm" });
+    const imp = baseImplicits(base), seen = new Set();
+    for (const m of mods.filter(m => m.implicit || m.auto)) {
+      const r = imp[m.stat];
+      if (!r || seen.has(m.stat)) out.push({ code: "implicit", stat: m.stat });
+      else if (r.auto ? !(m.value > 0 && m.value <= Math.ceil(r[1] * 1.05)) : !(m.value >= r[0] && m.value <= r[1])) out.push({ code: "range", stat: m.stat, value: m.value, min: r[0], max: r[1] });
+      seen.add(m.stat);
+    }
+    const free = mods.filter(m => !m.implicit && !m.auto);
+    if (item.rarity === "normal") { if (free.length) out.push({ code: "normalMods" }); return out; }
+    if (!affixPlan(base, item.rarity, free)) {
+      const ranges = this?.affixInfo?.(base.name, item.rarity)?.ranges ?? {};
+      for (const m of free) {
+        const list = ranges[m.stat];
+        if (!list) out.push({ code: "affixStat", stat: m.stat });
+        else if (!list.some(([a, b]) => m.value >= a && m.value <= b)) out.push({ code: "range", stat: m.stat, value: m.value, min: Math.min(...list.map(r => r[0])), max: Math.max(...list.map(r => r[1])) });
+      }
+      out.push({ code: "affixCombo", rarity: item.rarity });
+    }
+    return out;
+  }
+
   return {
+    // 依原版規則檢查物品（未解除限制時使用）；回傳每件物品的問題清單
+    // 屬性下拉選單用：modsList 每一組是「其他列的屬性」，回傳每組還能加入的屬性
+    allowedStatsMany(item, modsList) {
+      return modsList.map(mods => { try { return allowedStats(item, mods); } catch (e) { return null; } });
+    },
+    validateItems(items) {
+      return items.map(it => { try { return validate.call(this, it); } catch (e) { return [{ code: "error", why: String(e.message ?? e) }]; } });
+    },
     // 全部可收藏的物品清單：{ rarity, name, base, type, lvl }
     catalog() {
       const out = [];

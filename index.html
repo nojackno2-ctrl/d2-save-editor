@@ -21,19 +21,24 @@
 </style>
 </head>
 <body>
-<main>
+<main data-lang="zh">
   <h1>D2 倖存者 存檔修改器（網頁版）</h1>
-  <p class="dim">給在瀏覽器（電腦或手機）玩 d2survivors.lol 的玩家。用書籤在遊戲頁面上開啟修改器，直接讀寫瀏覽器裡的存檔，不經過遊戲的匯入功能，不會留下匯入紀錄。</p>
+  <p class="dim">給在瀏覽器（電腦或手機）玩 d2survivors.lol 的玩家。用書籤在遊戲頁面上開啟修改器，直接讀寫瀏覽器裡的存檔，不經過遊戲的匯入功能，不會留下匯入紀錄。 <a href="#" data-switch="en" style="color:var(--gold)">English</a></p>
 
   <section>
     <h2>1. 複製書籤程式碼</h2>
-    <textarea id="code" readonly>javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())</textarea>
-    <p><button id="copy">📋 複製書籤程式碼</button> <span id="copied" class="ok"></span></p>
+    <textarea class="code" readonly>javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())</textarea>
+    <p><button class="copy">📋 複製書籤程式碼</button> <span class="copied ok"></span></p>
     <p class="dim">電腦：也可以直接把這個按鈕拖到書籤列 → <a class="drag" href="javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())">D2 修改器</a></p>
   </section>
 
   <section>
     <h2>2. 加入書籤</h2>
+    <p><b>電腦（Chrome／Edge／Firefox）</b></p>
+    <ol>
+      <li>按 Ctrl+Shift+B 顯示書籤列，把上面的「D2 修改器」按鈕拖到書籤列即可。</li>
+      <li>或在書籤列按右鍵 →「新增網頁」，名稱填 <b>D2 修改器</b>，網址貼上程式碼，儲存。</li>
+    </ol>
     <p><b>Android（Chrome）</b></p>
     <ol>
       <li>隨便把一個網頁加入書籤（例如這一頁）。</li>
@@ -44,23 +49,72 @@
       <li>按分享 → 加入書籤，儲存。</li>
       <li>打開書籤 → 編輯 → 點剛剛那個書籤。名稱改成 <b>D2 修改器</b>，網址刪掉貼上程式碼，完成。</li>
     </ol>
+    <p class="dim">部分瀏覽器貼上時會刪掉開頭的 javascript:，請確認網址開頭仍是 javascript:。</p>
   </section>
 
   <section>
     <h2>3. 使用</h2>
     <ol>
-      <li>打開 <a href="https://d2survivors.lol/play/" style="color:var(--gold)">d2survivors.lol/play</a>，停在<b>主選單</b>（不要在遊戲進行中）。</li>
-      <li><b>Android</b>：在網址列輸入「D2 修改器」，點下面出現的書籤（從書籤清單點不會執行）。<br><b>iPhone／電腦</b>：直接點書籤。</li>
-      <li>修改器會蓋在遊戲上。改完按「寫入存檔」，再按「關閉」，遊戲會重新載入並套用。</li>
+      <li>打開 <a href="https://d2survivors.lol/play/" style="color:var(--gold)">d2survivors.lol/play</a>。</li>
+      <li>載入書籤：<b>Android</b> 在網址列輸入「D2 修改器」，點下面出現的書籤（從書籤清單點不會執行）；<b>iPhone／電腦</b> 直接點書籤。畫面不會變化，遊戲照常進行。</li>
+      <li>在遊戲中按<b>暫停</b>，畫面右上角會出現「<b>修改器</b>」按鈕，點它開啟修改器。</li>
+      <li>改完按「寫入存檔」，再按「關閉」，遊戲會重新載入並套用。重新整理頁面後需再點一次書籤。</li>
     </ol>
-    <p class="dim">修改前建議先到「存檔管理」按「建立快照」，會下載一份備份檔。物品引擎直接使用遊戲本身的程式產生物品，第一次開啟需要連網。</p>
+    <p class="dim">修改前建議先到「存檔管理」按「建立快照」，會下載一份備份檔。物品引擎直接使用遊戲本身的程式產生物品，第一次開啟需要連網。修改器預設依原版規則限制數值與裝備屬性，可在「設定」解除（後果自負）。</p>
+  </section>
+</main>
+<main data-lang="en" hidden>
+  <h1>D2 Survivors Save Editor (web)</h1>
+  <p class="dim">For players of d2survivors.lol in a browser (desktop or mobile). A bookmark opens the editor on top of the game page and reads/writes the save stored in your browser directly — no in-game import, so no import record is left. <a href="#" data-switch="zh" style="color:var(--gold)">繁體中文</a></p>
+
+  <section>
+    <h2>1. Copy the bookmarklet</h2>
+    <textarea class="code" readonly>javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())</textarea>
+    <p><button class="copy">📋 Copy bookmarklet</button> <span class="copied ok"></span></p>
+    <p class="dim">Desktop: you can also drag this button to the bookmarks bar → <a class="drag" href="javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())">D2 Editor</a></p>
+  </section>
+
+  <section>
+    <h2>2. Add the bookmark</h2>
+    <p><b>Desktop (Chrome / Edge / Firefox)</b></p>
+    <ol>
+      <li>Press Ctrl+Shift+B to show the bookmarks bar and drag the "D2 Editor" button onto it.</li>
+      <li>Or right-click the bookmarks bar → "Add page", name it <b>D2 Editor</b>, paste the code as the URL and save.</li>
+    </ol>
+    <p><b>Android (Chrome)</b></p>
+    <ol>
+      <li>Bookmark any page (for example this one).</li>
+      <li>Open "Bookmarks", find it → Edit. Rename it to <b>D2 Editor</b>, delete the whole URL, paste the code and save.</li>
+    </ol>
+    <p><b>iPhone (Safari)</b></p>
+    <ol>
+      <li>Tap Share → Add Bookmark, save.</li>
+      <li>Open Bookmarks → Edit → tap that bookmark. Rename it to <b>D2 Editor</b>, replace the URL with the code, done.</li>
+    </ol>
+    <p class="dim">Some browsers strip the leading javascript: when pasting — make sure the URL still starts with javascript:.</p>
+  </section>
+
+  <section>
+    <h2>3. Use it</h2>
+    <ol>
+      <li>Open <a href="https://d2survivors.lol/play/" style="color:var(--gold)">d2survivors.lol/play</a>.</li>
+      <li>Load the bookmark: on <b>Android</b> type "D2 Editor" in the address bar and tap the bookmark suggestion (tapping it in the bookmark list won't run it); on <b>iPhone / desktop</b> just tap it. Nothing changes on screen and the game keeps running.</li>
+      <li><b>Pause</b> the game — an "<b>Editor</b>" button appears in the top-right corner. Tap it to open the editor.</li>
+      <li>When done press "Write save", then "Close"; the game reloads with your changes. After a page reload, tap the bookmark again.</li>
+    </ol>
+    <p class="dim">Tip: create a snapshot on the Saves page first — it downloads a backup file. The item engine uses the game's own code, so the first launch needs an internet connection. By default the editor keeps values and gear within the original game rules; you can remove this in Settings at your own risk.</p>
   </section>
 </main>
 <script>
-  document.getElementById("copy").onclick = async () => {
-    const t = document.getElementById("code");
+  const show = (l) => { document.documentElement.lang = l === "zh" ? "zh-Hant" : "en"; document.title = l === "zh" ? "D2 倖存者 存檔修改器" : "D2 Survivors Save Editor";
+    for (const m of document.querySelectorAll("main")) m.hidden = m.dataset.lang !== l; };
+  const sys = String((navigator.languages && navigator.languages[0]) || navigator.language || "en").toLowerCase();
+  show(sys.startsWith("zh") ? "zh" : "en");
+  for (const a of document.querySelectorAll("[data-switch]")) a.onclick = (e) => { e.preventDefault(); show(a.dataset.switch); };
+  for (const b of document.querySelectorAll(".copy")) b.onclick = async () => {
+    const box = b.closest("section"), t = box.querySelector(".code");
     try { await navigator.clipboard.writeText(t.value); } catch { t.select(); document.execCommand("copy"); }
-    document.getElementById("copied").textContent = "已複製";
+    box.querySelector(".copied").textContent = b.closest("main").dataset.lang === "zh" ? "已複製" : "Copied";
   };
 </script>
 </body>
