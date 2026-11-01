@@ -784,26 +784,64 @@
     return best;
   }
   let charmTried = new WeakSet();
+  // 護符評分（依屬性）：本職業技能／全技能高分，別職業技能 0 分；生命、抗性、跑速、魔法尋寶等；四項屬性依排行榜配點比例加權。
+  // 技能詞綴對應職業（遊戲 itemArt 的 T6 順序）：classskillsN → T6[N]、skilltabN → T6[floor(N/3)]。
+  const CLASS_ORDER = ["amazon", "sorceress", "necromancer", "paladin", "barbarian", "druid", "assassin"];
+  function charmValue(item, cls) {
+    const share = LADDER.classes[cls]?.attributes || {}, caster = ["sorceress", "necromancer"].includes(cls);
+    let v = 0;
+    for (const { stat, value } of item?.mods || []) {
+      const n = Number(value) || 0, m = /^(classskills|skilltab)(\d+)$/.exec(stat);
+      if (m) { const owner = CLASS_ORDER[m[1] === "classskills" ? +m[2] : Math.floor(+m[2] / 3)]; v += owner === cls ? n * 30 : 0; continue; }
+      if (stat === "allSkills") v += n * 40;
+      else if (stat === "life") v += n * 1;
+      else if (stat === "mana") v += n * (caster ? 0.4 : 0.15);
+      else if (/^(fire|cold|lightning|poison)Resist$/.test(stat)) v += n * 1;
+      else if (stat === "allResist" || stat === "allResistances") v += n * 4;
+      else if (["strength", "dexterity", "vitality", "energy"].includes(stat)) v += n * (0.5 + (share[stat] || 0) * 4);
+      else if (stat === "frw") v += n * 0.6;
+      else if (stat === "fhr" || stat === "fcr") v += n * 0.5;
+      else if (stat === "magicFind") v += n * 0.3;
+      else if (stat === "goldFind") v += n * 0.02;
+      else if (/MinDamage$|MaxDamage$/.test(stat)) v += n * (/poison/.test(stat) ? 0.03 : 0.3);
+      else if (stat === "attackRatingPoints") v += n * (caster ? 0 : 0.03);
+      else if (stat === "defense") v += n * 0.02;
+      else if (stat === "replenishLife") v += n * 1;
+    }
+    return v;
+  }
   const isCharm = (item) => !!item?.base && /charm/i.test(String(item.type || "") + " " + String(item.base));
   function autoEquip(g, now) {
     // 依使用者要求：任一總開關（戰鬥輔助或自動戰鬥）開著就自動換裝、賣用不到的裝備。
     if ((!settings.enabled && !settings.progressEnabled) || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
     if (!["playing", "camp"].includes(g.state) || typeof g.gearActions !== "function" || typeof g.heroNumbers !== "function" || typeof g.makePlayer !== "function") return;
     gearAt = now;
-    const p = g.world.player, charm = g.inventoryOf(p.cls).find((x) => isCharm(x) && !charmTried.has(x));
+    const p = g.world.player;
     // 實測長局會背包滿（原版提示 inventory is full）而撿不到裝備；原版 gearActions.sell 跑圖中也可用，先賣最沒價值的騰出空間。
     if (g.state === "playing" && finite(g.lastInventoryFull) && performance.now() - g.lastInventoryFull < 5000) {
       // 長局（普通一路推到地獄）中途不回營地，暗金／套裝會堆滿背包；沒有低階可賣時也賣掉沒穿上的暗金／套裝。
       const rank = { normal: 0, magic: 1, rare: 2, set: 3, unique: 4 }, junk = g.inventoryOf(p.cls).filter((x) => x?.base && !keepType(x) && !isCharm(x) && x.rarity in rank).sort((a, b) => rank[a.rarity] - rank[b.rarity])[0];
       if (junk) { g.gearActions(p.cls, () => {}, false).sell(junk); g.lastInventoryFull = -Infinity; lastAction = "背包已滿，賣掉 " + (junk.name || junk.base); return; }
     }
-    // 護符：原版 equip 遇到護符會改放進護符格（moveCharm）；有空位就放，滿了留在背包。
-    if (charm) { charmTried.add(charm); g.gearActions(p.cls, () => {}, false).equip(charm); if (!g.inventoryOf(p.cls).includes(charm)) lastAction = "已放入護符：" + itemZh(charm); return; }
+    // 依使用者要求：護符看屬性，不是有空位就放（實測亞馬遜放了加野蠻人技能的護符）。
+    // 原版 equip 遇到護符改呼叫 moveCharm：背包→護符格；對護符格裡的護符再呼叫則移回背包。
+    // 沒用的護符（分數 ≤ 0，例如只有別職業技能）移出；背包有更好的就放入；護符格滿時比最差的高 20％ 以上才換。
+    const worn = g.save?.charmsByClass?.[p.cls] || [], acts = g.gearActions(p.cls, () => {}, false);
+    const useless = worn.find((x) => charmValue(x, p.cls) <= 0);
+    if (useless) { acts.equip(useless); if (!(g.save.charmsByClass[p.cls] || []).includes(useless)) { lastAction = "移出沒用的護符：" + itemZh(useless); return; } }
+    const cand = g.inventoryOf(p.cls).filter((x) => isCharm(x) && !charmTried.has(x) && charmValue(x, p.cls) > 0).sort((a, b) => charmValue(b, p.cls) - charmValue(a, p.cls))[0];
+    if (cand) {
+      acts.equip(cand);
+      if (!g.inventoryOf(p.cls).includes(cand)) { lastAction = "已放入護符：" + itemZh(cand); return; }
+      const worst = [...(g.save.charmsByClass[p.cls] || [])].sort((a, b) => charmValue(a, p.cls) - charmValue(b, p.cls))[0];
+      if (worst && charmValue(cand, p.cls) > charmValue(worst, p.cls) * 1.2) { acts.equip(worst); if (!(g.save.charmsByClass[p.cls] || []).includes(worst)) { lastAction = "換掉較差的護符：" + itemZh(worst); return; } }
+      charmTried.add(cand);
+    }
     const best = bestGear(g, [...g.inventoryOf(p.cls)]);
     if (!best) {
       // 沒用的裝備（普通／魔法／稀有且不比身上好）撿到就賣，不等背包滿；暗金、套裝、符文之語、護符留給收藏與倉庫。
       if (settings.town.sellJunk) {
-        const junk = g.inventoryOf(p.cls).find((x) => x?.base && !keepType(x) && !isCharm(x) && ["normal", "magic", "rare"].includes(x.rarity));
+        const junk = g.inventoryOf(p.cls).find((x) => x?.base && (!keepType(x) && !isCharm(x) && ["normal", "magic", "rare"].includes(x.rarity) || isCharm(x) && x.rarity !== "unique" && charmValue(x, p.cls) <= 0));
         if (junk) { g.gearActions(p.cls, () => {}, false).sell(junk); if (!g.inventoryOf(p.cls).includes(junk)) lastAction = "賣掉用不到的裝備 " + (junk.name || junk.base); }
       }
       return;
