@@ -348,7 +348,9 @@
     if (elite && dist(elite, s.p) > m.attackRange) { const back = unit(elite.x - s.p.x, elite.y - s.p.y); x += back.x * 6; y += back.y * 6; }
     const dodging = m.enabled && m.dodgeProjectiles && Math.hypot(danger.dodgeX, danger.dodgeY) > 0;
     if (dodging) { x += danger.dodgeX; y += danger.dodgeY; }
-    const portalDue = progressing && point(portal) && (!settings.loot.backtrackForLoot || now - clearAt >= settings.terror.postClearWaitSec * 1000);
+    // 王／精英掉的寶箱與暗金以上裝備還在附近時，最多等 20 秒撿完再走通關門。
+    const treasure = s.pickups.some((e) => (e.kind === "chest" || ["unique", "set", "runeword"].includes(e.item?.rarity)) && (blockedLoot.get(e) || 0) < now && dist(e, s.p) <= settings.loot.searchRadius);
+    const portalDue = progressing && point(portal) && (!settings.loot.backtrackForLoot || now - clearAt >= (treasure ? 20000 : settings.terror.postClearWaitSec * 1000));
     // 追目標優先：推進中且生命尚可時以目標前進，路上只閃飛彈，不因被怪包夾而越閃越遠。
     // 追目標只用於王／精英／任務／物品／通關門；一般小怪仍保持距離（實測一般怪也衝會被包圍而早死）。
     const ratio = s.hp.now / s.hp.max, chase = m.enabled && settings.movement.chaseFirst && ratio > 0.35;
