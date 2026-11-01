@@ -293,7 +293,9 @@ const pausedNow = () => {
   const p = document.getElementById("paused");
   return !!p && !p.classList.contains("hidden") && getComputedStyle(p).display !== "none";
 };
-const sync = () => { launcher.style.display = pausedNow() && !frame ? "block" : "none"; };
+// 依使用者要求：整個工具讀取完畢前不讓玩家使用，「修改器」按鈕等載入完成才出現。
+let toolsReady = false;
+const sync = () => { launcher.style.display = toolsReady && pausedNow() && !frame ? "block" : "none"; };
 let watched = null;
 const observer = new MutationObserver(() => {
   const p = document.getElementById("paused");
@@ -308,4 +310,33 @@ window.__d2editStopWatch = () => { observer.disconnect(); clearInterval(timer); 
 sync();
 // 輔助器狀態列用同一份繁中字典翻譯物品名稱。
 window.__d2zhUrl = at("zh-TW.json");
-import(at("autobot.js")).catch((err) => console.warn("輔助工具載入失敗：", err));
+// 依使用者要求：點書籤後依序預先讀完輔助器、字典、遊戲資料、物品引擎與修改器頁面，畫面中央顯示進度條；
+// 單一步驟失敗不卡住（標示警告後繼續），全部結束才開放「修改器」按鈕。
+(async () => {
+  window.__d2editLoading?.remove();
+  const box = document.createElement("div"), bar = document.createElement("div"), fill = document.createElement("div"), text = document.createElement("div");
+  box.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483647;width:min(360px,86vw);padding:16px 18px;border:1px solid #d4a84a;border-radius:8px;background:rgba(20,17,13,.95);color:#e8dcc4;font:14px 'Microsoft JhengHei',system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.6)";
+  bar.style.cssText = "height:10px;margin-top:10px;border-radius:5px;background:#3a3127;overflow:hidden";
+  fill.style.cssText = "height:100%;width:0;background:#d4a84a;transition:width .25s";
+  bar.append(fill); box.append(text, bar); document.body.append(box); window.__d2editLoading = box;
+  for (const ev of ["pointerdown", "mousedown", "touchstart", "keydown"]) box.addEventListener(ev, (e) => e.stopPropagation());
+  const steps = [
+    [zhUI ? "輔助器" : "Assistant", () => import(at("autobot.js"))],
+    [zhUI ? "繁中字典" : "Dictionary", () => fetch(at("zh-TW.json")).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })],
+    [zhUI ? "遊戲資料" : "Game data", () => fetch(at("gamedata.json")).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })],
+    [zhUI ? "物品引擎（遊戲裝備產生器）" : "Item engine", () => engine()],
+    [zhUI ? "修改器頁面" : "Editor page", () => fetch(at("editor.html")).then((r) => r.text())],
+  ];
+  const warn = [];
+  for (let i = 0; i < steps.length; i++) {
+    const [name, run] = steps[i];
+    text.textContent = (zhUI ? "D2 倖存者工具載入中（" : "Loading D2 Survivors tools (") + (i + 1) + "/" + steps.length + (zhUI ? "）：" : "): ") + name + "…";
+    fill.style.width = Math.round(i / steps.length * 100) + "%";
+    try { await run(); } catch (err) { warn.push(name); console.warn("載入失敗：" + name, err); }
+  }
+  fill.style.width = "100%";
+  text.textContent = warn.length ? (zhUI ? "載入完成，但以下項目失敗（相關功能可能無法使用）：" : "Loaded, but these failed: ") + warn.join("、") : (zhUI ? "載入完成，按暫停後右上角開啟修改器" : "Loaded. Pause the game to open the editor (top right)");
+  if (warn.length) fill.style.background = "#c0504d";
+  toolsReady = true; sync();
+  setTimeout(() => { box.remove(); if (window.__d2editLoading === box) window.__d2editLoading = null; }, warn.length ? 6000 : 1800);
+})();
