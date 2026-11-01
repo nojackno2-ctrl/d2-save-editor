@@ -8,6 +8,8 @@
     const st = JSON.parse(localStorage.getItem("d2autobot:settings") || "{}");
     localStorage.setItem("d2autobot:settings", JSON.stringify({ ...st, version: 4, enabled: true, progressEnabled: true, quest: { ...(st.quest || {}), autoProgress: true, autoStart: true, prioritizeBoss: true, farmDifficulty: "off" } }));
     // 依使用者要求：用 GitHub 連結實測，像玩家點書籤一樣載入 GitHub Pages 上的 d2edit.js（再載入輔助器）。
+    // 新版輔助器重新整理後總開關預設關閉；模擬「玩家打開開關」，先寫入頁面記憶體。
+    window.__d2autobotSwitches = { enabled: true, progressEnabled: true };
     await import("https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v=" + Date.now());
   }
   for (let i = 0; i < 40 && !window.__d2autobot?.game; i++) { document.body.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true })); await sleep(500); }

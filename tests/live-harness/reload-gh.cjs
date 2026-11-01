@@ -11,7 +11,7 @@ const local = norm(fs.readFileSync(path.join(__dirname, "..", "..", "autobot.js"
     if (i === 59) { console.log("等待逾時：GitHub 版本與本機不同"); process.exit(1); }
     await new Promise((r) => setTimeout(r, 10000));
   }
-  const code = `(async () => { await import("${BASE}d2edit.js?v=" + Date.now()); for (let i = 0; i < 120 && window.__d2editLoading; i++) await new Promise((r) => setTimeout(r, 500)); return "gh-reloaded " + (window.__d2autobot ? "bot" : "nobot"); })()`;
+  const code = `(async () => { window.__d2autobotSwitches ??= { enabled: !!window.__d2autobot?.settings?.enabled || true, progressEnabled: true }; await import("${BASE}d2edit.js?v=" + Date.now()); for (let i = 0; i < 120 && window.__d2editLoading; i++) await new Promise((r) => setTimeout(r, 500)); return "gh-reloaded " + (window.__d2autobot ? "bot" : "nobot"); })()`;
   for (const d of fs.readdirSync(__dirname).filter((n) => n.startsWith("run-"))) fs.writeFileSync(path.join(__dirname, d, "cmd.js"), code);
   console.log("已送出書籤式重載");
 })().catch((e) => { console.error(e.message); process.exit(1); });

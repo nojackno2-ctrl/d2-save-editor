@@ -28,9 +28,9 @@ let server, win;
  const results=await run(`(async()=>{
    Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
    let time=10000; Object.defineProperty(performance,'now',{configurable:true,value:()=>time});
-   const out=[], check=(name,value)=>{if(!value)throw Error(name);out.push(name)};
+   const out=[], fails=[], check=(name,value)=>{if(!value){fails.push(name);return}out.push(name)}; window.__testFails=fails; // 失敗不中斷，跑完全部再列出（電腦負載高時部分時間相依項目偶發失敗，需要看全貌）
    const wait=()=>new Promise(r=>setTimeout(r,260));
-   const install=async(settings={})=>{window.__d2autobot?.destroy();localStorage.setItem('d2autobot:settings',JSON.stringify({version:6,deathProtection:{enabled:false},...settings}));(0,eval)(${JSON.stringify(source)});await wait();game.tick(0.05);time+=70;};
+   const install=async(settings={},fresh=false)=>{window.__d2autobot?.destroy();window.__d2autobotSwitches=fresh?undefined:{enabled:!!settings.enabled,progressEnabled:!!settings.progressEnabled};localStorage.setItem('d2autobot:settings',JSON.stringify({version:6,deathProtection:{enabled:false},...settings}));(0,eval)(${JSON.stringify(source)});await wait();game.tick(0.05);time+=70;};
    const tick=()=>{time+=100;game.tick(0.1)};
    const reset=()=>{Object.assign(game,new Game());time+=6000;document.getElementById('paused').classList.add('hidden');};
    const enabled={enabled:true,progressEnabled:true,movement:{enabled:false},loot:{enabled:false},deathProtection:{enabled:false}};
@@ -59,6 +59,7 @@ let server, win;
    pickMode('fixedDifficulty');check('固定關卡模式套用難度',storage().terror.mode==='off'&&storage().quest.farmDifficulty==='nightmare'&&storage().quest.autoProgress===true);
    pickMode('quest');check('推關模式往上推',storage().terror.mode==='off'&&storage().quest.farmDifficulty==='off'&&storage().quest.autoProgress===true);
    check('任務模式隱藏天梯設定',ladder.closest('label').hidden===true&&shadow.querySelector('[data-setting="terror.targetFarmTier"]').closest('label').hidden===true);pickMode('fixedTier');check('固定層數顯示層數欄位',shadow.querySelector('[data-setting="terror.targetFarmTier"]').closest('label').hidden===false&&shadow.querySelector('[data-setting="quest.fixedDifficulty"]').closest('label').hidden===true);pickMode('quest');
+   {reset();await install({enabled:true,progressEnabled:true},true);check('重新整理後總開關預設關閉',__d2autobot.settings?.enabled===false||JSON.parse(localStorage.getItem('d2autobot:settings')).enabled===false);await install({enabled:true,progressEnabled:true});const st=JSON.parse(localStorage.getItem('d2autobot:settings'));check('同頁重新載入沿用開關',window.__d2autobotSwitches.enabled===true&&window.__d2autobotSwitches.progressEnabled===true&&st.enabled===true);}
    const emergency=shadow.querySelector('[data-setting="deathProtection.emergencyHpPercent"]');emergency.value='999';emergency.dispatchEvent(new Event('change'));
    check('緊急門檻限制範圍並儲存',storage().deathProtection.emergencyHpPercent===90);
    shadow.getElementById('close').click();game.state='playing';await wait();check('遊玩時隱藏輔助按鈕',document.getElementById('d2autobot-launcher').style.display==='none');
@@ -154,8 +155,8 @@ let server, win;
    __d2autobot.destroy();const entries=performance.getEntriesByType.bind(performance);performance.getEntriesByType=()=>[];document.getElementById('life-text').textContent='20 / 100';let pulses=[];const capture=e=>pulses.push([e.type,e.code]);window.addEventListener('keydown',capture);window.addEventListener('keyup',capture);
    await install({...enabled,potion:{fallbackHpSlot:4}});await wait();check('無掛鉤時讀取HUD模擬指定藥帶鍵',pulses.some(x=>x[0]==='keydown'&&x[1]==='Digit4')&&pulses.some(x=>x[0]==='keyup'&&x[1]==='Digit4'));check('降級模式明確回報掛鉤缺失',!__d2autobot.diagnostics().connected && __d2autobot.diagnostics().hookNote.includes('簽名不相容'));window.removeEventListener('keydown',capture);window.removeEventListener('keyup',capture);performance.getEntriesByType=entries;
    __d2autobot.destroy();check('卸載還原遊戲原型',Game.prototype.tick===originalTick && Game.prototype.steer===originalSteer);check('卸載移除面板',!document.getElementById('d2autobot-panel'));
-   return out;
+   return {out,fails};
  })()`);
- fs.writeFileSync(process.env.D2AUTOBOT_TEST_RESULT || path.join(require('node:os').tmpdir(),'d2autobot-result.json'),JSON.stringify({passed:results.length,checks:results},null,2));
- console.log('模擬測試通過：'+results.length+' 項');app.exit(0);
+ fs.writeFileSync(process.env.D2AUTOBOT_TEST_RESULT || path.join(require('node:os').tmpdir(),'d2autobot-result.json'),JSON.stringify({passed:results.out.length,failed:results.fails,checks:results.out},null,2));
+ console.log('模擬測試通過：'+results.out.length+' 項，失敗：'+results.fails.length+' 項'+(results.fails.length?'（'+results.fails.join('、')+'）':''));app.exit(results.fails.length?1:0);
 })().catch(e=>{fs.writeFileSync(process.env.D2AUTOBOT_TEST_RESULT || path.join(require('node:os').tmpdir(),'d2autobot-result.json'),JSON.stringify({error:e.stack||String(e)}));console.error(e);app.exit(1)});

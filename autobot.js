@@ -96,6 +96,9 @@
     settings.version = defaults.version;
   }
   normalize();
+  // 依使用者要求：遊戲重新整理或重新開啟後點書籤，兩個總開關預設關閉；同一頁面內重新點書籤則沿用原本狀態。
+  // 狀態記在頁面記憶體（window.__d2autobotSwitches），重新整理就消失；其他設定照舊讀取儲存。
+  { const live = window.__d2autobotSwitches; settings.enabled = !!live?.enabled; settings.progressEnabled = !!live?.progressEnabled; }
   const abort = new AbortController(), restores = [], blockedLoot = new WeakMap();
   let alive = true, game = null, lastStep = -Infinity, lastHp = -Infinity;
   let manualUntil = 0, lootTarget = null, lootSince = 0, ownWalk = null, ownReach = null;
@@ -118,6 +121,7 @@
   let chosen = null;
   function save(fromUser = false) {
     normalize();
+    window.__d2autobotSwitches = { enabled: settings.enabled, progressEnabled: settings.progressEnabled };
     if (fromUser || !chosen) chosen = JSON.parse(JSON.stringify(settings));
     try { localStorage.setItem(KEY, JSON.stringify(chosen)); storageNote = ""; }
     catch { storageNote = "設定無法儲存，本次仍有效"; }
