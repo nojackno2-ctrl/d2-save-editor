@@ -450,8 +450,12 @@
   function gearScore(g, worn) {
     const p = g.world.player, numbers = g.heroNumbers(g.makePlayer(p.sprite, p.cls, worn), g.build, worn, false);
     const n = Object.fromEntries((numbers?.stats || []).map((s) => [s.label, finite(s.num) ? s.num : 0]));
-    const res = ["Fire Resistance", "Cold Resistance", "Lightning Resistance", "Poison Resistance"].reduce((a, k) => a + Math.min(75, n[k] || 0), 0);
-    return Math.log1p(Math.max(0, n.Damage || 0)) * 100 + Math.log1p(Math.max(0, n.Life || 0)) * 60 + (n["Damage Reduced"] || 0) * 0.8 + res * 0.1 + (n["Faster Cast Rate"] || 0) * 0.05 + (n["Replenish Life"] || 0) * 0.2 + (n["Magic Find"] || 0) * 0.01;
+    // 實測（2026-11-01）：減傷、施法速度為小數（0.5＝50％），抗性可為負（地獄 −40）；舊公式幾乎不算防禦而變成玻璃大砲。
+    // 以「少承受 1％ 傷害 ≈ 多打 1％ 傷害」計分：生命權重高於傷害，減傷與四系抗性依實際減少承受量，負抗性扣分。
+    const taken = (r) => -Math.log(1 - Math.min(75, r) / 100) * 100;
+    const res = ["Fire Resistance", "Cold Resistance", "Lightning Resistance", "Poison Resistance"].reduce((a, k) => a + taken(n[k] || 0) * 0.5, 0);
+    const reduced = Math.min(0.5, Math.max(0, n["Damage Reduced"] || 0));
+    return Math.log1p(Math.max(0, n.Damage || 0)) * 100 + Math.log1p(Math.max(0, n.Life || 0)) * 130 - Math.log(1 - reduced) * 150 + res + Math.log1p(Math.max(0, n["Enhanced Defense"] || 0) / 100) * 20 + Math.min(1, n["Faster Cast Rate"] || 0) * 20 + (n["Replenish Life"] || 0) * 0.5 + (n["Magic Find"] || 0) * 0.02;
   }
   // 回傳候選中提升最多且達門檻者；候選可來自背包、倉庫、收藏庫或商店，只比較不寫入。
   function bestGear(g, items) {
