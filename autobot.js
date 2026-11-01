@@ -260,7 +260,10 @@
     const weight = (e) => e.item?.type === "quest" ? 2000 : ["unique", "set", "runeword"].includes(e.item?.rarity) ? 1000 : e.item ? 500 : 50;
     candidates.sort((a, b) => weight(b) - weight(a) || dist(a, s.p) - dist(b, s.p));
     // 原版碰到罐子、木桶會自動踢破（可能掉藥水），走過去即可；不呼叫內部擊破函式。
-    if (lootOn && settings.loot.kickJars) candidates.push(...s.jars.filter((e) => (blockedLoot.get(e) || 0) < now && dist(e, s.p) <= settings.loot.searchRadius).sort((a, b) => dist(a, s.p) - dist(b, s.p)).slice(0, 1));
+    // 實測：最終王倒下（出現通關門／clearing）後不再踢罐；附近有敵人時也不為罐子冒險；藥帶滿了也不踢。
+    const beltRoom = !Array.isArray(s.w.belt?.columns) || s.w.belt.columns.some((c) => (c?.length || 0) < 4);
+    const calm = !s.enemies.some((e) => dist(e, s.p) < settings.movement.kiteDistance);
+    if (lootOn && settings.loot.kickJars && beltRoom && calm && !game?.clearing && !point(game?.clearing?.portal)) candidates.push(...s.jars.filter((e) => (blockedLoot.get(e) || 0) < now && dist(e, s.p) <= settings.loot.searchRadius).sort((a, b) => dist(a, s.p) - dist(b, s.p)).slice(0, 1));
     const target = candidates[0];
     if (!target) { lootTarget = null; return null; }
     if (target.rank === "breakable") { if (lootTarget !== target) { lootTarget = target; lootSince = now; } return { x: target.x, y: target.y, kind: "kick", target }; }
@@ -338,21 +341,23 @@
     if (dodging) { x += danger.dodgeX; y += danger.dodgeY; }
     const portalDue = progressing && point(portal) && (!settings.loot.backtrackForLoot || now - clearAt >= settings.terror.postClearWaitSec * 1000);
     // 追目標優先：推進中且生命尚可時以目標前進，路上只閃飛彈，不因被怪包夾而越閃越遠。
-    const chase = m.enabled && progressing && settings.movement.chaseFirst && s.hp.now / s.hp.max > 0.35;
+    // 追目標只用於王／精英／任務／物品／通關門；一般小怪仍保持距離（實測一般怪也衝會被包圍而早死）。
+    const ratio = s.hp.now / s.hp.max, chase = m.enabled && settings.movement.chaseFirst && ratio > 0.35;
     const free = chase || (!dodging && !closeEnemy);
     let goal = free && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
     if (!goal && questOn() && !portalDue) goal = questGoal(s);
     if (!goal && portalDue) goal = { x: portal.x, y: portal.y, kind: "通關傳送門" };
     if (!goal && progressing && !portal) {
       const enemy = nearestElite(s) || s.enemies.reduce((best, e) => !best || dist(e, s.p) < dist(best, s.p) ? e : best, null);
-      if (enemy) goal = battleGoal(enemy, s.p);
+      if (enemy) goal = battleGoal(enemy, s.p, isElite(enemy) ? "精英" : "戰鬥");
       else {
         // 讓原版導演持續生成敵人的巡航啟發式；不是完整迷霧探索器。
         const angle = s.w.time / 5;
         goal = { x: s.p.x + Math.cos(angle) * 160, y: s.p.y + Math.sin(angle) * 100, kind: "巡航" };
       }
     }
-    const pursue = chase && goal && dist(goal, s.p) > 5;
+    const chaseKind = goal && !["戰鬥", "巡航"].includes(goal.kind) && (goal.kind !== "kick" || !closeEnemy);
+    const pursue = chase && chaseKind && dist(goal, s.p) > 5;
     if (pursue) {
       const u = unit(goal.x - s.p.x, goal.y - s.p.y), d = dodging ? unit(danger.dodgeX, danger.dodgeY) : { x: 0, y: 0 };
       x = u.x * 2 + d.x * 1.5; y = u.y * 2 + d.y * 1.5;
