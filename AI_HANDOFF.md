@@ -1,4 +1,14 @@
 # 交接紀錄
+
+## 長期規則：遊戲更新後全部重新驗證（使用者要求，2026-11-01）
+遊戲（d2survivors.lol）任何版本更新後，本專案所有功能都要重新驗證，不可沿用舊版的驗證結論：
+- 版本來源：官方 `/changelog.json` 第一筆的 `build`（目前驗證過的是 `20261030.2`），以及遊戲主程式 `/assets/Game-*.js` 檔名。輔助器與修改器的常數 `TESTED_GAME_BUILD` 記錄已驗證的版本，遊戲版本較新時兩個工具的設定上方都會提示。
+- 修改器：`signatures.json` 與 `patch.mjs` 的程式區塊比對（引擎能否啟動）、物品產生器與 `allowedStats`／`affixSlots`／`validate` 原版規則、存檔格式與簽章（`d2-survivors/save/v1`、heroes／kept／continue）、金幣與屬性點上限、製作限制、收藏與倉庫讀寫。
+- 輔助器：原版 Game 掛接與各內部函式名稱（useQuest、readCodex、hud.d2.mods、waypointView、startRun／continueRun、endAfterBaal、leaveRun、gearActions、heroNumbers、openCampTrade、akaraSearch 等）、走位與閃避常數、選卡與配點、營地整備、法典與任務流程、死亡保護、難度推進規則。
+- 驗證方式：模擬測試 `web/tests/autobot.cjs`（以 Electron 執行）、修改器以模擬 api 載入、以及每職業全新存檔實機長跑（輔助器全自動，不手動介入）；確認無誤後才把 `TESTED_GAME_BUILD` 改成新版並記錄於此。
+- 官方更新內容先讀 `/changelog.json`，與合法性、存檔欄位、掉落與經驗規則相關的改動要優先核對。
+
+## 工作紀錄
 - 2026-11-01｜Antigravity：訂製裝備改版（前綴與後綴欄位分開，選好底材直接顯示可添加欄位數量）：
   1. 引擎（`web/engine-page.js` 與 `editor/engine-page.js`）新增 API `affixSlots(item, mods)`：
      - 回傳 `{ limit: { pre, suf, max } | null, used: { pre, suf }, kinds: { [stat]: "prefix"|"suffix"|"both" } }`。
