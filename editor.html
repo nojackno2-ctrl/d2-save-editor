@@ -627,7 +627,7 @@ async function renderCraftPick() {
     ${x.affix ? '<p class="note">詞綴跟遊戲掉落一樣隨機（合法）。做好可在「物品」頁修改屬性，或多做幾件挑喜歡的。</p>' : ""}
     <div class="f">
       ${x.affix ? "" : '<span>數值</span><select id="pMax"><option value="1">全部最高（合法）</option><option value="0">隨機（跟掉落一樣）</option></select>'}
-      ${x.rarity === "runeword" ? `<span>底材</span><select id="pBase">${rwBases.map(b => `<option value="${esc(b)}" ${b === x.base ? "selected" : ""}>${esc(T(b))}（${esc(b)}）</option>`).join("")}</select>` : ""}
+      ${x.rarity === "runeword" ? `<span>底材</span><select id="pBase">${rwBases.map(b => `<option value="${esc(b)}" ${b === x.base ? "selected" : ""}>${esc(T(b))}</option>`).join("")}</select>` : ""}
       <span>數量</span><input id="pN" type="number" value="1" min="1" ${unlocked() ? "" : 'max="40"'}>
       ${unlocked() ? '<span>數值倍率</span><input id="pMul" type="number" value="1" min="0" step="0.5">' : ""}
       <span>放到</span><select id="pDest">${destOptions()}</select>

@@ -302,4 +302,6 @@ if (p0) { watched = p0; observer.observe(p0, { attributes: true, attributeFilter
 const timer = setInterval(sync, 500); // 保險：遊戲用其他方式切換畫面時也會更新
 window.__d2editStopWatch = () => { observer.disconnect(); clearInterval(timer); };
 sync();
+// 輔助器狀態列用同一份繁中字典翻譯物品名稱。
+window.__d2zhUrl = at("zh-TW.json");
 import(at("autobot.js")).catch((err) => console.warn("輔助工具載入失敗：", err));

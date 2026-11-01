@@ -103,6 +103,22 @@
     manualUntil = performance.now() + 1200;
     release();
   }
+  // 物品名稱繁中化（狀態列用）：沿用修改器的字典與 zh.js 規則——整句查字典；魔法物品拆成字尾＋字首＋底材；稀有兩個字分開翻。
+  let zhDict = null;
+  if (window.LANG !== "en" && window.__d2zhUrl) fetch(window.__d2zhUrl).then((r) => r.ok ? r.json() : null).then((d) => { zhDict = d; }).catch(() => {});
+  const zt = (en) => zhDict?.[en] || en;
+  function itemZh(item) {
+    if (!item) return "";
+    const name = String(item.name || ""), base = String(item.base || "");
+    if (!zhDict) return name || base;
+    if (!name) return zt(base);
+    if (zhDict[name]) return zhDict[name];
+    const i = base ? name.indexOf(base) : -1;
+    if (i >= 0) { const pre = name.slice(0, i).trim(), suf = name.slice(i + base.length).trim(); return (suf ? zt(suf) : "") + (pre ? zt(pre) : "") + zt(base); }
+    const words = name.split(" ");
+    if (words.length === 2 && words.every((w) => zhDict[w])) return words.map(zt).join("");
+    return name;
+  }
   function keyPulse(code, key) {
     const target = document.activeElement || document.body, init = { key, code, bubbles: true, cancelable: true, composed: true };
     target.dispatchEvent(new KeyboardEvent("keydown", init));
@@ -636,7 +652,7 @@
       if (junk) { g.gearActions(p.cls, () => {}, false).sell(junk); g.lastInventoryFull = -Infinity; lastAction = "背包已滿，賣掉 " + (junk.name || junk.base); return; }
     }
     // 護符：原版 equip 遇到護符會改放進護符格（moveCharm）；有空位就放，滿了留在背包。
-    if (charm) { charmTried.add(charm); g.gearActions(p.cls, () => {}, false).equip(charm); if (!g.inventoryOf(p.cls).includes(charm)) lastAction = "已放入護符：" + (charm.name || charm.base); return; }
+    if (charm) { charmTried.add(charm); g.gearActions(p.cls, () => {}, false).equip(charm); if (!g.inventoryOf(p.cls).includes(charm)) lastAction = "已放入護符：" + itemZh(charm); return; }
     const best = bestGear(g, [...g.inventoryOf(p.cls)]);
     if (!best) {
       // 沒用的裝備（普通／魔法／稀有且不比身上好）撿到就賣，不等背包滿；暗金、套裝、符文之語、護符留給收藏與倉庫。
@@ -647,7 +663,7 @@
       return;
     }
     g.gearActions(p.cls, () => {}, false).equip(best.item);
-    if (Object.values(g.equippedOf(p.cls)).includes(best.item)) lastAction = "已自動穿上較佳裝備：" + (best.item.name || best.item.base);
+    if (Object.values(g.equippedOf(p.cls)).includes(best.item)) lastAction = "已自動穿上較佳裝備：" + itemZh(best.item);
   }
   // 營地整備：沿用原版 openCampTrade 與商店介面回呼（hud.showTown 的參數），一次只做一個動作。
   // 實測（2026-11-01）：store＝恰西升級與裝備、akara＝藥水（1000 金，下一局放入藥帶）、stash＝倉庫／收藏庫（toStash、collectAll、可直接 equip）。
@@ -693,14 +709,14 @@
       if (settings.town.collect && (view ? view.collect > 0 : shop.smith) && !shop.collected && typeof a.collectAll === "function") { shop.collected = true; a.collectAll(); lastAction = "整備：把暗金／套裝收進收藏庫"; return false; }
       if (settings.gear.autoEquip) {
         const charm = stashItems(view).find((x) => isCharm(x) && !shop.tried.has(x));
-        if (charm) { shop.tried.add(charm); a.equip(charm); lastAction = "整備：從倉庫放入護符 " + (charm.name || charm.base); return false; }
+        if (charm) { shop.tried.add(charm); a.equip(charm); lastAction = "整備：從倉庫放入護符 " + itemZh(charm); return false; }
         // 倉庫與收藏庫的裝備一起評估；原版 equip 在倉庫情境可直接從倉庫或收藏庫取出穿上。
         const best = bestGear(g, [...g.inventoryOf(cls), ...stashItems(view)].filter((x) => !shop.tried.has(x)));
-        if (best) { shop.tried.add(best.item); a.equip(best.item); lastAction = "整備：換上較佳裝備 " + (best.item.name || best.item.base); return false; }
+        if (best) { shop.tried.add(best.item); a.equip(best.item); lastAction = "整備：換上較佳裝備 " + itemZh(best.item); return false; }
       }
       if (settings.town.stash && typeof a.toStash === "function") {
         const item = g.inventoryOf(cls).find((x) => x?.base && !shop.tried.has(x) && !keepType(x) && ["unique", "set", "runeword", "rare"].includes(x.rarity));
-        if (item) { shop.tried.add(item); a.toStash(item); lastAction = "整備：存入倉庫 " + (item.name || item.base); return false; }
+        if (item) { shop.tried.add(item); a.toStash(item); lastAction = "整備：存入倉庫 " + itemZh(item); return false; }
       }
       return true;
     },
@@ -708,7 +724,7 @@
       if (!settings.town.sellJunk || !openTrade(g, "store")) return true;
       const a = trade.gear?.actions, item = g.inventoryOf(cls).find((x) => x?.base && !shop.tried.has(x) && !keepType(x) && ["normal", "magic", "rare"].includes(x.rarity));
       if (!a?.sell || !item) return true;
-      shop.tried.add(item); a.sell(item); lastAction = "整備：賣出 " + (item.name || item.base);
+      shop.tried.add(item); a.sell(item); lastAction = "整備：賣出 " + itemZh(item);
       return false;
     },
     potions(g) {
@@ -729,7 +745,7 @@
       if (settings.town.buyGear && settings.gear.autoEquip) {
         const offers = wares.filter((w) => w?.item && w.canBuy && !shop.tried.has(w.item));
         const best = offers.length ? bestGear(g, offers.map((w) => w.item)) : null;
-        if (best) { shop.tried.add(best.item); trade.acts.buy(wares.findIndex((w) => w.item === best.item)); lastAction = "整備：向恰西買較佳裝備 " + (best.item.name || best.item.base); return false; }
+        if (best) { shop.tried.add(best.item); trade.acts.buy(wares.findIndex((w) => w.item === best.item)); lastAction = "整備：向恰西買較佳裝備 " + itemZh(best.item); return false; }
       }
       if (!settings.town.charsiUpgrades) return true;
       // 依優先順序加權並計入已買等級，讓金幣平均投入生命、減傷、回血等永久成長。
@@ -749,7 +765,7 @@
         if (value < score) { pick = i; score = value; }
       });
       if (pick < 0 || shop.buys++ > 60) return true;
-      trade.acts.buy(pick); lastAction = "整備：恰西升級 " + wares[pick].name;
+      trade.acts.buy(pick); lastAction = "整備：恰西升級 " + zt(wares[pick].name);
       return false;
     },
   };
