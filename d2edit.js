@@ -75,12 +75,17 @@ async function startEngine() {
   // 目前頁面不一定載入了物品程式（例如停在設定頁），所以也從遊戲主頁的程式清單開始找
   // 依使用者回報（物品引擎載入很久）：主頁清單與各程式區塊改為並行抓取（舊版逐一等待 45 個檔案），每一波抓完再找下一波參照。
   const t0 = performance.now(), mark = (k) => { (engineInfo.ms ??= {})[k] = Math.round(performance.now() - t0); };
-  const pages = await Promise.all(["/play/", "/"].map((page) => fetch(new URL(page, location.origin), { cache: "no-store" }).then((r) => (r.ok ? r.text() : "")).catch(() => "")));
-  for (const html of pages) for (const m of html.matchAll(/\/assets\/([\w.-]+\.js)/g)) queue.push(m[1]);
+  // iPhone 實測抓取 3.3 秒：程式區塊檔名帶雜湊（遊戲更新檔名就變），直接用瀏覽器快取（force-cache），不再逐一向伺服器確認；/play/ 已有清單就不抓首頁。
+  for (const page of ["/play/", "/"]) {
+    const html = await fetch(new URL(page, location.origin), { cache: "no-store" }).then((r) => (r.ok ? r.text() : "")).catch(() => "");
+    const found = [...html.matchAll(/\/assets\/([\w.-]+\.js)/g)].map((m) => m[1]);
+    queue.push(...found);
+    if (found.length) break;
+  }
   let wave = [...new Set(queue)];
   while (wave.length) {
     const todo = wave.filter((f) => !seen.has(f)); for (const f of todo) seen.add(f);
-    const srcs = await Promise.all(todo.map((f) => fetch(base + f).then((r) => (r.ok ? r.text() : null)).catch(() => null)));
+    const srcs = await Promise.all(todo.map((f) => fetch(base + f, { cache: "force-cache" }).then((r) => (r.ok ? r.text() : null)).catch(() => null)));
     const next = new Set();
     todo.forEach((f, i) => { const src = srcs[i]; if (src == null) return; files[f] = src; for (const m of src.matchAll(/["'`]\.\/([\w.-]+\.js)["'`]/g)) if (!seen.has(m[1])) next.add(m[1]); });
     wave = [...next];
@@ -223,6 +228,13 @@ const backend = {
     return found;
   },
   close() { close(); return true; },
+  // 遊戲版本：修改器在 GitHub 頁面的 iframe 內，跨網站讀不到遊戲的 changelog.json，改由這裡（遊戲同源）讀取。
+  async gameBuild() {
+    let list = null;
+    try { list = await fetch("/changelog.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)); } catch { list = null; }
+    const gameJs = performance.getEntriesByType("resource").map((e) => e.name).concat([...document.querySelectorAll("script[src],link[rel=modulepreload]")].map((e) => e.src || e.href)).map((u) => u.match(/\/(Game-[\w-]+\.js)/)?.[1]).find(Boolean) || "";
+    return { build: list?.[0]?.build || "", date: list?.[0]?.date || "", gameJs };
+  },
   // 診斷資訊（不含排行榜 ID 等識別碼）
   diag() {
     let last = null;

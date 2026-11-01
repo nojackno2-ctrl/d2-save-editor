@@ -378,6 +378,8 @@ async function checkGameVersion() {
     const prevJs = prev?.gameJs || "";
     const gameChanged = !!(gameJs && prevJs && gameJs !== prevJs);
     let latestBuild = "", latestDate = "";
+    // 網頁版：由遊戲頁面代讀（跨網站直接讀會被瀏覽器擋）。
+    if (window.api?.gameBuild) { try { const gb = await window.api.gameBuild(); if (gb?.build) { latestBuild = gb.build; latestDate = gb.date || ""; } } catch {} }
     const ctrl = new AbortController(), tid = setTimeout(() => ctrl.abort(), 5000);
     try {
       const res = await fetch("https://d2survivors.lol/changelog.json", { signal: ctrl.signal, cache: "no-cache" }).catch(() => fetch("/changelog.json", { signal: ctrl.signal, cache: "no-cache" }));
