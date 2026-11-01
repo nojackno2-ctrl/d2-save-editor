@@ -720,9 +720,11 @@
   }
   // 以原版角色數值（傷害、生命、減傷、抗性）比較背包裝備，再走原版穿戴流程。
   let gearAt = 0;
-  function gearScore(g, worn) {
+  function gearNumbers(g, worn) {
     const p = g.world.player, numbers = g.heroNumbers(g.makePlayer(p.sprite, p.cls, worn), g.build, worn, false);
-    const n = Object.fromEntries((numbers?.stats || []).map((s) => [s.label, finite(s.num) ? s.num : 0]));
+    return Object.fromEntries((numbers?.stats || []).map((s) => [s.label, finite(s.num) ? s.num : 0]));
+  }
+  function gearScore(g, worn, n = gearNumbers(g, worn)) {
     // 實測（2026-11-01）：減傷、施法速度為小數（0.5＝50％），抗性可為負（地獄 −40）；舊公式幾乎不算防禦而變成玻璃大砲。
     // 以「少承受 1％ 傷害 ≈ 多打 1％ 傷害」計分：生命權重高於傷害，減傷與四系抗性依實際減少承受量，負抗性扣分。
     const taken = (r) => -Math.log(1 - Math.min(75, r) / 100) * 100;
@@ -737,7 +739,10 @@
   }
   // 回傳候選中提升最多且達門檻者；候選可來自背包、倉庫、收藏庫或商店，只比較不寫入。
   function bestGear(g, items) {
-    const p = g.world.player, worn = g.equippedOf(p.cls), base = gearScore(g, worn), doll = g.ownGear(p.cls).doll;
+    const p = g.world.player, worn = g.equippedOf(p.cls), baseNumbers = gearNumbers(g, worn), base = gearScore(g, worn, baseNumbers), doll = g.ownGear(p.cls).doll;
+    const resKeys = ["Fire Resistance", "Cold Resistance", "Lightning Resistance", "Poison Resistance"], averageRes = resKeys.reduce((a, k) => a + (baseNumbers[k] || 0), 0) / 4;
+    const survival = (n) => Math.log1p(Math.max(0, n.Life || 0)) * 130 - Math.log(1 - Math.min(0.5, Math.max(0, n["Damage Reduced"] || 0))) * 150 + resKeys.reduce((a, k) => { const r = n[k] || 0; return a - Math.log(1 - Math.min(75, r) / 100) * 100 + Math.min(0, r) * 1.5; }, 0);
+    const baseSurvival = survival(baseNumbers), baseDamage = Math.max(0, baseNumbers.Damage || 0);
     let best = null;
     for (const item of items) {
       if (!item?.base || item.type === "quest" || item.type === "rune" || item.type === "gem" || Object.values(worn).includes(item)) continue;
@@ -750,7 +755,11 @@
       for (const s of displaced) delete trial[s];
       trial[to] = item;
       // 分數以對數計：1 分約等於傷害 +1％。實測原版數值不含防禦，空欄位只要不變差就穿（至少得到防禦）。
-      const gain = gearScore(g, trial) - base, empty = !worn[to] && displaced.every((s) => !worn[s]);
+      const numbers = gearNumbers(g, trial), damage = Math.max(0, numbers.Damage || 0);
+      // 依使用者要求：武器被擠空不得降傷；降傷超過一成僅在半血以下或平均負抗且生存分數至少提升 20 分時放行。
+      if (!trial.weapon && damage < baseDamage) continue;
+      if (damage < baseDamage * 0.9 && !((p.maxLife > 0 && p.life / p.maxLife < 0.5 || averageRes < 0) && survival(numbers) - baseSurvival >= 20)) continue;
+      const gain = gearScore(g, trial, numbers) - base, empty = !worn[to] && displaced.every((s) => !worn[s]);
       if ((empty ? gain >= 0 : gain >= settings.gear.minGainPercent) && (!best || gain > best.gain)) best = { item, gain };
     }
     return best;
@@ -1072,19 +1081,30 @@
     mods.set(pick[0], pick[1].id);
     if (mods.active(pick[0])) lastAction = "技能變體：" + pick[0] + " → " + (pick[1].name || pick[1].id);
   }
+  // 依使用者要求：累積各屬性應得小數，逐點補足最大欠額，避免少量配點全落在最高比例。
+  function nextStatCarry(ratio, carry) {
+    const entries = Object.entries(ratio).filter(([, value]) => finite(value) && value > 0), total = entries.reduce((sum, [, value]) => sum + value, 0);
+    if (!total) return null;
+    const next = Object.fromEntries(entries.map(([key, value]) => [key, (finite(carry?.[key]) ? carry[key] : 0) + value / total]));
+    const attr = entries.reduce((best, [key]) => next[key] > next[best] ? key : best, entries[0][0]);
+    next[attr] -= 1; return { attr, carry: next };
+  }
+  const STAT_CARRY_KEY = "d2autobot:statCarry";
+  let statCarry = {};
+  try { const saved = JSON.parse(localStorage.getItem(STAT_CARRY_KEY) || "{}"); if (saved && typeof saved === "object" && !Array.isArray(saved)) statCarry = saved; } catch { /* 本次從零累積。 */ }
   function autoStats(g, now) {
     if (!settings.progressEnabled || !settings.build.autoStats || now - statsAt < 1000 || typeof g.spendStatPoints !== "function") return;
     statsAt = now;
-    const unspent = g.build?.unspent | 0, ratio = ladderOf(g)?.attributes;
-    if (unspent <= 0 || !ratio) return;
-    const order = Object.entries(ratio).sort((a, b) => b[1] - a[1]);
-    let left = unspent;
-    for (const [attr, share] of order) {
-      const n = attr === order[0][0] ? 0 : Math.min(left, Math.floor(unspent * share));
-      if (n > 0) { g.spendStatPoints(attr, n); left -= n; }
+    const unspent = g.build?.unspent | 0, ratio = ladderOf(g)?.attributes, cls = g.kit?.id;
+    if (unspent <= 0 || !ratio || !cls) return;
+    let spent = 0;
+    for (let i = 0; i < unspent; i++) {
+      const next = nextStatCarry(ratio, statCarry[cls]); if (!next) break;
+      const before = g.build?.unspent; g.spendStatPoints(next.attr, 1);
+      if (!(g.build?.unspent < before)) break;
+      statCarry[cls] = next.carry; spent++;
     }
-    if (left > 0) g.spendStatPoints(order[0][0], left);
-    lastAction = "依排行榜比例分配屬性點 " + unspent + " 點";
+    if (spent) { try { localStorage.setItem(STAT_CARRY_KEY, JSON.stringify(statCarry)); } catch { /* 本次仍生效。 */ } lastAction = "依排行榜比例分配屬性點 " + spent + " 點"; }
   }
   // 目前技能投資與高手前 8 名技能重疊不到一半時，在營地向阿卡拉重置技能，再依排行榜重新選卡。
   // 重置技能判斷（原版：保留等級與裝備、重新分配所有升級，卡片仍隨機）：

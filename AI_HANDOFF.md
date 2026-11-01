@@ -1,4 +1,5 @@
 # 交接紀錄
+- 2026-11-01（Codex）：依使用者要求修正屬性逐點累積與換裝傷害護欄，並同步 web／editor 腳本與設計文件；`node --check autobot.js`、`git diff --check` 通過，`node -e` 累積 10000 點符合 27／55／12／6 比例；未進行遊戲驗證。
 
 - 2026-11-01｜Antigravity：依需求限制「未解除限制製作裝備不准製作暗金、套裝、符文之語」：
   1. 於 `web/editor.html` 與 `editor/index.html` 新增 `FORBIDDEN_CRAFT_RARITIES` 及 `updateCraftRarities()`。
