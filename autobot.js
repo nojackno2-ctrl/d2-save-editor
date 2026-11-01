@@ -57,8 +57,12 @@
   // 自動戰鬥的「自動模式」：推關（普通→惡夢→地獄往上打）、推層（恐怖層數往上推）、固定關卡（重複刷指定難度）、固定層數（重刷指定層）。
   // 只是既有設定的組合（quest.autoProgress、terror.mode、quest.farmDifficulty），戰鬥邏輯與舊設定不必改。
   const autoMode = () => settings.terror.mode === "progress" ? "terror" : settings.terror.mode === "farm" ? "fixedTier" : settings.quest.farmDifficulty !== "off" ? "fixedDifficulty" : "quest";
-  const get = (path) => path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
+  // 依使用者要求：自動模式分「任務模式」（完成所有任務並練到 99 級）與「天梯模式」（推關＝恐怖層往上推、固定關卡＝重複刷指定難度、固定層數＝重刷指定層）。
+  const autoKind = () => autoMode() === "quest" ? "quest" : "ladder";
+  const get = (path) => path === "autoKind" ? autoKind() : path === "ladderMode" ? (autoMode() === "quest" ? "terror" : autoMode()) : path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
   function put(path, value) {
+    if (path === "autoKind") { if (value !== autoKind()) put("autoMode", value === "quest" ? "quest" : "terror"); return; }
+    if (path === "ladderMode") { put("autoMode", value); return; }
     if (path === "autoMode") {
       settings.terror.mode = value === "terror" ? "progress" : value === "fixedTier" ? "farm" : "off";
       settings.quest.autoProgress = value === "quest" || value === "fixedDifficulty";
@@ -668,14 +672,17 @@
   const NOXP_KEY = "d2autobot:noXp";
   // 依使用者要求：75 級以上不再回普通刷（經驗與掉寶都太低）；正在普通的 75 級以上角色若惡夢已開，離開本局回營地改開最高難度。
   const NORMAL_MAX_LV = 75;
+  // 依使用者要求（掉落分析：角色高怪 10 級以上經驗只剩約 5％，惡夢怪最高約 75 級）：85 級以上也不回惡夢刷。
+  const NIGHTMARE_MAX_LV = 85;
+  const lowLevelUseless = (diff, lv) => diff === "normal" && lv >= NORMAL_MAX_LV || diff === "nightmare" && lv >= NIGHTMARE_MAX_LV;
   let leftNormalAt = -Infinity, lastRunDiff = null;
   function leaveLowNormal(g, now) {
     // 原版「繼續」選項沒有難度欄位（只有 kind: continue）；自己記住正在打的難度，回營地判斷要不要續玩。
     if (g.state === "playing" && g.difficulty && !g.world?.terror) lastRunDiff = g.difficulty;
-    if (!questOn() || settings.quest.farmDifficulty !== "off" || g.state !== "playing" || g.difficulty !== "normal" || g.world?.terror || now - leftNormalAt < 15000) return false;
-    const lv = g.world?.player?.level ?? 0, opened = g.save?.unlocked?.[g.kit?.id];
-    if (lv < NORMAL_MAX_LV || !opened || opened === "normal" || typeof g.pause !== "function" || typeof g.leaveRun !== "function") return false;
-    leftNormalAt = now; runStart = null; lastAction = "75 級以上不刷普通：離開本局，回營地開最高難度";
+    if (!questOn() || settings.quest.farmDifficulty !== "off" || g.state !== "playing" || !["normal", "nightmare"].includes(g.difficulty) || g.world?.terror || now - leftNormalAt < 15000) return false;
+    const lv = g.world?.player?.level ?? 0, opened = g.save?.unlocked?.[g.kit?.id], order = ["normal", "nightmare", "hell"];
+    if (!lowLevelUseless(g.difficulty, lv) || !opened || order.indexOf(opened) <= order.indexOf(g.difficulty) || typeof g.pause !== "function" || typeof g.leaveRun !== "function") return false;
+    leftNormalAt = now; runStart = null; lastAction = (g.difficulty === "normal" ? "75 級以上不刷普通" : "85 級以上不刷惡夢") + "：離開本局，回營地開最高難度";
     g.pause(); if (g.state === "paused") void g.leaveRun();
     return true;
   }
@@ -707,7 +714,7 @@
     const opened = starts.filter((s) => s.kind === "new" && order.includes(s.difficulty)).sort((a, b) => order.indexOf(b.difficulty) - order.indexOf(a.difficulty));
     // 最高難度連續陣亡 2 次就回低一級難度刷一局（賺金幣與裝備），之後再挑戰。
     // 實測（35 存檔）：惡夢死亡保護離場 2 次就回普通重打 5 幕，79 級角色在普通拿不到好經驗與裝備（等級、裝備陣亡也保留）；門檻改 3 次。
-    const farm = opened.length > 1 && (failStreak[opened[0].difficulty] || 0) >= 3 && !noXpAt(g.kit.id, opened[1].difficulty, g.world?.player?.level ?? 0) && !(opened[1].difficulty === "normal" && (g.world?.player?.level ?? 0) >= NORMAL_MAX_LV);
+    const farm = opened.length > 1 && (failStreak[opened[0].difficulty] || 0) >= 3 && !noXpAt(g.kit.id, opened[1].difficulty, g.world?.player?.level ?? 0) && !lowLevelUseless(opened[1].difficulty, g.world?.player?.level ?? 0);
     // 固定重複刷：使用者指定的難度已開放就一直開那個難度。
     const fixed = opened.find((s) => s.difficulty === settings.quest.farmDifficulty);
     const fresh = fixed || (farm ? opened[1] : opened[0]);
@@ -765,7 +772,9 @@
       // 依使用者要求：武器被擠空不得降傷；降傷超過一成僅在半血以下或平均負抗且生存分數至少提升 20 分時放行。
       if (!trial.weapon && damage < baseDamage) continue;
       if (damage < baseDamage * 0.9 && !((p.maxLife > 0 && p.life / p.maxLife < 0.5 || averageRes < 0) && survival(numbers) - baseSurvival >= 20)) continue;
-      const gain = gearScore(g, trial, numbers) - base, empty = !worn[to] && displaced.every((s) => !worn[s]);
+      // 依使用者要求：優先穿排行榜高手常用的暗金／套裝（LADDER gear 該欄前三名），只要通過上面的降傷護欄且總分不降超過 5 分；沒有推薦裝備才依分數挑。
+      const ladderGear = LADDER.classes[p.cls]?.gear?.[to] || [], recommended = ladderGear.includes(item.name) && !ladderGear.includes(worn[to]?.name);
+      const gain = gearScore(g, trial, numbers) - base + (recommended ? 10 : 0), empty = !worn[to] && displaced.every((s) => !worn[s]);
       if ((empty ? gain >= 0 : gain >= settings.gear.minGainPercent) && (!best || gain > best.gain)) best = { item, gain };
     }
     return best;
@@ -1357,11 +1366,12 @@
     } else {
       if (choices) for (const [value, label] of choices) { const option = document.createElement("option"); option.value = value; option.textContent = label; input.append(option); }
       else { input.type = "number"; const [min, max] = bounds[path]; input.min = min; input.max = max; input.step = path.endsWith("Sec") || path.endsWith("Factor") ? "0.1" : "1"; }
-      input.addEventListener("change", () => { put(path, input.type === "number" ? Number(input.value) : input.value); release(); save(true); });
+      input.addEventListener("change", () => { put(path, input.type === "number" ? Number(input.value) : input.value); release(); save(true); refreshControls(); });
     }
     row.append(text, input); fields.append(row); controls.set(path, input);
   }
-  function group(label) { const h = document.createElement("h3"); h.textContent = label; fields.append(h); }
+  function group(label) { const h = document.createElement("h3"); h.textContent = label; fields.append(h); groupEls[label] = h; }
+  const groupEls = {};
   group("一般與安全"); field("enabled", "戰鬥輔助總開關");;
   group("生命與藥水");
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"]]) field("potion." + path, label);
@@ -1370,7 +1380,8 @@
   group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.vacuum", "全圖撿取（要撿的東西自動飛來、寶箱直接開啟；非原版行為）"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）"); field("loot.onlyUpgrades", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
-  tab("progress"); field("progressEnabled", "自動戰鬥開關"); field("autoMode", "自動模式", [["quest", "推關模式（普通→惡夢→地獄往上打）"], ["terror", "推層模式（恐怖層數往上推）"], ["fixedDifficulty", "固定關卡模式（重複刷指定難度）"], ["fixedTier", "固定層數模式（重刷指定層，須已通關）"]]);
+  tab("progress"); field("progressEnabled", "自動戰鬥開關"); field("autoKind", "自動模式", [["quest", "任務模式（完成所有任務並練到 99 級）"], ["ladder", "天梯模式"]]);
+  field("ladderMode", "天梯方式", [["terror", "推關（恐怖層數往上推）"], ["fixedDifficulty", "固定關卡（重複刷指定難度）"], ["fixedTier", "固定層數（重刷指定層，須已通關）"]]);
   field("quest.fixedDifficulty", "固定關卡難度", [["normal", "普通"], ["nightmare", "惡夢"], ["hell", "地獄"]]); field("terror.targetFarmTier", "固定層數");
   group("恐怖層數"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
   group("關卡進程"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）");
@@ -1378,7 +1389,16 @@
   group("裝備"); field("gear.autoEquip", "自動穿上較佳裝備"); field("gear.minGainPercent", "替換門檻（約等於傷害提升％）");
   group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
   tab("assist"); group("死亡保護"); field("deathProtection.enabled", "死亡保護（緊急離開本局）"); field("deathProtection.emergencyHpPercent", "緊急生命門檻（％）"); field("deathProtection.disableAutomation", "觸發後關閉兩頁總開關");
+  // 依使用者要求：目前模式用不到的設定隱藏（欄位所在的 label 列與分組標題）。
+  function applyModeVisibility() {
+    const mode = autoMode(), kind = autoKind(), terror = mode === "terror" || mode === "fixedTier", quest = mode === "quest" || mode === "fixedDifficulty";
+    const show = { ladderMode: kind === "ladder", "quest.fixedDifficulty": mode === "fixedDifficulty", "terror.targetFarmTier": mode === "fixedTier", "terror.postClearWaitSec": terror, "terror.autoReviveOrRestart": terror, "quest.prioritizeBoss": quest, "quest.autoStart": quest };
+    for (const [path, on] of Object.entries(show)) { const row = controls.get(path)?.closest("label"); if (row) row.hidden = !on; }
+    if (groupEls["恐怖層數"]) groupEls["恐怖層數"].hidden = !terror;
+    if (groupEls["關卡進程"]) groupEls["關卡進程"].hidden = !quest;
+  }
   function refreshControls() {
+    applyModeVisibility();
     for (const [path, input] of controls) {
       if (input.getAttribute("role") === "switch") { input.setAttribute("aria-checked", String(get(path))); input.textContent = get(path) ? "開啟" : "關閉"; }
       else input.value = String(get(path));

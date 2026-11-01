@@ -51,13 +51,14 @@ let server, win;
      check('開關立即切換 '+setting,button.getAttribute('aria-checked')!==before);
      button.click();
    }
-   const mode=shadow.querySelector('[data-setting="autoMode"]'),pickMode=(v)=>{mode.value=v;mode.dispatchEvent(new Event('change'));};
-   check('分頁改名自動戰鬥',[...shadow.querySelectorAll('[data-tab]')].some((b)=>b.textContent==='自動戰鬥')&&mode?.tagName==='SELECT'&&mode.options.length===4);
+   const mode=shadow.querySelector('[data-setting="autoKind"]'),ladder=shadow.querySelector('[data-setting="ladderMode"]'),pickMode=(v)=>{mode.value=v==='quest'?'quest':'ladder';mode.dispatchEvent(new Event('change'));if(v!=='quest'){ladder.value=v;ladder.dispatchEvent(new Event('change'));}};
+   check('分頁改名自動戰鬥',[...shadow.querySelectorAll('[data-tab]')].some((b)=>b.textContent==='自動戰鬥')&&mode?.tagName==='SELECT'&&mode.options.length===2&&ladder?.options.length===3);
    pickMode('terror');check('推層模式儲存 mode',storage().terror.mode==='progress'&&storage().quest.autoProgress===false);
    pickMode('fixedTier');check('固定層數模式與推層互斥',storage().terror.mode==='farm');
    const fd=shadow.querySelector('[data-setting="quest.fixedDifficulty"]');fd.value='nightmare';fd.dispatchEvent(new Event('change'));
    pickMode('fixedDifficulty');check('固定關卡模式套用難度',storage().terror.mode==='off'&&storage().quest.farmDifficulty==='nightmare'&&storage().quest.autoProgress===true);
    pickMode('quest');check('推關模式往上推',storage().terror.mode==='off'&&storage().quest.farmDifficulty==='off'&&storage().quest.autoProgress===true);
+   check('任務模式隱藏天梯設定',ladder.closest('label').hidden===true&&shadow.querySelector('[data-setting="terror.targetFarmTier"]').closest('label').hidden===true);pickMode('fixedTier');check('固定層數顯示層數欄位',shadow.querySelector('[data-setting="terror.targetFarmTier"]').closest('label').hidden===false&&shadow.querySelector('[data-setting="quest.fixedDifficulty"]').closest('label').hidden===true);pickMode('quest');
    const emergency=shadow.querySelector('[data-setting="deathProtection.emergencyHpPercent"]');emergency.value='999';emergency.dispatchEvent(new Event('change'));
    check('緊急門檻限制範圍並儲存',storage().deathProtection.emergencyHpPercent===90);
    shadow.getElementById('close').click();game.state='playing';await wait();check('遊玩時隱藏輔助按鈕',document.getElementById('d2autobot-launcher').style.display==='none');
