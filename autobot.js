@@ -8,7 +8,7 @@
     version: 3, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, autoMp: false, mpThreshold: 30, mpCooldownMs: 2000, fallbackHpSlot: 1, fallbackMpSlot: 2 },
     movement: { enabled: true, combatStyle: "auto", chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
-    loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true },
+    loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: true },
     terror: { mode: "off", targetFarmTier: 1, autoReviveOrRestart: false, postClearWaitSec: 3 },
     quest: { autoProgress: false, prioritizeBoss: true, autoStart: true, farmDifficulty: "off" },
     gear: { autoEquip: true, minGainPercent: 2 },
@@ -255,7 +255,19 @@
     if (!item) return drop.kind === "gold" && settings.loot.pickupGold;
     if (item.type === "quest") return questOn();
     if (item.type === "rune") { const n = String(item.base).match(/^r(\d{2})$/); return !!n && +n[1] >= settings.loot.minRuneTier; }
-    return !!settings.loot.qualityThreshold[item.rarity];
+    if (!settings.loot.qualityThreshold[item.rarity]) return false;
+    // 撿起前就能讀到完整屬性：普通／魔法／稀有只追會讓角色變強的；暗金、套裝、符文之語、護符一律撿（收藏與倉庫）。
+    if (!["normal", "magic", "rare"].includes(item.rarity) || isCharm(item) || !settings.loot.onlyUpgrades || !game?.world?.player || typeof game.heroNumbers !== "function") return true;
+    return worth(item);
+  }
+  const worthCache = new WeakMap();
+  function worth(item) {
+    const now = performance.now(), hit = worthCache.get(item);
+    if (hit && now - hit.at < 10000) return hit.ok;
+    let ok = true;
+    try { ok = !!bestGear(game, [item]); } catch { ok = true; }
+    worthCache.set(item, { ok, at: now });
+    return ok;
   }
   function lootGoal(s, now) {
     const lootOn = assistOn() && settings.loot.enabled;
@@ -857,7 +869,7 @@
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["autoMp", "自動補魔力（消耗回復活力藥水）"], ["mpThreshold", "魔力門檻（％）"], ["mpCooldownMs", "魔力藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"], ["fallbackMpSlot", "降級模式魔力藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
   for (const [path, label] of [["enabled", "自動走位（保持距離與閃避）"], ["combatStyle", "戰鬥方式"], ["chaseFirst", "推進時追目標優先（路上閃避，不越閃越遠）"], ["kiteDistance", "敵人安全距離"], ["attackRange", "王與精英怪攻擊範圍（閃避時不超過此距離）"], ["dodgeProjectiles", "閃避敵方飛彈"], ["projectileSafetyRadius", "飛彈安全邊距"], ["smoothingFactor", "轉向平滑係數"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依職業）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
-  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
+  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）"); field("loot.onlyUpgrades", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
   tab("progress"); group("總開關"); field("progressEnabled", "推層與任務總開關"); group("恐怖層數"); field("terror.progressEnabled", "自動推恐怖層數"); field("terror.farmEnabled", "固定層數重刷（與推層互斥）"); field("terror.targetFarmTier", "重刷層數（須已通關）"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
