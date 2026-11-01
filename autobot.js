@@ -5,7 +5,7 @@
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
   const defaults = {
-    version: 5, enabled: false, progressEnabled: false,
+    version: 6, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, fallbackHpSlot: 1 },
     movement: { enabled: true, combatStyle: "auto", ignoreDamagePercent: 3, chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
     loot: { enabled: true, vacuum: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: true },
@@ -14,7 +14,7 @@
     gear: { autoEquip: true, minGainPercent: 2 },
     // 陣亡回營地後的整備：收藏、倉庫、賣裝、買藥、恰西升級，讓每一局都比上一局強。
     town: { enabled: true, collect: true, stash: true, sellJunk: true, buyPotions: true, charsiUpgrades: true, buyGear: true },
-    build: { ladder: true, autoStats: true, redraft: true },
+    build: { ladder: true, autoStats: true, redraft: false },
     // 實測 39～46 級角色陣亡會從 1 級重來；預設開啟：快被打死時原版「儲存並離開」，回營地後自動繼續上次進度。
     deathProtection: { enabled: true, emergencyHpPercent: 15, disableAutomation: false },
   };
@@ -36,6 +36,8 @@
     if ((stored.version || 0) < 3) { settings.loot.qualityThreshold.normal = true; settings.loot.qualityThreshold.magic = true; }
     // 版本 5：死亡保護改為預設開啟、離場後自動繼續（舊版預設關閉，並非使用者選的）。
     if ((stored.version || 0) < 5) { settings.deathProtection.enabled = true; settings.deathProtection.disableAutomation = false; settings.version = 5; }
+    // 版本 6：實測重置技能後原版立即清空技能，被收回的等級要到下一難度才還回，角色整個難度沒技能而卡死；自動重置改為預設關閉。
+    if ((stored.version || 0) < 6) { settings.build.redraft = false; settings.version = 6; }
   }
   catch { storageNote = "設定無法讀取，使用預設值"; }
   // 走位只開放開關、戰鬥方式、閃避飛彈；距離與係數一律用內建值（依職業自動調整）。
@@ -1116,7 +1118,7 @@
   field("loot.backtrackForLoot", "通關後等待撿裝");
   tab("progress"); group("總開關"); field("progressEnabled", "推層與任務總開關"); group("恐怖層數"); field("terror.progressEnabled", "自動推恐怖層數"); field("terror.farmEnabled", "固定層數重刷（與推層互斥）"); field("terror.targetFarmTier", "重刷層數（須已通關）"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
   group("任務進程"); field("quest.autoProgress", "自動推任務（追蹤目標與選擇升級卡）"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）"); field("quest.farmDifficulty", "重複刷難度", [["off", "關閉（自動往上推）"], ["normal", "普通"], ["nightmare", "惡夢"], ["hell", "地獄"]]);
-  group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "技能偏離時向阿卡拉重置技能");
+  group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "配點太分散時向阿卡拉重置技能（原版重置後技能清空，要到下一難度才還回等級，慎用）");
   group("裝備"); field("gear.autoEquip", "自動穿上較佳裝備"); field("gear.minGainPercent", "替換門檻（約等於傷害提升％）");
   group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
   tab("assist"); group("死亡保護"); field("deathProtection.enabled", "死亡保護（緊急離開本局）"); field("deathProtection.emergencyHpPercent", "緊急生命門檻（％）"); field("deathProtection.disableAutomation", "觸發後關閉兩頁總開關");
