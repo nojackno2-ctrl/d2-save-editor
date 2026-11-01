@@ -51,8 +51,8 @@ let server, win;
      check('開關立即切換 '+setting,button.getAttribute('aria-checked')!==before);
      button.click();
    }
-   const mode=shadow.querySelector('[data-setting="autoKind"]'),ladder=shadow.querySelector('[data-setting="ladderMode"]'),pickMode=(v)=>{mode.value=v==='quest'?'quest':'ladder';mode.dispatchEvent(new Event('change'));if(v!=='quest'){ladder.value=v;ladder.dispatchEvent(new Event('change'));}};
-   check('分頁改名自動戰鬥',[...shadow.querySelectorAll('[data-tab]')].some((b)=>b.textContent==='自動戰鬥')&&mode?.tagName==='SELECT'&&mode.options.length===2&&ladder?.options.length===3);
+   const mode=shadow.querySelector('[data-setting="autoKind"]'),ladder=shadow.querySelector('[data-setting="ladderMode"]'),pickMode=(v)=>{mode.value=['quest','fixedDifficulty'].includes(v)?v:'ladder';mode.dispatchEvent(new Event('change'));if(!['quest','fixedDifficulty'].includes(v)){ladder.value=v;ladder.dispatchEvent(new Event('change'));}};
+   check('分頁改名自動戰鬥',[...shadow.querySelectorAll('[data-tab]')].some((b)=>b.textContent==='自動戰鬥')&&mode?.tagName==='SELECT'&&mode.options.length===3&&ladder?.options.length===2);
    pickMode('terror');check('推層模式儲存 mode',storage().terror.mode==='progress'&&storage().quest.autoProgress===false);
    pickMode('fixedTier');check('固定層數模式與推層互斥',storage().terror.mode==='farm');
    const fd=shadow.querySelector('[data-setting="quest.fixedDifficulty"]');fd.value='nightmare';fd.dispatchEvent(new Event('change'));

@@ -62,11 +62,12 @@
   const autoMode = () => settings.terror.mode === "progress" ? "terror" : settings.terror.mode === "farm" ? "fixedTier" : settings.quest.farmDifficulty !== "off" ? "fixedDifficulty" : "quest";
   // 依使用者要求：自動模式分「任務模式」（完成所有任務並練到 99 級）與「天梯模式」（推關＝恐怖層往上推、固定關卡＝重複刷指定難度、固定層數＝重刷指定層）。
   const DIFF_ZH = { normal: "普通", nightmare: "惡夢", hell: "地獄" };
-  const modeLabel = () => ({ quest: "任務模式", terror: "天梯・推關", fixedDifficulty: "天梯・固定關卡 " + (DIFF_ZH[settings.quest.fixedDifficulty] || ""), fixedTier: "天梯・固定層數 " + settings.terror.targetFarmTier + " 層" })[autoMode()];
-  const autoKind = () => autoMode() === "quest" ? "quest" : "ladder";
-  const get = (path) => path === "autoKind" ? autoKind() : path === "ladderMode" ? (autoMode() === "quest" ? "terror" : autoMode()) : path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
+  const modeLabel = () => ({ quest: "任務模式", terror: "天梯・推關", fixedDifficulty: "固定關卡 " + (DIFF_ZH[settings.quest.fixedDifficulty] || ""), fixedTier: "天梯・固定層數 " + settings.terror.targetFarmTier + " 層" })[autoMode()];
+  // 依使用者要求：固定關卡模式是獨立的自動模式（不在天梯模式裡）；天梯模式只有推關與固定層數。
+  const autoKind = () => ["quest", "fixedDifficulty"].includes(autoMode()) ? autoMode() : "ladder";
+  const get = (path) => path === "autoKind" ? autoKind() : path === "ladderMode" ? (["terror", "fixedTier"].includes(autoMode()) ? autoMode() : "terror") : path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
   function put(path, value) {
-    if (path === "autoKind") { if (value !== autoKind()) put("autoMode", value === "quest" ? "quest" : "terror"); return; }
+    if (path === "autoKind") { if (value !== autoKind()) put("autoMode", value === "ladder" ? "terror" : value); return; }
     if (path === "ladderMode") { put("autoMode", value); return; }
     if (path === "autoMode") {
       settings.terror.mode = value === "terror" ? "progress" : value === "fixedTier" ? "farm" : "off";
@@ -1213,20 +1214,57 @@
     redraft = { done: true }; lastAction = "重置技能完成，重新集中升級";
     return true;
   }
-  // 依使用者要求：回到營地優先回報已完成的任務。原版 talkToCain 先呼叫 cainHandOver() 發放已完成任務的獎勵（技能書、屬性書等），
-  // 再開任務日誌；輔助器只呼叫 cainHandOver（不開介面），每次回營地一次，排在整備、重置技能與開局之前。獎勵由 useCodex 接著使用。
-  let cainVisit = null;
-  function reportQuests(g) {
-    if (g.state !== "camp" || !g.camp || g.swapping || g.trade) { if (g.state !== "camp") cainVisit = null; return false; }
-    if (cainVisit === g.camp || !questOn() || typeof g.cainHandOver !== "function") return false;
-    cainVisit = g.camp;
-    let r = null; try { r = g.cainHandOver(); } catch { r = null; }
-    for (const e of r?.given || []) if (e?.quest) g.questsHanded?.add?.(e.quest);
-    if (r?.given?.length) { lastAction = "回營地先向凱恩回報任務：領取 " + r.given.length + " 項獎勵" + (r.waiting?.length ? "（背包滿，" + r.waiting.length + " 項待領）" : ""); return true; }
-    return false;
+  // 依使用者要求：任務模式要檢測當前任務狀態，並回營地交任務（研究見 docs/game-analysis，quests-research）。
+  // 原版存檔 save.cain.quests[職業][任務ID]：'o'＝完成待領、'g'＝已領、'u' 等＝已使用；N1／M1／H1（尋找凱恩）戒指向阿卡拉領（akaraSearch），
+  // 其餘 21 項向凱恩領（cainHandOver）。伊尼弗斯卷軸 bks 也由 akaraSearch 翻譯成鑰匙 bkd。
+  const QUEST_DIFF = { normal: "N", nightmare: "M", hell: "H" }, QUEST_ZH = { normal: "普通", nightmare: "惡夢", hell: "地獄" };
+  const hasItem = (g, base) => { const cls = g.kit?.id; return [...(g.save?.inventoryByClass?.[cls] || []), ...(g.save?.stashTabs?.[cls] || [])].some((x) => x?.base === base); };
+  function questSnapshot(g) {
+    const cls = g?.kit?.id, q = g?.save?.cain?.quests?.[cls] || {}, diff = g?.difficulty || g?.world?.difficulty, p = QUEST_DIFF[diff];
+    const ids = p ? [1, 2, 3, 4, 5, 6].map((n) => p + n) : [];
+    const done = ids.filter((id) => q[id] != null).length, pending = Object.entries(q).filter(([, v]) => v === "o").map(([k]) => k);
+    const search = g?.search, stones = search?.stones?.logic;
+    const cain = !p ? "" : q[p + "1"] != null ? (q[p + "1"] === "o" ? "已救出，待向阿卡拉領戒指" : "已完成") : g?.world?.tristram ? "崔斯特姆：前往凱恩牢籠" : point(search?.portalSpot) ? "石塊陣已開門：進入傳送門" : stones && !stones.done ? "觸碰石塊陣（" + (stones.lit || []).filter(Boolean).length + "／5）" : hasItem(g, "bkd") ? "有鑰匙：擊敗拉卡尼休後觸碰石塊陣" : hasItem(g, "bks") ? "有卷軸：回營地請阿卡拉翻譯" : "擊敗樹頭木拳取得伊尼弗斯卷軸";
+    return { cls, diff, done, total: ids.length, pending, cain, q };
+  }
+  const questLine = (g) => { const qs = questSnapshot(g); return qs.total ? "任務（" + QUEST_ZH[qs.diff] + "）：完成 " + qs.done + "／" + qs.total + (qs.pending.length ? "，待領 " + qs.pending.join("、") : "") + "；尋找凱恩：" + qs.cain : ""; };
+  // 依使用者要求：任務模式達成（普通、惡夢、地獄各 6 項共 18 項都有紀錄，且角色 99 級）就自動改成固定關卡模式刷地獄。
+  function questModeDone(g) {
+    if (autoMode() !== "quest" || (g?.world?.player?.level ?? 0) < 99) return false;
+    const q = g?.save?.cain?.quests?.[g?.kit?.id] || {};
+    if (!["N", "M", "H"].every((p) => [1, 2, 3, 4, 5, 6].every((n) => q[p + n] != null))) return false;
+    settings.quest.fixedDifficulty = "hell"; put("autoMode", "fixedDifficulty"); save(true); refreshControls();
+    lastAction = "任務模式達成（18 項任務完成、99 級）：自動改為固定關卡模式刷地獄";
+    return true;
+  }
+  let turnInAt = 0;
+  function reportQuests(g, now) {
+    if (g.state !== "camp" || !g.camp || g.swapping || g.trade || !settings.progressEnabled || now - turnInAt < 3000) return false;
+    const qs = questSnapshot(g), ring = ["N1", "M1", "H1"].some((id) => qs.q[id] === "o"), scroll = hasItem(g, "bks"), other = qs.pending.some((id) => !/^[NMH]1$/.test(id));
+    if (!ring && !scroll && !other) return false;
+    turnInAt = now;
+    const before = JSON.stringify(qs.q);
+    try {
+      if ((ring || scroll) && typeof g.akaraSearch === "function") g.akaraSearch();
+      else if (other && typeof g.cainHandOver === "function") { const r = g.cainHandOver(); for (const e of r?.given || []) if (e?.quest) g.questsHanded?.add?.(e.quest); }
+    } catch { return false; }
+    const after = questSnapshot(g), changed = JSON.stringify(after.q) !== before || (scroll && !hasItem(g, "bks"));
+    lastAction = changed ? "回營地交任務：" + ((ring || scroll) ? "阿卡拉（" + (scroll ? "翻譯卷軸" : "領戒指") + "）" : "凱恩") : "交任務未成功（背包可能已滿），稍後重試";
+    return changed;
+  }
+  // 第一幕撿到伊尼弗斯卷軸、還沒有鑰匙且本難度尚未救出凱恩：離開本局回營地請阿卡拉翻譯，再以「繼續」回到第一幕開頭（拉卡尼休重生，倒下時石塊陣出現）。
+  let scrollLeftAt = -Infinity;
+  function leaveForScroll(g, now) {
+    if (!questOn() || g.state !== "playing" || g.world?.terror || now - scrollLeftAt < 60000 || typeof g.pause !== "function" || typeof g.leaveRun !== "function") return false;
+    const p = QUEST_DIFF[g.difficulty], q = g.save?.cain?.quests?.[g.kit?.id] || {};
+    if (!p || q[p + "1"] != null || (g.world?.act ?? 0) !== 0 || !hasItem(g, "bks") || hasItem(g, "bkd")) return false;
+    scrollLeftAt = now; lastAction = "撿到伊尼弗斯卷軸：回營地請阿卡拉翻譯";
+    g.pause(); if (g.state === "paused") void g.leaveRun();
+    return true;
   }
   function progression(g, now) {
-    if (reportQuests(g)) return true;
+    if (reportQuests(g, now)) return true;
+    if (g.state === "camp" && questModeDone(g)) return true;
     if (campRedraft(g, now)) return true;
     if (menuResume(g, now) || campShop(g, now) || campStart(g, now)) return true;
     if (terrorMode() === "off") return false;
@@ -1252,7 +1290,7 @@
       if (cards.length) { const i = pickCard(g, cards); keyPulse("Digit" + (i + 1), String(i + 1)); lastAction = "已選擇升級卡 " + (i + 1); actionAt = now; release(); return; }
     }
     if (retreat || blocked()) { release(); return; }
-    if (g) { hookBuild(g); autoEquip(g, now); useCodex(g, now); leaveLowNormal(g, now); if (g.state === "playing") autoStats(g, now); }
+    if (g) { hookBuild(g); autoEquip(g, now); useCodex(g, now); leaveLowNormal(g, now); leaveForScroll(g, now); if (g.state === "playing") autoStats(g, now); }
     if (g && progression(g, now)) { release(); return; }
     if (g && g.state !== "playing") {
       release();
@@ -1459,8 +1497,8 @@
   group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.vacuumXp", "全圖吸經驗（地上經驗寶石自動飛來；非原版行為）"); field("loot.vacuum", "全圖撿取（要撿的東西自動飛來、寶箱直接開啟；非原版行為）"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）"); field("loot.onlyUpgrades", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
-  tab("progress"); field("progressEnabled", "自動戰鬥開關"); field("autoKind", "自動模式", [["quest", "任務模式（完成所有任務並練到 99 級）"], ["ladder", "天梯模式"]]);
-  field("ladderMode", "天梯方式", [["terror", "推關（恐怖層數往上推）"], ["fixedDifficulty", "固定關卡（重複刷指定難度）"], ["fixedTier", "固定層數（重刷指定層，須已通關）"]]);
+  tab("progress"); field("progressEnabled", "自動戰鬥開關"); field("autoKind", "自動模式", [["quest", "任務模式（完成所有任務並練到 99 級，達成後自動改刷地獄）"], ["fixedDifficulty", "固定關卡模式（重複刷指定難度）"], ["ladder", "天梯模式"]]);
+  field("ladderMode", "天梯方式", [["terror", "推關（恐怖層數往上推）"], ["fixedTier", "固定層數（重刷指定層，須已通關）"]]);
   field("quest.fixedDifficulty", "固定關卡難度", [["normal", "普通"], ["nightmare", "惡夢"], ["hell", "地獄"]]); field("terror.targetFarmTier", "固定層數");
   group("恐怖層數"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
   group("關卡進程"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）");
@@ -1509,11 +1547,11 @@
     if (!isPaused || editorOpen) panel.hidden = true;
     if (!game) guarded(null, performance.now());
     const s = readState(game);
-    status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用（" + modeLabel() + "）" : "關閉"), game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
+    status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用（" + modeLabel() + "）" : "關閉"), game ? questLine(game) : "", game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
   }, 200);
   const api = {
     destroy() { if (!alive) return; alive = false; release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
-    diagnostics: () => ({ hellClears, hookUrl, hookNote, connected: !!game, state: game?.state ?? null, lastAction, storageNote, gameBuild: (() => { try { return JSON.parse(localStorage.getItem(BUILD_KEY) || "null"); } catch { return null; } })() }),
+    diagnostics: () => ({ hellClears, hookUrl, hookNote, connected: !!game, state: game?.state ?? null, lastAction, storageNote, quests: (() => { try { const q = questSnapshot(game); return { line: questLine(game), done: q.done, total: q.total, pending: q.pending, cain: q.cain }; } catch { return null; } })(), gameBuild: (() => { try { return JSON.parse(localStorage.getItem(BUILD_KEY) || "null"); } catch { return null; } })() }),
     get game() { return game; },
   };
   window.__d2autobot = api;
