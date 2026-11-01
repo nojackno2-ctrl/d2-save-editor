@@ -367,7 +367,10 @@
     // 追目標只用於王／精英／任務／物品／通關門；一般小怪仍保持距離（實測一般怪也衝會被包圍而早死）。
     const ratio = s.hp.now / s.hp.max, chase = m.enabled && settings.movement.chaseFirst && ratio > 0.35;
     const free = chase || (!dodging && !closeEnemy);
-    let goal = free && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
+    // 實測原版：盜賊是 thiefChase.e（帶金幣逃向傳送門的精英，被打會掉金幣，20 秒後逃走），出現就最優先追擊。
+    const thief = live(g.thiefChase?.e) ? g.thiefChase.e : null;
+    let goal = thief && m.enabled && ratio > 0.25 ? { ...battleGoal(thief, s.p, "盜賊"), ...(isMelee() ? {} : (() => { const u = unit(s.p.x - thief.x, s.p.y - thief.y), d = Math.min(m.kiteDistance, m.attackRange * 0.6); return { x: thief.x + (u.x || 1) * d, y: thief.y + u.y * d }; })()) } : null;
+    if (!goal) goal = free && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
     if (!goal && questOn() && !portalDue) goal = questGoal(s);
     if (!goal && portalDue) goal = { x: portal.x, y: portal.y, kind: "通關傳送門" };
     if (!goal && progressing && !portal) {
