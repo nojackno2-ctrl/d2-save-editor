@@ -7,7 +7,7 @@
   const BUILD_KEY = "d2autobot:gameBuild";
   const TESTED_GAME_BUILD = "20261101.1"; // 每次確認新版遊戲相容後更新此值
   const defaults = {
-    version: 7, enabled: false, progressEnabled: false,
+    version: 8, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, fallbackHpSlot: 1 },
     movement: { enabled: true, combatStyle: "auto", ignoreDamagePercent: 3, chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
     loot: { enabled: true, vacuum: true, vacuumXp: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: false },
@@ -16,7 +16,7 @@
     gear: { autoEquip: true, minGainPercent: 2 },
     // 陣亡回營地後的整備：收藏、倉庫、賣裝、買藥、恰西升級，讓每一局都比上一局強。
     town: { enabled: true, collect: true, stash: true, sellJunk: true, buyPotions: true, charsiUpgrades: true, buyGear: true },
-    build: { ladder: true, autoStats: true, redraft: false },
+    build: { ladder: true, autoStats: true, redraft: true },
     // 實測 39～46 級角色陣亡會從 1 級重來；預設開啟：快被打死時原版「儲存並離開」，回營地後自動繼續上次進度。
     deathProtection: { enabled: true, emergencyHpPercent: 15, disableAutomation: false },
   };
@@ -42,6 +42,8 @@
     if ((stored.version || 0) < 6) { settings.build.redraft = false; settings.version = 6; }
     // 版本 7（依使用者要求）：全圖撿裝備就是全部撿回來，沒用的賣掉換金幣，有用的穿上或存倉庫；不再只撿比身上好的。
     if ((stored.version || 0) < 7) { settings.loot.onlyUpgrades = false; settings.loot.vacuum = true; settings.version = 7; }
+    // 版本 8（依使用者說明）：原版重置技能後立刻進入選卡，舊版是因選卡被暫停條件擋住才停在沒技能；選卡已改為一定會選，重新開啟自動重置。
+    if ((stored.version || 0) < 8) { settings.build.redraft = true; settings.version = 8; }
   }
   catch { storageNote = "設定無法讀取，使用預設值"; }
   // 走位只開放開關、戰鬥方式、閃避飛彈；距離與係數一律用內建值（依職業自動調整）。
@@ -1222,9 +1224,8 @@
   function blocked() { return (!settings.enabled && !settings.progressEnabled) || document.hidden || !panel.hidden || window.__d2editIsOpen?.() || performance.now() < manualUntil || paused(); }
   function step(g, now) {
     checkRetreat(now);
-    // 依使用者要求：每次升級一定要選卡。只要任一總開關開著、升級畫面出現就選（不受手動讓位、模式影響；設定面板開著時除外），
-    // 實測手機上曾因手動讓位或只開戰鬥輔助而停在升級畫面不選。
-    if ((settings.enabled || settings.progressEnabled) && panel.hidden && visible(document.getElementById("level-up")) && now - actionAt > 800) {
+    // 依使用者要求：自動戰鬥開著時每次升級一定要選卡（不受手動讓位影響；設定面板開著時除外）；只開戰鬥輔助時選卡交給玩家。
+    if (settings.progressEnabled && panel.hidden && visible(document.getElementById("level-up")) && now - actionAt > 800) {
       const cards = [...document.querySelectorAll("#choices button")].filter(visible);
       if (cards.length) { const i = pickCard(g, cards); keyPulse("Digit" + (i + 1), String(i + 1)); lastAction = "已選擇升級卡 " + (i + 1); actionAt = now; release(); return; }
     }
@@ -1441,7 +1442,7 @@
   field("quest.fixedDifficulty", "固定關卡難度", [["normal", "普通"], ["nightmare", "惡夢"], ["hell", "地獄"]]); field("terror.targetFarmTier", "固定層數");
   group("恐怖層數"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
   group("關卡進程"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）");
-  group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "配點太分散時向阿卡拉重置技能（原版重置後技能清空，要到下一難度才還回等級，慎用）");
+  group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "技能配置和排行榜差太多時向阿卡拉付費重置技能（普通通關後可用，重置後立刻重新選卡）");
   group("裝備"); field("gear.autoEquip", "自動穿上較佳裝備"); field("gear.minGainPercent", "替換門檻（約等於傷害提升％）");
   group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
   tab("assist"); group("死亡保護"); field("deathProtection.enabled", "死亡保護（緊急離開本局）"); field("deathProtection.emergencyHpPercent", "緊急生命門檻（％）"); field("deathProtection.disableAutomation", "觸發後關閉兩頁總開關");
