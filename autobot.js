@@ -10,7 +10,7 @@
     movement: { enabled: true, combatStyle: "auto", chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
     loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true },
     terror: { mode: "off", targetFarmTier: 1, autoReviveOrRestart: false, postClearWaitSec: 3 },
-    quest: { autoProgress: false, prioritizeBoss: true, autoStart: true },
+    quest: { autoProgress: false, prioritizeBoss: true, autoStart: true, farmDifficulty: "off" },
     gear: { autoEquip: true, minGainPercent: 2 },
     // 陣亡回營地後的整備：收藏、倉庫、賣裝、買藥、恰西升級，讓每一局都比上一局強。
     town: { enabled: true, collect: true, stash: true, sellJunk: true, buyPotions: true, potionCount: 4, charsiUpgrades: true, buyGear: true },
@@ -60,6 +60,7 @@
     }
     for (const path of ["town.potionCount", "loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot", "potion.fallbackMpSlot"]) put(path, Math.round(get(path)));
     if (!["off", "progress", "farm"].includes(settings.terror.mode)) settings.terror.mode = "off";
+    if (!["off", "normal", "nightmare", "hell"].includes(settings.quest.farmDifficulty)) settings.quest.farmDifficulty = "off";
     if (!["auto", "melee", "ranged"].includes(settings.movement.combatStyle)) settings.movement.combatStyle = "auto";
     settings.version = 3;
   }
@@ -438,11 +439,13 @@
     const opened = starts.filter((s) => s.kind === "new" && order.includes(s.difficulty)).sort((a, b) => order.indexOf(b.difficulty) - order.indexOf(a.difficulty));
     // 最高難度連續陣亡 2 次就回低一級難度刷一局（賺金幣與裝備），之後再挑戰。
     const farm = opened.length > 1 && (failStreak[opened[0].difficulty] || 0) >= 2;
-    const fresh = farm ? opened[1] : opened[0];
+    // 固定重複刷：使用者指定的難度已開放就一直開那個難度。
+    const fixed = opened.find((s) => s.difficulty === settings.quest.farmDifficulty);
+    const fresh = fixed || (farm ? opened[1] : opened[0]);
     if (farm) failStreak[opened[0].difficulty] = 0;
-    if (resume && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; void g.continueRun(g.kit, "hero"); return true; }
+    if (resume && (settings.quest.farmDifficulty === "off" || resume.difficulty === settings.quest.farmDifficulty) && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; void g.continueRun(g.kit, "hero"); return true; }
     if (!fresh || typeof g.startRun !== "function") return false;
-    lastAction = (farm ? "最高難度打不上去，回低難度刷：" : "從營地開新局：") + fresh.difficulty; void g.startRun(g.kit, fresh.difficulty);
+    lastAction = (fixed ? "重複刷難度：" : farm ? "最高難度打不上去，回低難度刷：" : "從營地開新局：") + fresh.difficulty; void g.startRun(g.kit, fresh.difficulty);
     return true;
   }
   // 以原版角色數值（傷害、生命、減傷、抗性）比較背包裝備，再走原版穿戴流程。
@@ -736,6 +739,10 @@
     if (g && progression(g, now)) { release(); return; }
     if (g && g.state !== "playing") {
       release();
+      // 重複刷模式：打完巴爾不往下一難度，結束本局回營地再開同難度。
+      if (questOn() && settings.quest.farmDifficulty !== "off" && g.state === "dead" && g.afterBaal && typeof g.endAfterBaal === "function" && now - actionAt > 1500) {
+        g.endAfterBaal(); actionAt = now; lastAction = "重複刷：本輪通關，回營地再刷"; return;
+      }
       if (questOn() && g.state === "dead" && g.afterBaal?.next && typeof g.afterBaal.continue === "function" && now - actionAt > 1500) {
         g.afterBaal.continue(); actionAt = now; return;
       }
@@ -851,7 +858,7 @@
   field("loot.backtrackForLoot", "通關後等待撿裝");
   tab("assist");
   tab("progress"); group("總開關"); field("progressEnabled", "推層與任務總開關"); group("恐怖層數"); field("terror.progressEnabled", "自動推恐怖層數"); field("terror.farmEnabled", "固定層數重刷（與推層互斥）"); field("terror.targetFarmTier", "重刷層數（須已通關）"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
-  group("任務進程"); field("quest.autoProgress", "自動推任務（追蹤目標與選擇升級卡）"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）");
+  group("任務進程"); field("quest.autoProgress", "自動推任務（追蹤目標與選擇升級卡）"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）"); field("quest.farmDifficulty", "重複刷難度", [["off", "關閉（自動往上推）"], ["normal", "普通"], ["nightmare", "惡夢"], ["hell", "地獄"]]);
   group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "技能偏離時向阿卡拉重置技能");
   group("裝備"); field("gear.autoEquip", "自動穿上較佳裝備"); field("gear.minGainPercent", "替換門檻（約等於傷害提升％）");
   group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.potionCount", "每局最多預購藥水數"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
