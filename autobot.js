@@ -681,8 +681,10 @@
     if (g.state === "playing" && g.difficulty && !g.world?.terror) lastRunDiff = g.difficulty;
     if (!questOn() || settings.quest.farmDifficulty !== "off" || g.state !== "playing" || !["normal", "nightmare"].includes(g.difficulty) || g.world?.terror || now - leftNormalAt < 15000) return false;
     const lv = g.world?.player?.level ?? 0, opened = g.save?.unlocked?.[g.kit?.id], order = ["normal", "nightmare", "hell"];
-    if (!lowLevelUseless(g.difficulty, lv) || !opened || order.indexOf(opened) <= order.indexOf(g.difficulty) || typeof g.pause !== "function" || typeof g.leaveRun !== "function") return false;
-    leftNormalAt = now; runStart = null; lastAction = (g.difficulty === "normal" ? "75 級以上不刷普通" : "85 級以上不刷惡夢") + "：離開本局，回營地開最高難度";
+    // 保留角色（save.heroes[職業].kept）比目前這局高 20 級以上、難度也不低時，這局是重新整理或誤開的新局：離開本局回營地接回保留角色。
+    const kept = g.save?.heroes?.[g.kit?.id]?.kept, keptLv = kept?.run?.level ?? kept?.build?.level ?? 0, behindKept = keptLv - lv >= 20 && order.indexOf(kept?.difficulty) >= order.indexOf(g.difficulty);
+    if (!(lowLevelUseless(g.difficulty, lv) && opened && order.indexOf(opened) > order.indexOf(g.difficulty)) && !behindKept || typeof g.pause !== "function" || typeof g.leaveRun !== "function") return false;
+    leftNormalAt = now; runStart = null; lastAction = behindKept ? "這局遠低於保留角色（" + keptLv + " 級）：離開本局，回營地接回保留角色" : (g.difficulty === "normal" ? "75 級以上不刷普通" : "85 級以上不刷惡夢") + "：離開本局，回營地開最高難度";
     g.pause(); if (g.state === "paused") void g.leaveRun();
     return true;
   }
