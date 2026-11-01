@@ -764,9 +764,12 @@ let craftRangeRequest = 0;
 async function updateCraftRanges() {
   const request = ++craftRangeRequest;
   const item = { base: $("#xBase").value, rarity: $("#xRar").value };
-  const [db] = await Promise.all([loadStatRanges(item), filterStats("#cmods", item)]);
+  // 先套用範圍（會把新選屬性的數值自動填成最大值），再檢查原版規則；
+  // 舊版兩者同時跑，規則檢查讀到自動填值前的舊數值而誤標「不符合原版規則」，切換底材重檢後才消失。
+  const db = await loadStatRanges(item);
   if (request !== craftRangeRequest) return;
   showRanges("#cmods", db);
+  await filterStats("#cmods", item);
 }
 async function makeCustom() {
   const rarity = $("#xRar").value;
