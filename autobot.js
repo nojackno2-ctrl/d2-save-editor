@@ -7,7 +7,7 @@
   const defaults = {
     version: 3, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, autoMp: false, mpThreshold: 30, mpCooldownMs: 2000, fallbackHpSlot: 1, fallbackMpSlot: 2 },
-    movement: { enabled: true, chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
+    movement: { enabled: true, combatStyle: "auto", chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
     loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true },
     terror: { mode: "off", targetFarmTier: 1, autoReviveOrRestart: false, postClearWaitSec: 3 },
     quest: { autoProgress: false, prioritizeBoss: true, autoStart: true },
@@ -60,6 +60,7 @@
     }
     for (const path of ["town.potionCount", "loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot", "potion.fallbackMpSlot"]) put(path, Math.round(get(path)));
     if (!["off", "progress", "farm"].includes(settings.terror.mode)) settings.terror.mode = "off";
+    if (!["auto", "melee", "ranged"].includes(settings.movement.combatStyle)) settings.movement.combatStyle = "auto";
     settings.version = 3;
   }
   normalize();
@@ -248,6 +249,8 @@
   // 實測（官方 wiki）：此遊戲沒有單獨符文物品，符文之語掉落即已完成，以 rarity=runeword 撿取並由自動穿裝評估。
   function accepts(drop) {
     const item = drop.item;
+    // 原版寶箱是 kind=chest 的掉落物（碰到即收進待開寶箱），一律撿。
+    if (drop.kind === "chest") return true;
     if (!item) return drop.kind === "gold" && settings.loot.pickupGold;
     if (item.type === "quest") return questOn();
     if (item.type === "rune") { const n = String(item.base).match(/^r(\d{2})$/); return !!n && +n[1] >= settings.loot.minRuneTier; }
@@ -258,7 +261,7 @@
     if (!lootOn && !questOn()) return null;
     if (lootTarget && !lootTarget.dead && now - lootSince > 3500) { blockedLoot.set(lootTarget, now + 15000); lootTarget = null; }
     const candidates = s.pickups.filter((e) => !e.flippy && !e.discarded && e.loot !== "sell" && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && accepts(e) && dist(e, s.p) <= settings.loot.searchRadius);
-    const weight = (e) => e.item?.type === "quest" ? 2000 : ["unique", "set", "runeword"].includes(e.item?.rarity) ? 1000 : e.item ? 500 : 50;
+    const weight = (e) => e.item?.type === "quest" ? 2000 : e.kind === "chest" ? 1500 : ["unique", "set", "runeword"].includes(e.item?.rarity) ? 1000 : e.item ? 500 : 50;
     candidates.sort((a, b) => weight(b) - weight(a) || dist(a, s.p) - dist(b, s.p));
     // 原版碰到罐子、木桶會自動踢破（可能掉藥水），走過去即可；不呼叫內部擊破函式。
     // 實測：最終王倒下（出現通關門／clearing）後不再踢罐；附近有敵人時也不為罐子冒險；藥帶滿了也不踢。
@@ -271,8 +274,11 @@
     if (lootTarget !== target) { lootTarget = target; lootSince = now; }
     return { x: target.x, y: target.y, kind: "loot", target };
   }
+  // 近戰／遠程：依排行榜該職業高手的力量配點比例判斷（≥25％ 為近戰：野蠻人、聖騎士、刺客、德魯伊）。
+  const isMelee = () => settings.movement.combatStyle === "melee" || (settings.movement.combatStyle === "auto" && (ladderOf(game)?.attributes?.strength ?? 0) >= 0.25);
+  const style = () => isMelee() ? { kite: Math.min(settings.movement.kiteDistance, 45), range: Math.min(settings.movement.attackRange, 90) } : { kite: settings.movement.kiteDistance, range: settings.movement.attackRange };
   function battleGoal(e, p, kind = "戰鬥") {
-    const u = unit(p.x - e.x, p.y - e.y), distance = settings.movement.kiteDistance;
+    const u = unit(p.x - e.x, p.y - e.y), distance = isMelee() ? (e.radius || 12) + (p.radius || 12) + 6 : settings.movement.kiteDistance;
     return { x: e.x + (u.x || 1) * distance, y: e.y + u.y * distance, kind };
   }
   function questGoal(s) {
@@ -316,7 +322,7 @@
   const power = (e) => Math.max(1, e.damage || 1) * Math.max(1, e.maxLife || e.life || 1) * (isElite(e) ? 3 : 1);
   function nearestElite(s) { return s.enemies.filter((e) => isElite(e) && dist(e, s.p) < 900).reduce((a, e) => !a || dist(e, s.p) < dist(a, s.p) ? e : a, null); }
   function navigate(s, danger, now) {
-    const g = game, m = { ...settings.movement, enabled: assistOn() && settings.movement.enabled }, progressing = questOn() || terrorMode() !== "off", portal = g.clearing?.portal;
+    const st = style(), g = game, m = { ...settings.movement, kiteDistance: st.kite, attackRange: st.range, enabled: assistOn() && settings.movement.enabled }, progressing = questOn() || terrorMode() !== "off", portal = g.clearing?.portal;
     if (point(portal) && clearWorld !== s.w) { clearWorld = s.w; clearAt = now; }
     let closeEnemy = false, x = 0, y = 0;
     if (m.enabled) for (const e of s.enemies) {
@@ -358,7 +364,8 @@
         goal = { x: s.p.x + Math.cos(angle) * 160, y: s.p.y + Math.sin(angle) * 100, kind: "巡航" };
       }
     }
-    const chaseKind = goal && !["戰鬥", "巡航"].includes(goal.kind) && (goal.kind !== "kick" || !closeEnemy);
+    // 近戰要貼身才打得到，一般怪也直接追；遠程對一般怪保持距離。
+    const chaseKind = goal && (isMelee() ? goal.kind !== "巡航" : !["戰鬥", "巡航"].includes(goal.kind)) && (goal.kind !== "kick" || !closeEnemy);
     const pursue = chase && chaseKind && dist(goal, s.p) > 5;
     if (pursue) {
       const u = unit(goal.x - s.p.x, goal.y - s.p.y), d = dodging ? unit(danger.dodgeX, danger.dodgeY) : { x: 0, y: 0 };
@@ -418,6 +425,7 @@
   }
   // 全新存檔沒有恐怖層紀錄：在營地沿用原版傳送點流程（續玩存檔或開新局）。
   let campSince = 0;
+  const failStreak = {};
   function campStart(g, now) {
     if (g.state !== "camp") { campSince = 0; return false; }
     if (!campSince) campSince = now;
@@ -431,10 +439,14 @@
     const starts = (view?.tabs || []).flatMap((t) => t?.rows || []).filter((r) => r?.open !== false && r?.start).map((r) => r.start);
     const order = ["normal", "nightmare", "hell"];
     const resume = starts.find((s) => s.kind === "continue" && (s.whose ?? "hero") === "hero");
-    const fresh = starts.filter((s) => s.kind === "new" && order.includes(s.difficulty)).sort((a, b) => order.indexOf(b.difficulty) - order.indexOf(a.difficulty))[0];
+    const opened = starts.filter((s) => s.kind === "new" && order.includes(s.difficulty)).sort((a, b) => order.indexOf(b.difficulty) - order.indexOf(a.difficulty));
+    // 最高難度連續陣亡 2 次就回低一級難度刷一局（賺金幣與裝備），之後再挑戰。
+    const farm = opened.length > 1 && (failStreak[opened[0].difficulty] || 0) >= 2;
+    const fresh = farm ? opened[1] : opened[0];
+    if (farm) failStreak[opened[0].difficulty] = 0;
     if (resume && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; void g.continueRun(g.kit, "hero"); return true; }
     if (!fresh || typeof g.startRun !== "function") return false;
-    lastAction = "從營地開新局：" + fresh.difficulty; void g.startRun(g.kit, fresh.difficulty);
+    lastAction = (farm ? "最高難度打不上去，回低難度刷：" : "從營地開新局：") + fresh.difficulty; void g.startRun(g.kit, fresh.difficulty);
     return true;
   }
   // 以原版角色數值（傷害、生命、減傷、抗性）比較背包裝備，再走原版穿戴流程。
@@ -708,7 +720,9 @@
       }
       // 一般難度陣亡或結束：沿用原版結算畫面的「回主選單」（營地模式下回營地），再由 campStart 續玩。
       if (questOn() && settings.quest.autoStart && g.state === "dead" && g.runOver && !g.world?.terror && !g.afterBaal?.next && typeof g.toMenu === "function" && (g.deathTime ?? 3) >= 3 && now - actionAt > 1500) {
-        actionAt = now; lastAction = "本局結束，返回營地"; void g.toMenu(); return;
+        const died = !(g.world?.player?.life > 0) && !g.won;
+        failStreak[g.difficulty] = died ? (failStreak[g.difficulty] || 0) + 1 : 0;
+        actionAt = now; lastAction = died ? "陣亡，返回營地整備" : "本局通關，返回營地"; void g.toMenu(); return;
       }
       // 推進時才自動選卡：進化優先，其次依排行榜高手的技能／被動權重。
       // 實測：原版卡片有防誤觸，未經真實 pointerdown 的 click() 會被忽略，因此改按原版 1～3 鍵。
@@ -810,7 +824,7 @@
   group("生命與藥水");
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["autoMp", "自動補魔力（消耗回復活力藥水）"], ["mpThreshold", "魔力門檻（％）"], ["mpCooldownMs", "魔力藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"], ["fallbackMpSlot", "降級模式魔力藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
-  for (const [path, label] of [["enabled", "自動走位（保持距離與閃避）"], ["chaseFirst", "推進時追目標優先（路上閃避，不越閃越遠）"], ["kiteDistance", "敵人安全距離"], ["attackRange", "王與精英怪攻擊範圍（閃避時不超過此距離）"], ["dodgeProjectiles", "閃避敵方飛彈"], ["projectileSafetyRadius", "飛彈安全邊距"], ["smoothingFactor", "轉向平滑係數"]]) field("movement." + path, label);
+  for (const [path, label] of [["enabled", "自動走位（保持距離與閃避）"], ["combatStyle", "戰鬥方式"], ["chaseFirst", "推進時追目標優先（路上閃避，不越閃越遠）"], ["kiteDistance", "敵人安全距離"], ["attackRange", "王與精英怪攻擊範圍（閃避時不超過此距離）"], ["dodgeProjectiles", "閃避敵方飛彈"], ["projectileSafetyRadius", "飛彈安全邊距"], ["smoothingFactor", "轉向平滑係數"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依職業）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
   group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
@@ -848,7 +862,7 @@
     if (!isPaused || editorOpen) panel.hidden = true;
     if (!game) guarded(null, performance.now());
     const s = readState(game);
-    status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／推層與任務：" + (settings.progressEnabled ? "啟用" : "關閉"), game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
+    status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／推層與任務：" + (settings.progressEnabled ? "啟用" : "關閉"), game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
   }, 200);
   const api = {
     destroy() { if (!alive) return; alive = false; release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
