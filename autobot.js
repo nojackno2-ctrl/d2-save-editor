@@ -377,16 +377,20 @@
     ownWalk = target; g.walkTarget = target;
     const label = goal?.kind === "loot" ? "拾取物品" : goal?.kind === "kick" ? "踢罐子" : goal?.kind || "安全位置";
     lastAction = through ? "被包圍無路可閃，穿過怪群遠離最強敵人" : pursue ? "朝目標前進：" + label + (dodging ? "（閃避飛彈）" : "") : dodging ? "閃避敵方飛彈" : closeEnemy ? "保持敵人距離" : "前往" + label;
-    if (!stuck) stuck = { x: s.p.x, y: s.p.y, at: now };
-    if (now - stuck.at >= 2500) {
+    // 以遊戲內時間判斷卡住（畫面凍結不算）；為了完全自主運作，卡住只換方向繞路，不停機。
+    const clock = finite(s.w.time) ? s.w.time * 1000 : now;
+    if (!stuck || clock < stuck.at) stuck = { x: s.p.x, y: s.p.y, at: clock };
+    if (clock - stuck.at >= 2500) {
       stuckCount = dist(stuck, s.p) < 20 ? stuckCount + 1 : 0;
-      if (stuckCount >= 3) { stop("連續卡住，已停止輔助"); g.pause?.(); return; }
       if (stuckCount) {
         if (lootTarget) blockedLoot.set(lootTarget, now + 15000);
         lootTarget = null;
-        ownWalk = { x: s.p.x - u.y * 120, y: s.p.y + u.x * 120 }; g.walkTarget = ownWalk;
+        const turn = stuckCount >= 3 ? Math.random() * Math.PI * 2 : Math.PI / 2;
+        const v = { x: u.x * Math.cos(turn) - u.y * Math.sin(turn), y: u.x * Math.sin(turn) + u.y * Math.cos(turn) };
+        ownWalk = { x: s.p.x + v.x * (stuckCount >= 3 ? 240 : 120), y: s.p.y + v.y * (stuckCount >= 3 ? 240 : 120) }; g.walkTarget = ownWalk;
+        lastAction = "卡住，換方向繞路";
       }
-      stuck = { x: s.p.x, y: s.p.y, at: now };
+      stuck = { x: s.p.x, y: s.p.y, at: clock };
     }
   }
   async function advance(g) {
