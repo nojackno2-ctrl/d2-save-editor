@@ -245,6 +245,7 @@
     } catch (err) { if (alive && retreat) retreatFailed(String(err.message || err)); }
   }
 
+  // 實測（官方 wiki）：此遊戲沒有單獨符文物品，符文之語掉落即已完成，以 rarity=runeword 撿取並由自動穿裝評估。
   function accepts(drop) {
     const item = drop.item;
     if (!item) return drop.kind === "gold" && settings.loot.pickupGold;
@@ -287,7 +288,8 @@
     const tyrael = g.clearing?.tyrael;
     if (point(tyrael) && !tyrael.spoke) return { x: tyrael.x, y: tyrael.y, kind: "任務對話" };
     if (settings.quest.prioritizeBoss) {
-      const e = s.enemies.find((e) => e.rank === "actBoss") || s.enemies.find((e) => e.name);
+      // 實測追任何有名字的怪會衝進怪堆被包圍；只追幕末魔王，其他精英由攻擊範圍拉回處理。
+      const e = s.enemies.find((e) => e.rank === "actBoss");
       if (e) return battleGoal(e, s.p, "任務敵人");
     }
     return null;
@@ -543,6 +545,9 @@
       let pick = -1, score = Infinity;
       wares.forEach((w, i) => {
         if (!w || w.item || w.imbue || !w.canBuy || /^(?:Resurrect|Mercenary)/.test(w.name || "")) return;
+        // 依排行榜配點：該職業幾乎不加的屬性（如法師的力量、敏捷）不買。
+        const attr = ladderOf(g)?.attributes?.[String(w.name).toLowerCase()];
+        if (attr !== undefined && attr < 0.1 && w.name !== "Vitality") return;
         const order = RANKS.indexOf(w.name), value = (order < 0 ? RANKS.length + 5 : order) + (w.rank || 0) * 3;
         if (value < score) { pick = i; score = value; }
       });
@@ -786,7 +791,7 @@
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["autoMp", "自動補魔力（消耗回復活力藥水）"], ["mpThreshold", "魔力門檻（％）"], ["mpCooldownMs", "魔力藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"], ["fallbackMpSlot", "降級模式魔力藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
   for (const [path, label] of [["enabled", "自動走位（保持距離與閃避）"], ["chaseFirst", "推進時追目標優先（路上閃避，不越閃越遠）"], ["kiteDistance", "敵人安全距離"], ["attackRange", "王與精英怪攻擊範圍（閃避時不超過此距離）"], ["dodgeProjectiles", "閃避敵方飛彈"], ["projectileSafetyRadius", "飛彈安全邊距"], ["smoothingFactor", "轉向平滑係數"]]) field("movement." + path, label);
-  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.minRuneTier", "最低符文編號"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
+  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
   tab("progress"); group("總開關"); field("progressEnabled", "推層與任務總開關"); group("恐怖層數"); field("terror.progressEnabled", "自動推恐怖層數"); field("terror.farmEnabled", "固定層數重刷（與推層互斥）"); field("terror.targetFarmTier", "重刷層數（須已通關）"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
