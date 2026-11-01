@@ -555,8 +555,14 @@
       }
       if (!settings.town.charsiUpgrades) return true;
       // 依優先順序加權並計入已買等級，讓金幣平均投入生命、減傷、回血等永久成長。
+      // 實測：只買得起便宜雜項時會把錢花光（物理穿透、Skip），核心升級沒滿就存錢；穿透只買職業會用到的元素。
+      const PIERCE = { sorceress: ["Lightning", "Cold", "Fire"], necromancer: ["Poison", "Physical"], amazon: ["Physical", "Cold", "Fire", "Lightning"], paladin: ["Physical", "Lightning"], druid: ["Physical", "Cold", "Fire"], barbarian: ["Physical"], assassin: ["Physical", "Lightning", "Cold", "Fire"] }[g.kit?.id] || ["Physical"];
+      const useful = (w) => !/ Pierce$/.test(w.name) || PIERCE.includes(w.name.replace(/ Pierce$/, ""));
+      const core = wares.filter((w) => w && !w.item && RANKS.indexOf(w.name) >= 0 && RANKS.indexOf(w.name) < 7 && !(finite(w.maxRank) && w.rank >= w.maxRank && !w.endless));
+      const saving = core.some((w) => !w.canBuy);
       let pick = -1, score = Infinity;
       wares.forEach((w, i) => {
+        if (!w || !useful(w) || (saving && !core.includes(w))) return;
         if (!w || w.item || w.imbue || !w.canBuy || /^(?:Resurrect|Mercenary)/.test(w.name || "")) return;
         // 依排行榜配點：該職業幾乎不加的屬性（如法師的力量、敏捷）不買。
         const attr = ladderOf(g)?.attributes?.[String(w.name).toLowerCase()];

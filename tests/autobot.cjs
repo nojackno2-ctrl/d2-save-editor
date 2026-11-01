@@ -101,7 +101,7 @@ let server, win;
     for(let i=0;i<40;i++){tick();time+=300;}
     check('營地整備賣掉用不到的裝備',sold.length===1&&!inv.length);
     check('營地整備買藥水至設定上限',bought.filter(x=>x==='Healing Potion').length===4);
-    check('營地整備優先升級生命',bought.includes('Vitality')&&bought.indexOf('Vitality')<bought.indexOf('Gold Find'));
+    check('營地整備優先升級生命，核心未滿時存錢不買雜項',bought.includes('Vitality')&&!bought.includes('Gold Find'));
     check('整備結束回到營地',game.state==='camp');}
    reset();await install({enabled:true,movement:{enabled:true},loot:{enabled:false}});game.state='playing';game.world.walls={slide:(x,y,dx,dy)=>({x:x+dx,y:y+dy})};game.world.player.life=40;game.world.enemies=Array.from({length:8},(_,i)=>({x:30*Math.cos(i*Math.PI/4),y:30*Math.sin(i*Math.PI/4),radius:12,damage:i===0?50:1}));tick();check('被包圍無路時穿過怪群遠離最強敵人',game.walkTarget?.x<0&&__d2autobot.diagnostics().lastAction.includes('穿過'));
    reset();await install({enabled:true,movement:{enabled:true},loot:{enabled:false}});game.state='playing';game.world.enemies=[{x:500,y:0,radius:20,damage:5,rank:'champion'}];tick();check('精英怪超出攻擊範圍時拉回',game.walkTarget?.x>0);
