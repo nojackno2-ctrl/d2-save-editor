@@ -156,6 +156,8 @@
   }
   // 已確認敵方飛彈在 hostiles；projectiles 主要是玩家技能，不計入威脅。
   // 傷害採保守估計，未重現全部抗性、格擋、護盾與附加傷害。
+  // 繞圈閃避的方向（1／−1），撞牆或卡住時由走位翻轉。
+  let strafeSide = 1;
   function threats(s) {
     let damage = 0, dodgeX = 0, dodgeY = 0;
     if (!s.p) return { damage, dodgeX, dodgeY };
@@ -172,14 +174,25 @@
       // 不痛不癢的攻擊（單發低於目前生命的門檻％）不閃，專心輸出；仍計入致命預估。
       const hurt = (Math.max(0, shot.damage || 0) + Math.max(0, shot.effect?.damage || 0)) * taken * Math.max(1, p.missileTaken || 1);
       if (hurt < p.life * settings.movement.ignoreDamagePercent / 100) continue;
-      if (near > radius + settings.movement.projectileSafetyRadius || dx * vx + dy * vy < 0) continue;
+      // 依使用者要求：不要硬接傷害。單發 ≥ 目前生命 25％ 的重擊，安全距離與閃避力道加倍；方向是離開彈道的橫向（不一定往後退）。
+      const heavy = hurt >= p.life * 0.25;
+      if (near > radius + settings.movement.projectileSafetyRadius * (heavy ? 2 : 1) || dx * vx + dy * vy < 0) continue;
       let away = unit(p.x - x, p.y - y);
       if (!away.x && !away.y) away = unit(-vy, vx);
-      const force = 4 / Math.max(0.15, time + 0.15);
+      const force = 4 / Math.max(0.15, time + 0.15) * (heavy ? 2 : 1);
       dodgeX += away.x * force; dodgeY += away.y * force;
     }
     // 貼身近戰傷害：依原版怪物近戰距離（見 meleeGap）＋20 預留下一步；不會近戰的怪不算。
     for (const e of s.enemies) { const gap = meleeGap(e); if (gap !== -Infinity && dist(e, p) <= (e.radius || 12) + (p.radius || 12) + gap + 20) damage += Math.max(0, e.damage || 0) * taken; }
+    // 依使用者要求：精英／王的近戰不要硬吃。一擊 ≥ 目前生命 15％ 的精英／王靠近到近戰範圍＋40 時，
+    // 以橫向繞圈為主（左右移動閃避，維持原本繞行方向）並略往外，近戰職業也邊繞邊打。
+    for (const e of s.enemies) {
+      if (!["actBoss", "boss", "champion"].includes(e.rank) && typeof e.name !== "string") continue;
+      const gap = meleeGap(e), d = dist(e, p);
+      if (gap === -Infinity || Math.max(0, e.damage || 0) * taken < p.life * 0.15 || d > (e.radius || 12) + (p.radius || 12) + gap + 40) continue;
+      const out = unit(p.x - e.x, p.y - e.y), side = { x: -out.y * strafeSide, y: out.x * strafeSide };
+      dodgeX += side.x * 5 + out.x * 2; dodgeY += side.y * 5 + out.y * 2;
+    }
     return { damage, dodgeX, dodgeY };
   }
   function drink(s, now, lethal = false) {
@@ -205,7 +218,11 @@
   function potions(s, danger, now) {
     let healingFailed = false;
     const p = settings.potion, lethal = p.lethalProtection && danger.damage >= s.hp?.now && danger.damage > 0;
-    if (s.hp?.now > 0 && s.hp.now < s.hp.max && now - lastHp >= p.hpCooldownMs && (p.autoHp && s.hp.now / s.hp.max * 100 <= p.hpThreshold || lethal)) {
+    // 實測（地獄陣亡紀錄）：野蠻人 51％ 血面對暗黑破壞神，藥帶還有 6 瓶卻沒喝（門檻 50％），被一擊 2045 打死；
+    // 600 內有幕末魔王或頭目時門檻提高到 80％，先補滿再吃王的大招。
+    const bossNear = (s.enemies || []).some((e) => ["actBoss", "boss"].includes(e.rank) && dist(e, s.p) < 600);
+    const threshold = bossNear ? Math.max(p.hpThreshold, 80) : p.hpThreshold;
+    if (s.hp?.now > 0 && s.hp.now < s.hp.max && now - lastHp >= p.hpCooldownMs && (p.autoHp && s.hp.now / s.hp.max * 100 <= threshold || lethal)) {
       if (drink(s, now, lethal)) return false;
       healingFailed = true;
     }
@@ -605,7 +622,7 @@
         const turn = stuckCount >= 3 ? Math.random() * Math.PI * 2 : Math.PI / 2;
         const v = { x: u.x * Math.cos(turn) - u.y * Math.sin(turn), y: u.x * Math.sin(turn) + u.y * Math.cos(turn) };
         ownWalk = { x: s.p.x + v.x * (stuckCount >= 3 ? 240 : 120), y: s.p.y + v.y * (stuckCount >= 3 ? 240 : 120) }; g.walkTarget = ownWalk;
-        lastAction = "卡住，換方向繞路";
+        lastAction = "卡住，換方向繞路"; strafeSide = -strafeSide;
       }
       stuck = { x: s.p.x, y: s.p.y, at: clock };
     }
