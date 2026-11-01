@@ -303,7 +303,8 @@
     // 原版寶箱是 kind=chest 的掉落物（碰到即收進待開寶箱），一律撿。
     if (drop.kind === "chest") return true;
     // 實測：地上藥水是 kind=potion 且沒有 item，舊版只接受金幣，藥水全被略過（角色 49/294 血、腳邊 4 瓶藥水沒撿）。
-    if (drop.kind === "potion") { const cols = game?.world?.belt?.columns; return !Array.isArray(cols) || cols.some((c) => (c?.length || 0) < 4); }
+    // 遊戲 20261101.1：地上藥水種類有 potion／rejuvenation／mana（法師的魔力藥水補能量護盾，滿了才入腰帶）；腰帶有空或可直接使用就撿。
+    if (["potion", "rejuvenation", "mana"].includes(drop.kind)) { if (drop.kind === "mana" && game?.kit?.id !== "sorceress") return false; const cols = game?.world?.belt?.columns; return !Array.isArray(cols) || cols.some((c) => (c?.length || 0) < 4) || drop.kind === "mana"; }
     if (!item) return drop.kind === "gold" && settings.loot.pickupGold;
     if (item.type === "quest") return questOn();
     if (item.type === "rune") { const n = String(item.base).match(/^r(\d{2})$/); return !!n && +n[1] >= settings.loot.minRuneTier; }
@@ -736,6 +737,7 @@
     const p = g.world.player, numbers = g.heroNumbers(g.makePlayer(p.sprite, p.cls, worn), g.build, worn, false);
     return Object.fromEntries((numbers?.stats || []).map((s) => [s.label, finite(s.num) ? s.num : 0]));
   }
+  // 遊戲 20261101.1：防禦改為降低怪物命中率（原版 heroNumbers 新增 Defense），不再減傷；改用 Defense 小權重，移除與之重疊的 Enhanced Defense 加分。
   function gearScore(g, worn, n = gearNumbers(g, worn)) {
     // 實測（2026-11-01）：減傷、施法速度為小數（0.5＝50％），抗性可為負（地獄 −40）；舊公式幾乎不算防禦而變成玻璃大砲。
     // 以「少承受 1％ 傷害 ≈ 多打 1％ 傷害」計分：生命權重高於傷害，減傷與四系抗性依實際減少承受量，負抗性扣分。
@@ -747,7 +749,7 @@
     // 實測（35 存檔裝備異動紀錄）：雙手武器與盾牌互擠，被擠掉的欄位不扣分，之後撿不到單手武器就一直空著（聖騎士、死靈常空武器欄）。
     // 盾牌以外每空一欄扣 15 分（約少 15％ 傷害），只有提升夠大才犧牲欄位，空欄也會優先補上。
     const emptyPenalty = ["weapon", "head", "body", "gloves", "belt", "boots", "amulet", "ring1", "ring2"].filter((k) => !worn[k]).length * 15;
-    return -emptyPenalty + Math.log1p(Math.max(0, n.Damage || 0)) * 100 + Math.log1p(Math.max(0, n.Life || 0)) * 130 - Math.log(1 - reduced) * 150 + res + Math.log1p(Math.max(0, n["Enhanced Defense"] || 0) / 100) * 20 + Math.min(1, n["Faster Cast Rate"] || 0) * 20 + (n["Replenish Life"] || 0) * 0.5 + (n["Magic Find"] || 0) * 0.02;
+    return -emptyPenalty + Math.log1p(Math.max(0, n.Damage || 0)) * 100 + Math.log1p(Math.max(0, n.Life || 0)) * 130 - Math.log(1 - reduced) * 150 + res + Math.log1p(Math.max(0, n.Defense || 0) / 1000) * 20 + Math.min(1, n["Faster Cast Rate"] || 0) * 20 + (n["Replenish Life"] || 0) * 0.5 + (n["Magic Find"] || 0) * 0.02;
   }
   // 回傳候選中提升最多且達門檻者；候選可來自背包、倉庫、收藏庫或商店，只比較不寫入。
   function bestGear(g, items) {
@@ -874,9 +876,10 @@
     potions(g) {
       if (!settings.town.buyPotions || !openTrade(g, "akara")) return true;
       // 藥水名稱可能被在地化，改以描述「Heals … Life」或第一個藥水欄判斷；買不起或腰帶滿時原版 canBuy 為 false。
-      const wares = trade.wares || [], heal = (w) => w?.potion && (/Heal|Life|生命|治療/i.test(String(w.describe || "") + (w.name || "")));
-      let i = wares.findIndex((w) => heal(w) && w.canBuy);
-      if (i < 0) i = wares.findIndex((w) => w?.potion && w.canBuy);
+      // 遊戲 20261101.1 起阿卡拉也賣魔力藥水（法師），另有解毒、解凍：只買生命類（healing／potion／rejuvenation），找不到就不買，不再退而買任一藥水。
+      const LIFE = ["healing", "potion", "rejuvenation"], kindOf = (w) => typeof w?.potion === "string" ? w.potion : w?.kind ?? w?.item?.kind ?? null;
+      const wares = trade.wares || [], heal = (w) => w?.potion && (kindOf(w) ? LIFE.includes(kindOf(w)) : /Heal|Life|生命|治療/i.test(String(w.describe || "") + (w.name || "")) && !/Mana|魔力|法力|Antidote|Thaw|解毒|解凍/i.test(String(w.describe || "") + (w.name || "")));
+      const i = wares.findIndex((w) => heal(w) && w.canBuy);
       // 開啟就買到腰帶滿或金幣不足為止（原版 canBuy 會反映）。
       const w = wares[i];
       if (!w) return true;
