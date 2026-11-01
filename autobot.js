@@ -7,7 +7,7 @@
   const defaults = {
     version: 3, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, autoMp: false, mpThreshold: 30, mpCooldownMs: 2000, fallbackHpSlot: 1, fallbackMpSlot: 2 },
-    movement: { enabled: true, combatStyle: "auto", chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
+    movement: { enabled: true, combatStyle: "auto", ignoreDamagePercent: 3, chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
     loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: true },
     terror: { mode: "off", targetFarmTier: 1, autoReviveOrRestart: false, postClearWaitSec: 3 },
     quest: { autoProgress: false, prioritizeBoss: true, autoStart: true, farmDifficulty: "off" },
@@ -39,7 +39,7 @@
     "deathProtection.emergencyHpPercent": [1, 90],
     "potion.hpThreshold": [10, 90], "potion.mpThreshold": [10, 80], "potion.lethalLookaheadSec": [0.1, 1],
     "potion.hpCooldownMs": [500, 5000], "potion.mpCooldownMs": [1000, 5000], "potion.fallbackHpSlot": [1, 4], "potion.fallbackMpSlot": [1, 4],
-    "movement.kiteDistance": [40, 500], "movement.attackRange": [100, 800], "movement.projectileSafetyRadius": [20, 100], "movement.smoothingFactor": [0.1, 1],
+    "movement.kiteDistance": [40, 500], "movement.ignoreDamagePercent": [0, 50], "movement.attackRange": [100, 800], "movement.projectileSafetyRadius": [20, 100], "movement.smoothingFactor": [0.1, 1],
     "loot.searchRadius": [50, 1200], "loot.minRuneTier": [1, 33], "terror.targetFarmTier": [1, 9999], "terror.postClearWaitSec": [1, 15], "gear.minGainPercent": [0, 50], "town.potionCount": [0, 16],
   };
   // 推層與重刷共用既有 mode，兩個開關互斥，舊設定無須人工轉換。
@@ -130,6 +130,9 @@
       const discriminant = dot * dot - v2 * (dx * dx + dy * dy - hitRadius * hitRadius);
       const enter = v2 > 0 && dot >= 0 && discriminant >= 0 ? Math.max(0, (dot - Math.sqrt(discriminant)) / v2) : Math.hypot(dx, dy) <= hitRadius ? 0 : Infinity;
       if (enter <= horizon && (!finite(shot.life) || enter <= shot.life)) damage += (Math.max(0, shot.damage || 0) + Math.max(0, shot.effect?.damage || 0)) * taken * Math.max(1, p.missileTaken || 1);
+      // 不痛不癢的攻擊（單發低於目前生命的門檻％）不閃，專心輸出；仍計入致命預估。
+      const hurt = (Math.max(0, shot.damage || 0) + Math.max(0, shot.effect?.damage || 0)) * taken * Math.max(1, p.missileTaken || 1);
+      if (hurt < p.life * settings.movement.ignoreDamagePercent / 100) continue;
       if (near > radius + settings.movement.projectileSafetyRadius || dx * vx + dy * vy < 0) continue;
       let away = unit(p.x - x, p.y - y);
       if (!away.x && !away.y) away = unit(-vy, vx);
@@ -338,9 +341,12 @@
     const st = style(), g = game, m = { ...settings.movement, kiteDistance: st.kite, attackRange: st.range, enabled: assistOn() && settings.movement.enabled }, progressing = questOn() || terrorMode() !== "off", portal = g.clearing?.portal;
     if (point(portal) && clearWorld !== s.w) { clearWorld = s.w; clearAt = now; }
     let closeEnemy = false, x = 0, y = 0;
+    const taken = Math.max(1, finite(s.p.damageTaken) ? s.p.damageTaken : 1);
     if (m.enabled) for (const e of s.enemies) {
       const d = dist(s.p, e), range = m.kiteDistance + (e.radius || 0);
       if (d >= range) continue;
+      // 打不痛的一般怪不必拉開距離（王與精英仍依攻擊範圍處理）。
+      if (!isElite(e) && Math.max(0, e.damage || 0) * taken < s.hp.now * m.ignoreDamagePercent / 100) continue;
       closeEnemy = true;
       const u = unit(s.p.x - e.x, s.p.y - e.y), force = Math.min(8, (range - d) / Math.max(15, d));
       x += (u.x || (d < 1 ? 1 : 0)) * force; y += u.y * force;
@@ -871,7 +877,7 @@
   group("生命與藥水");
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["autoMp", "自動補魔力（消耗回復活力藥水）"], ["mpThreshold", "魔力門檻（％）"], ["mpCooldownMs", "魔力藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"], ["fallbackMpSlot", "降級模式魔力藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
-  for (const [path, label] of [["enabled", "自動走位（保持距離與閃避）"], ["combatStyle", "戰鬥方式"], ["chaseFirst", "推進時追目標優先（路上閃避，不越閃越遠）"], ["kiteDistance", "敵人安全距離"], ["attackRange", "王與精英怪攻擊範圍（閃避時不超過此距離）"], ["dodgeProjectiles", "閃避敵方飛彈"], ["projectileSafetyRadius", "飛彈安全邊距"], ["smoothingFactor", "轉向平滑係數"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依職業）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
+  for (const [path, label] of [["enabled", "自動走位（保持距離與閃避）"], ["combatStyle", "戰鬥方式"], ["chaseFirst", "推進時追目標優先（路上閃避，不越閃越遠）"], ["kiteDistance", "敵人安全距離"], ["ignoreDamagePercent", "忽略傷害門檻（單次低於目前生命％不閃）"], ["attackRange", "王與精英怪攻擊範圍（閃避時不超過此距離）"], ["dodgeProjectiles", "閃避敵方飛彈"], ["projectileSafetyRadius", "飛彈安全邊距"], ["smoothingFactor", "轉向平滑係數"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依職業）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
   group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）"); field("loot.onlyUpgrades", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
