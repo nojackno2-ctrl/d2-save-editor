@@ -5,14 +5,20 @@
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
   const defaults = {
-    version: 2, enabled: false, progressEnabled: false,
+    version: 3, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, autoMp: false, mpThreshold: 30, mpCooldownMs: 2000, fallbackHpSlot: 1, fallbackMpSlot: 2 },
-    movement: { enabled: true, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
-    loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: false, magic: false, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true },
+    movement: { enabled: true, chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
+    loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true },
     terror: { mode: "off", targetFarmTier: 1, autoReviveOrRestart: false, postClearWaitSec: 3 },
-    quest: { autoProgress: false, prioritizeBoss: true },
+    quest: { autoProgress: false, prioritizeBoss: true, autoStart: true },
+    gear: { autoEquip: true, minGainPercent: 2 },
+    // 陣亡回營地後的整備：收藏、倉庫、賣裝、買藥、恰西升級，讓每一局都比上一局強。
+    town: { enabled: true, collect: true, stash: true, sellJunk: true, buyPotions: true, potionCount: 4, charsiUpgrades: true, buyGear: true },
+    build: { ladder: true, autoStats: true, redraft: true },
     deathProtection: { enabled: false, emergencyHpPercent: 15, disableAutomation: true },
   };
+  // 由 d2survivors.lol 排行榜 API 產生（地獄榜各職業前 50 名）：技能／被動 [id, 名稱, 權重]、常用變體、配點比例、各欄常用暗金套裝。
+  const LADDER = {"source":"d2survivors.lol/api/leaderboard（地獄榜各職業前 50 名）","generatedAt":"2026-11-01","classes":{"amazon":{"skills":[["fireArrow","Fire Arrow",1.64],["explodingArrow","Exploding Arrow",1.44],["magicArrow","Magic Arrow",1.28],["guidedArrow","Guided Arrow",1.28],["multipleShot","Multiple Shot",1.16],["seekerArrow","Widowmaker",1.13],["strafe","Strafe",1.1],["immolationArrow","Immolation Arrow",1.06],["freezingArrow","Freezing Arrow",0.97],["iceArrow","Ice Arrow",0.92],["coldArrow","Cold Arrow",0.88],["valkyrie","Valkyrie",0.84],["lightningFury","Lightning Fury",0.65],["lightningStrike","Lightning Strike",0.25],["lightningBolt","Lightning Bolt",0.24],["chargedStrike","Charged Strike",0.09]],"mods":{"immolationArrow":"pyre","freezingArrow":"focused","seekerArrow":"blackArrow","lightningFury":"chain","fireArrow":"kindle","explodingArrow":"focused","strafe":"bullseye","magicArrow":"ricochet","iceArrow":"deepFreeze","coldArrow":"split","multipleShot":"narrow","guidedArrow":"bounty","lightningBolt":"thunderbolt","lightningStrike":"grounding","chargedStrike":"grounded","powerStrike":"overcharge","valkyrie":"shieldmaidens","fend":"onslaught","jab":"heavy","plagueJavelin":"lingering"},"passives":[["pierce","Pierce",2],["criticalStrike","Critical Strike",1.96],["dodge","Dodge",1.92],["dopplezon","Decoy",1.92],["innerSight","Inner Sight",1.88],["penetrate","Penetrate",1.84],["slowMissiles","Slow Missiles",1.76],["avoid","Avoid",1.72],["fcr","Faster Cast Rate",1.52],["evade","Evade",1.44],["frw","Faster Run/Walk",0.8],["vitality","Vitality",0.56],["telekinesis","Telekinesis",0.42],["replenish","Replenish Life",0.16]],"attributes":{"strength":0.02,"dexterity":0.66,"vitality":0.3,"energy":0.02},"gear":{"weapon":["Lycander's Aim","Blood Raven's Charge","Windforce"],"body":["Skin of the Vipermagi","Arkaine's Valor","Tyrael's Might"],"belt":["Arachnid Mesh","Thundergod's Vigor","Goldwrap"],"boots":["Gore Rider","Goblin Toe","War Traveler"],"amulet":["Mara's Kaleidoscope","Highlord's Wrath","Atma's Scarab"],"ring1":["Bul-Kathos' Wedding Band","Wisp Projector","Raven Frost"],"ring2":["Bul-Kathos' Wedding Band","Raven Frost","Wisp Projector"],"head":["Harlequin Crest","Guillaume's Face","Andariel's Visage"],"gloves":["Steelrend","Dracul's Grasp","Laying of Hands"],"shield":["Spirit Ward","Tiamat's Rebuke","Umbral Disk"]}},"assassin":{"skills":[["cobraStrike","Cobra Strike",1.88],["cloakOfShadows","Cloak of Shadows",1.76],["royalStrike","Phoenix Strike",1.13],["dragonFlight","Dragon Flight",1.1],["bladesOfIce","Blades of Ice",1.1],["tigerStrike","Tiger Strike",1.08],["clawsOfThunder","Claws of Thunder",0.88],["dragonTail","Dragon Tail",0.83],["fistsOfFire","Fists of Fire",0.68],["dragonClaw","Dragon Claw",0.63],["shadowMaster","Shadow Master",0.59],["bladeShield","Blade Shield",0.52],["dragonTalon","Dragon Talon",0.51],["deathSentry","Death Sentry",0.38],["mindBlast","Mind Blast",0.32],["infernoSentry","Wake of Inferno",0.16]],"mods":{"dragonFlight":"hunter","dragonTail":"focusedTail","cloakOfShadows":"mark","bladesOfIce":"deepCold","cobraStrike":"fang","clawsOfThunder":"thunderclap","dragonClaw":"slayer","tigerStrike":"patience","dragonTalon":"crack","bladeShield":"hunt","royalStrike":"tempest","shadowMaster":"stalker","mindBlast":"focus","deathSentry":"overcharge","fistsOfFire":"sear","bladeFury":"bullseye","infernoSentry":"brazier","lightningSentry":"hunter","psychicHammer":"maul"},"passives":[["weaponBlock","Weapon Block",2],["clawMastery","Claw Mastery",2],["fade","Fade",2],["frw","Faster Run/Walk",2],["quickness","Burst of Speed",2],["venom","Venom",1.99],["fcr","Faster Cast Rate",1.99],["vitality","Vitality",1.96],["replenish","Replenish Life",1.79],["telekinesis","Telekinesis",1.41]],"attributes":{"strength":0.38,"dexterity":0.16,"vitality":0.29,"energy":0.15},"gear":{"weapon":["Firelizard's Talons","Bartuc's Cut-Throat","Jade Talon"],"head":["Harlequin Crest","Andariel's Visage","Natalya's Totem"],"body":["Arkaine's Valor","Skin of the Vipermagi","Skullder's Ire"],"gloves":["Laying of Hands","Dracul's Grasp","Hellmouth"],"belt":["Arachnid Mesh","Wilhelm's Pride","Nosferatu's Coil"],"boots":["Gore Rider","Goblin Toe","Shadow Dancer"],"amulet":["Mara's Kaleidoscope","Highlord's Wrath","Seraph's Hymn"],"ring1":["Bul-Kathos' Wedding Band","The Stone of Jordan","Raven Frost"],"ring2":["Wisp Projector","The Stone of Jordan","Bul-Kathos' Wedding Band"],"shield":["Jade Talon","Bartuc's Cut-Throat","Natalya's Mark"]}},"barbarian":{"skills":[["battleCry","Battle Cry",1.84],["doubleSwing","Double Swing",1.6],["doubleThrow","Double Throw",1.48],["whirlwind","Whirlwind",1.32],["frenzy","Frenzy",1.13],["warCry","War Cry",1.11],["stun","Stun",1.08],["taunt","Taunt",1],["battleCommand","Battle Command",0.99],["whirlingAxes","Lacerator",0.95],["grimWard","Grim Ward",0.84],["berserk","Berserk",0.81],["concentrate","Concentrate",0.56],["bash","Bash",0.56],["leapAttack","Leap Attack",0.38],["leap","Leap",0.2]],"mods":{"berserk":"gore","concentrate":"crush","whirlwind":"blazingPath","frenzy":"flameEdge","battleCry":"contagion","grimWard":"lure","whirlingAxes":"stormAxes","doubleThrow":"venom","doubleSwing":"stormEdge","leapAttack":"hammerfall","battleCommand":"warBanner","warCry":"bellow","taunt":"rabble","leap":"gather","stun":"crack","battleOrders":"bloodlust","bash":"pin","howl":"cower"},"passives":[["increasedSpeed","Increased Speed",2],["ironSkin","Iron Skin",1.96],["increasedStamina","Increased Stamina",1.92],["vitality","Vitality",1.91],["naturalResistance","Natural Resistance",1.88],["findItem","Find Item",1.8],["throwingMastery","Throwing Mastery",1.68],["fcr","Faster Cast Rate",1.48],["axeMastery","Axe Mastery",1.4],["frw","Faster Run/Walk",1.04],["swordMastery","Sword Mastery",0.96],["telekinesis","Telekinesis",0.45],["maceMastery","Mace Mastery",0.36],["poleArmMastery","Pole Arm Mastery",0.28]],"attributes":{"strength":0.66,"dexterity":0.02,"vitality":0.32,"energy":0},"gear":{"head":["Arreat's Face","Immortal King's Will","Harlequin Crest"],"gloves":["Dracul's Grasp","Immortal King's Forge","Steelrend"],"belt":["Arachnid Mesh","Immortal King's Detail","Nosferatu's Coil"],"boots":["Gore Rider","Immortal King's Pillar","Goblin Toe"],"amulet":["Mara's Kaleidoscope","Highlord's Wrath","Atma's Scarab"],"ring1":["Bul-Kathos' Wedding Band","Wisp Projector","Nature's Peace"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","Raven Frost"],"weapon":["Immortal King's Stone Crusher","Djinn Slayer","The Grandfather"],"shield":["Stormshield","Death Cleaver","Azurewrath"],"body":["Arkaine's Valor","Immortal King's Soul Cage","Tyrael's Might"]}},"druid":{"skills":[["arcticBlast","Arctic Blast",1.2],["twister","Twister",1.17],["fury","Fury",1.06],["spiritOfBarbs","Spirit of Barbs",0.9],["volcano","Volcano",0.88],["hurricane","Hurricane",0.86],["shockWave","Shock Wave",0.86],["vines","Solar Creeper",0.81],["armageddon","Armageddon",0.79],["summonGrizzly","Summon Grizzly",0.79],["eruption","Fissure",0.78],["tornado","Tornado",0.72],["moltenBoulder","Molten Boulder",0.7],["firestorm","Firestorm",0.67],["plaguePoppy","Poison Creeper",0.2],["oakSage","Oak Sage",0.16]],"mods":{"fury":"lacerate","hurricane":"eyeWall","shockWave":"earthquake","armageddon":"wrath","tornado":"maelstrom","summonGrizzly":"wildPack","twister":"vortex","volcano":"lavaBombs","moltenBoulder":"magmaCore","firestorm":"wildfire","eruption":"rift","arcticBlast":"iceLance","spiritOfBarbs":"thornNova","vines":"sunburst","plaguePoppy":"thicket","heartOfWolverine":"huntersHeart"},"passives":[["shapeShifting","Lycanthropy",1.92],["feralRage","Feral Rage",1.92],["cycloneArmor","Cyclone Armor",1.84],["fcr","Faster Cast Rate",1.84],["spiritKeeper","Spirit Keeper",1.84],["vitality","Vitality",1.71],["replenish","Replenish Life",1.68],["frw","Faster Run/Walk",1.56],["fireClaws","Fire Claws",1.52],["ravenlore","Ravenlore",1.52],["hunger","Hunger",1.44],["rabies","Rabies",0.92],["telekinesis","Telekinesis",0.22]],"attributes":{"strength":0.57,"dexterity":0.03,"vitality":0.25,"energy":0.14},"gear":{"head":["Jalal's Mane","Cerebus' Bite","Harlequin Crest"],"gloves":["Steelrend","Dracul's Grasp","Soul Drainer"],"belt":["Arachnid Mesh","String of Ears","Nightsmoke"],"boots":["Gore Rider","War Traveler","Goblin Toe"],"amulet":["Mara's Kaleidoscope","Atma's Scarab","Highlord's Wrath"],"ring1":["Bul-Kathos' Wedding Band","Raven Frost","Carrion Wind"],"ring2":["Bul-Kathos' Wedding Band","Raven Frost","Carrion Wind"],"weapon":["Stone Crusher","Windhammer","Stormlash"],"shield":["Spirit Ward","Lidless Wall","Stormshield"],"body":["Arkaine's Valor","Skin of the Vipermagi","Aldur's Deception"]}},"necromancer":{"skills":[["corpseExplosion","Corpse Explosion",1.88],["raiseSkeletalMage","Raise Skeletal Mage",1.64],["lifeTap","Life Tap",1.39],["bonePrison","Bone Prison",1.15],["teeth","Teeth",1.12],["boneSpirit","Bone Spirit",1.06],["revive","Revive",1.06],["decrepify","Decrepify",1.03],["boneSpear","Bone Spear",0.95],["attract","Attract",0.86],["ironMaiden","Iron Maiden",0.67],["fireGolem","Fire Golem",0.65],["poisonNova","Poison Nova",0.41],["weaken","Weaken",0.32],["bloodGolem","Blood Golem",0.25],["poisonDagger","Poison Dagger",0.16]],"mods":{"boneSpirit":"reaper","raiseSkeletalMage":"legion","revive":"legion","corpseExplosion":"chain","attract":"sacrifice","fireGolem":"inferno","decrepify":"contagion","teeth":"clench","poisonNova":"plagueWave","poisonExplosion":"vileBurst","poisonDagger":"thrown","boneSpear":"impaler","lifeTap":"feast","weaken":"contagion","bonePrison":"crushing","bloodGolem":"bloodbond","ironMaiden":"spite","terror":"cower","amplifyDamage":"contagion"},"passives":[["boneArmor","Bone Armor",2],["fcr","Faster Cast Rate",2],["lowerResist","Lower Resist",2],["vitality","Vitality",1.96],["skeletonMastery","Skeleton Mastery",1.96],["frw","Faster Run/Walk",1.91],["boneWall","Bone Wall",1.88],["golemMastery","Golem Mastery",1.64],["summonResist","Summon Resist",1.56],["telekinesis","Telekinesis",1.44],["replenish","Replenish Life",1.04]],"attributes":{"strength":0,"dexterity":0,"vitality":0.2,"energy":0.8},"gear":{"weapon":["Boneshade","Death's Web","Arm of King Leoric"],"shield":["Homunculus","Boneflame","Trang-Oul's Wing"],"head":["Harlequin Crest","Trang-Oul's Guise","Andariel's Visage"],"body":["Skin of the Vipermagi","Trang-Oul's Scales","Que-Hegan's Wisdom"],"belt":["Arachnid Mesh","Trang-Oul's Girth","String of Ears"],"boots":["Marrowwalk","War Traveler","Tearhaunch"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","The Stone of Jordan"],"gloves":["Trang-Oul's Claws","Soul Drainer","Magefist"],"amulet":["Mara's Kaleidoscope","The Eye of Etlich"],"ring1":["Bul-Kathos' Wedding Band","The Stone of Jordan","Wisp Projector"]}},"paladin":{"skills":[["zeal","Zeal",1.52],["charge","Charge",1.44],["smite","Smite",1.16],["holyCharge","Herald of Zakarum",1.13],["almaNegra","Alma Negra",1.1],["fanaticZeal","Passion",1.08],["holyShield","Holy Shield",0.96],["conversion","Conversion",0.9],["blessedHammer","Blessed Hammer",0.88],["sacrifice","Sacrifice",0.84],["rusthandle","Rusthandle",0.83],["hammerOfZakarum","Zakarum's Hand",0.72],["vengeance","Vengeance",0.6],["exile","Exile",0.54],["fistOfTheHeavens","Fist of the Heavens",0.54],["bloodrise","Bloodrise",0.43]],"mods":{"charge":"arrival","fanaticZeal":"fervor","almaNegra":"wideWave","rusthandle":"cascade","holyCharge":"lance","conversion":"fealty","zeal":"holyEdge","hammerOfZakarum":"tightOrbit","blessedHammer":"return","fistOfTheHeavens":"judgement","vengeance":"attuned","holyShield":"retribution","smite":"pin","exile":"retribution","bloodrise":"whirl","sacrifice":"bloodletting","holyBolt":"ricochet"},"passives":[["vigor","Vigor",2],["fanaticism","Fanaticism",1.96],["might","Might",1.92],["concentration","Concentration",1.84],["holyShock","Holy Shock",1.76],["conviction","Conviction",1.72],["salvation","Salvation",1.08],["resistFire","Resist Fire",0.96],["defiance","Defiance",0.96],["resistLightning","Resist Lightning",0.92],["redemption","Redemption",0.88],["holyFire","Holy Fire",0.76],["resistCold","Resist Cold",0.76],["blessedAim","Blessed Aim",0.68]],"attributes":{"strength":0.27,"dexterity":0.1,"vitality":0.55,"energy":0.05},"gear":{"weapon":["Heaven's Light","The Redeemer","Astreon's Iron Ward"],"head":["Harlequin Crest","Andariel's Visage","Tal Rasha's Horadric Crest"],"body":["Arkaine's Valor","Guardian Angel","Que-Hegan's Wisdom"],"gloves":["Dracul's Grasp","Soul Drainer","Chance Guards"],"belt":["Arachnid Mesh","Nosferatu's Coil","String of Ears"],"boots":["Gore Rider","War Traveler","Marrowwalk"],"amulet":["Mara's Kaleidoscope","Highlord's Wrath","Seraph's Hymn"],"ring1":["Bul-Kathos' Wedding Band","Wisp Projector","Raven Frost"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","Carrion Wind"],"shield":["Herald of Zakarum","Steelclash","Griswold's Honor"]}},"sorceress":{"skills":[["staticField","Static Field",1.84],["lightning","Lightning",1.84],["chainLightning","Chain Lightning",1.1],["teleport","Teleport",1.04],["meteor","Meteor",0.97],["hydra","Hydra",0.96],["frozenOrb","Frozen Orb",0.9],["thunderStorm","Thunder Storm",0.88],["blizzard","Blizzard",0.81],["frostNova","Frost Nova",0.8],["chargedBolt","Charged Bolt",0.64],["chillingArmor","Chilling Armor",0.61],["nova","Nova",0.56],["fireBall","Fire Ball",0.38],["fireWall","Fire Wall",0.38],["glacialSpike","Glacial Spike",0.34]],"mods":{"chainLightning":"tether","frozenOrb":"shatter","meteor":"shower","blizzard":"hailstorm","staticField":"bane","fireBall":"cluster","fireBolt":"split","lightning":"thunderbolt","glacialSpike":"icicle","frostNova":"deepFreeze","thunderStorm":"wrath","nova":"coldSnap","teleport":"rideTheBolt","chillingArmor":"duel","fireWall":"crossfire","hydra":"champion","chargedBolt":"split","iceBolt":"frostLance","shiverArmor":"duel","iceBlast":"ricochet","blaze":"frostTrail"},"passives":[["warmth","Warmth",2],["energyShield","Energy Shield",2],["lightningMastery","Lightning Mastery",2],["fcr","Faster Cast Rate",1.96],["frw","Faster Run/Walk",1.84],["enchant","Enchant",1.84],["coldMastery","Cold Mastery",1.84],["replenish","Replenish Life",1.84],["vitality","Vitality",1.84],["fireMastery","Fire Mastery",1.84],["telekinesis","Telekinesis",0.77]],"attributes":{"strength":0,"dexterity":0,"vitality":0.06,"energy":0.94},"gear":{"weapon":["Mang Song's Lesson","The Oculus","Eschuta's Temper"],"shield":["Lidless Wall","Spirit Ward","Stormshield"],"head":["Harlequin Crest","Griffon's Eye","Nightwing's Veil"],"body":["Skin of the Vipermagi","Tal Rasha's Guardianship","Arkaine's Valor"],"gloves":["Magefist","Frostburn","Trang-Oul's Claws"],"belt":["Arachnid Mesh","Tal Rasha's Fine-Spun Cloth","Trang-Oul's Girth"],"boots":["War Traveler","Marrowwalk","Aldur's Advance"],"amulet":["Mara's Kaleidoscope","Tal Rasha's Adjudication","Seraph's Hymn"],"ring1":["The Stone of Jordan","Bul-Kathos' Wedding Band","Wisp Projector"],"ring2":["The Stone of Jordan","Bul-Kathos' Wedding Band","Wisp Projector"]}}}};
   // 僅接受已知欄位與型別，不接收原型屬性或任意指令。
   function merge(base, value) {
     return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, v && typeof v === "object" ? merge(v, value?.[k]) : typeof value?.[k] === typeof v ? value[k] : v]));
@@ -22,14 +28,19 @@
   const questOn = () => settings.progressEnabled && settings.quest.autoProgress;
   const terrorMode = () => settings.progressEnabled ? settings.terror.mode : "off";
   const assistOn = () => settings.enabled;
-  try { settings = merge(defaults, JSON.parse(localStorage.getItem(KEY) || "{}")); }
+  try {
+    const stored = JSON.parse(localStorage.getItem(KEY) || "{}");
+    settings = merge(defaults, stored);
+    // 版本 3 起預設撿取所有品質；舊設定只補開普通與魔法，不覆蓋其他選擇。
+    if ((stored.version || 0) < 3) { settings.loot.qualityThreshold.normal = true; settings.loot.qualityThreshold.magic = true; }
+  }
   catch { storageNote = "設定無法讀取，使用預設值"; }
   const bounds = {
     "deathProtection.emergencyHpPercent": [1, 90],
     "potion.hpThreshold": [10, 90], "potion.mpThreshold": [10, 80], "potion.lethalLookaheadSec": [0.1, 1],
     "potion.hpCooldownMs": [500, 5000], "potion.mpCooldownMs": [1000, 5000], "potion.fallbackHpSlot": [1, 4], "potion.fallbackMpSlot": [1, 4],
-    "movement.kiteDistance": [40, 500], "movement.projectileSafetyRadius": [20, 100], "movement.smoothingFactor": [0.1, 1],
-    "loot.searchRadius": [50, 1200], "loot.minRuneTier": [1, 33], "terror.targetFarmTier": [1, 9999], "terror.postClearWaitSec": [1, 15],
+    "movement.kiteDistance": [40, 500], "movement.attackRange": [100, 800], "movement.projectileSafetyRadius": [20, 100], "movement.smoothingFactor": [0.1, 1],
+    "loot.searchRadius": [50, 1200], "loot.minRuneTier": [1, 33], "terror.targetFarmTier": [1, 9999], "terror.postClearWaitSec": [1, 15], "gear.minGainPercent": [0, 50], "town.potionCount": [0, 16],
   };
   // 推層與重刷共用既有 mode，兩個開關互斥，舊設定無須人工轉換。
   const get = (path) => path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
@@ -47,9 +58,9 @@
       const n = get(path), fallback = path.split(".").reduce((o, k) => o[k], defaults);
       put(path, Math.min(max, Math.max(min, Number.isFinite(n) ? n : fallback)));
     }
-    for (const path of ["loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot", "potion.fallbackMpSlot"]) put(path, Math.round(get(path)));
+    for (const path of ["town.potionCount", "loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot", "potion.fallbackMpSlot"]) put(path, Math.round(get(path)));
     if (!["off", "progress", "farm"].includes(settings.terror.mode)) settings.terror.mode = "off";
-    settings.version = 2;
+    settings.version = 3;
   }
   normalize();
   const abort = new AbortController(), restores = [], blockedLoot = new WeakMap();
@@ -98,9 +109,9 @@
     const w = g?.world, p = w?.player;
     if (point(p) && finite(p.life) && finite(p.maxLife) && p.maxLife > 0) return {
       w, p, hp: { now: p.life, max: p.maxLife }, mp: finite(w.mana?.mana) && w.mana.max > 0 ? { now: w.mana.mana, max: w.mana.max } : null,
-      enemies: Array.isArray(w.enemies) ? w.enemies.filter(live) : [], shots: Array.isArray(w.hostiles) ? w.hostiles.filter(live) : [], pickups: Array.isArray(w.pickups) ? w.pickups.filter(live) : [],
+      enemies: Array.isArray(w.enemies) ? w.enemies.filter((e) => live(e) && e.rank !== "breakable") : [], jars: Array.isArray(w.enemies) ? w.enemies.filter((e) => live(e) && e.rank === "breakable") : [], shots: Array.isArray(w.hostiles) ? w.hostiles.filter(live) : [], pickups: Array.isArray(w.pickups) ? w.pickups.filter(live) : [],
     };
-    return { hp: hudPool("life-text"), mp: hudPool("mana-text"), enemies: [], shots: [], pickups: [] };
+    return { hp: hudPool("life-text"), mp: hudPool("mana-text"), enemies: [], jars: [], shots: [], pickups: [] };
   }
   // 已確認敵方飛彈在 hostiles；projectiles 主要是玩家技能，不計入威脅。
   // 傷害採保守估計，未重現全部抗性、格擋、護盾與附加傷害。
@@ -185,7 +196,9 @@
     if (!assistOn() || !settings.deathProtection.enabled || !s.p || !s.hp || s.hp.now <= 0 || s.w === protectedWorld) return "";
     if (danger.damage > 0 && danger.damage >= s.hp.now && (healingFailed || !healingAvailable(s, now))) return "預估致命傷害且無可用回血藥水";
     if (s.hp.now / s.hp.max * 100 <= settings.deathProtection.emergencyHpPercent && now - lastHp < settings.potion.hpCooldownMs) return "生命低於緊急門檻且回血藥水冷卻中";
-    if (surrounded(s, danger)) return "周圍通道皆受阻，預估無法閃避包圍";
+    // 實測：滿血被小怪貼身也會判定包圍而誤離場，須同時有實際危險（低血或預估傷害過半）。
+    const risky = s.hp.now / s.hp.max <= 0.5 || danger.damage >= s.hp.now * 0.5;
+    if (risky && surrounded(s, danger)) return "周圍通道皆受阻，預估無法閃避包圍";
     return "";
   }
   function retreatFailed(message) {
@@ -246,8 +259,11 @@
     const candidates = s.pickups.filter((e) => !e.flippy && !e.discarded && e.loot !== "sell" && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && accepts(e) && dist(e, s.p) <= settings.loot.searchRadius);
     const weight = (e) => e.item?.type === "quest" ? 2000 : ["unique", "set", "runeword"].includes(e.item?.rarity) ? 1000 : e.item ? 500 : 50;
     candidates.sort((a, b) => weight(b) - weight(a) || dist(a, s.p) - dist(b, s.p));
+    // 原版碰到罐子、木桶會自動踢破（可能掉藥水），走過去即可；不呼叫內部擊破函式。
+    if (lootOn && settings.loot.kickJars) candidates.push(...s.jars.filter((e) => (blockedLoot.get(e) || 0) < now && dist(e, s.p) <= settings.loot.searchRadius).sort((a, b) => dist(a, s.p) - dist(b, s.p)).slice(0, 1));
     const target = candidates[0];
     if (!target) { lootTarget = null; return null; }
+    if (target.rank === "breakable") { if (lootTarget !== target) { lootTarget = target; lootSince = now; } return { x: target.x, y: target.y, kind: "kick", target }; }
     if (lootTarget !== target) { lootTarget = target; lootSince = now; }
     return { x: target.x, y: target.y, kind: "loot", target };
   }
@@ -273,6 +289,27 @@
     }
     return null;
   }
+  // 實測：多敵貼近時排斥力互相抵銷，角色原地被圍死；改沿牆面滑動取樣 16 方向，選路徑上離敵最遠者。
+  function escapeDirection(s) {
+    const p = s.p, near = s.enemies.filter((e) => dist(e, p) < settings.movement.kiteDistance * 1.5);
+    let best = null;
+    for (let i = 0; i < 16; i++) {
+      const a = i * Math.PI / 8, dx = Math.cos(a) * 15, dy = Math.sin(a) * 15;
+      let x = p.x, y = p.y, worst = Infinity, moved = 0;
+      for (let j = 0; j < 8; j++) {
+        const next = typeof s.w.walls?.slide === "function" ? s.w.walls.slide(x, y, dx, dy) : { x: x + dx, y: y + dy };
+        if (!point(next)) break;
+        moved += Math.hypot(next.x - x, next.y - y); x = next.x; y = next.y;
+        for (const e of near) worst = Math.min(worst, dist({ x, y }, e) - (e.radius || 12));
+      }
+      const score = (worst === Infinity ? 999 : worst) + moved * 0.25;
+      if (!best || score > best.score) best = { score, worst, x: Math.cos(a), y: Math.sin(a) };
+    }
+    return best;
+  }
+  const isElite = (e) => ["actBoss", "boss", "champion"].includes(e.rank) || !!e.name;
+  const power = (e) => Math.max(1, e.damage || 1) * Math.max(1, e.maxLife || e.life || 1) * (isElite(e) ? 3 : 1);
+  function nearestElite(s) { return s.enemies.filter((e) => isElite(e) && dist(e, s.p) < 900).reduce((a, e) => !a || dist(e, s.p) < dist(a, s.p) ? e : a, null); }
   function navigate(s, danger, now) {
     const g = game, m = { ...settings.movement, enabled: assistOn() && settings.movement.enabled }, progressing = questOn() || terrorMode() !== "off", portal = g.clearing?.portal;
     if (point(portal) && clearWorld !== s.w) { clearWorld = s.w; clearAt = now; }
@@ -284,14 +321,30 @@
       const u = unit(s.p.x - e.x, s.p.y - e.y), force = Math.min(8, (range - d) / Math.max(15, d));
       x += (u.x || (d < 1 ? 1 : 0)) * force; y += u.y * force;
     }
+    let through = false;
+    if (m.enabled && closeEnemy && s.enemies.filter((e) => dist(e, s.p) < m.kiteDistance).length >= 3) {
+      const out = escapeDirection(s);
+      // 實測很容易被包圍：每個方向都被堵時允許穿過怪群（原版會把貼身的怪推開），以遠離最強的怪為準。
+      if (out && out.worst >= 20) { x = out.x * 8; y = out.y * 8; }
+      else {
+        const strong = s.enemies.filter((e) => dist(e, s.p) < m.kiteDistance * 1.5).reduce((a, e) => !a || power(e) > power(a) ? e : a, null);
+        if (strong) { const away = unit(s.p.x - strong.x, s.p.y - strong.y); x = (away.x || 1) * 8; y = away.y * 8; through = true; }
+      }
+    }
+    // 王與精英怪要留在攻擊範圍內：閃避時若離太遠就往回拉，不會越躲越遠。
+    const elite = m.enabled ? nearestElite(s) : null;
+    if (elite && dist(elite, s.p) > m.attackRange) { const back = unit(elite.x - s.p.x, elite.y - s.p.y); x += back.x * 6; y += back.y * 6; }
     const dodging = m.enabled && m.dodgeProjectiles && Math.hypot(danger.dodgeX, danger.dodgeY) > 0;
     if (dodging) { x += danger.dodgeX; y += danger.dodgeY; }
     const portalDue = progressing && point(portal) && (!settings.loot.backtrackForLoot || now - clearAt >= settings.terror.postClearWaitSec * 1000);
-    let goal = !dodging && !closeEnemy && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
+    // 追目標優先：推進中且生命尚可時以目標前進，路上只閃飛彈，不因被怪包夾而越閃越遠。
+    const chase = m.enabled && progressing && settings.movement.chaseFirst && s.hp.now / s.hp.max > 0.35;
+    const free = chase || (!dodging && !closeEnemy);
+    let goal = free && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
     if (!goal && questOn() && !portalDue) goal = questGoal(s);
     if (!goal && portalDue) goal = { x: portal.x, y: portal.y, kind: "通關傳送門" };
     if (!goal && progressing && !portal) {
-      const enemy = s.enemies.reduce((best, e) => !best || dist(e, s.p) < dist(best, s.p) ? e : best, null);
+      const enemy = nearestElite(s) || s.enemies.reduce((best, e) => !best || dist(e, s.p) < dist(best, s.p) ? e : best, null);
       if (enemy) goal = battleGoal(enemy, s.p);
       else {
         // 讓原版導演持續生成敵人的巡航啟發式；不是完整迷霧探索器。
@@ -299,20 +352,26 @@
         goal = { x: s.p.x + Math.cos(angle) * 160, y: s.p.y + Math.sin(angle) * 100, kind: "巡航" };
       }
     }
-    if (goal && !dodging && !closeEnemy && dist(goal, s.p) > 5) { const u = unit(goal.x - s.p.x, goal.y - s.p.y); x += u.x; y += u.y; }
+    const pursue = chase && goal && dist(goal, s.p) > 5;
+    if (pursue) {
+      const u = unit(goal.x - s.p.x, goal.y - s.p.y), d = dodging ? unit(danger.dodgeX, danger.dodgeY) : { x: 0, y: 0 };
+      x = u.x * 2 + d.x * 1.5; y = u.y * 2 + d.y * 1.5;
+    } else if (goal && !dodging && !closeEnemy && dist(goal, s.p) > 5) { const u = unit(goal.x - s.p.x, goal.y - s.p.y); x += u.x; y += u.y; }
     let u = unit(x, y);
     if (!u.x && !u.y) { release(); return; }
     const mix = dodging ? 1 : m.smoothingFactor;
     u = unit(smooth.x * (1 - mix) + u.x * mix, smooth.y * (1 - mix) + u.y * mix); smooth = u;
     // 使用原版 walkTarget -> walls.route/slide，不直接改座標或穿牆。
-    const target = goal && !dodging && !closeEnemy ? { x: goal.x, y: goal.y } : { x: s.p.x + u.x * 100, y: s.p.y + u.y * 100 };
+    const direct = goal && !dodging && (pursue || !closeEnemy);
+    const target = direct ? { x: goal.x, y: goal.y } : { x: s.p.x + u.x * 100, y: s.p.y + u.y * 100 };
     if (typeof s.w.walls?.nearestOpen === "function") Object.assign(target, s.w.walls.nearestOpen(target.x, target.y));
     if (!point(target)) { release(); return; }
     if (ownReach && s.w.reaching === ownReach) s.w.reaching = null;
-    ownReach = goal?.kind === "loot" && !dodging && !closeEnemy ? goal.target : null;
+    ownReach = goal?.kind === "loot" && direct ? goal.target : null;
     if (ownReach) s.w.reaching = ownReach;
     ownWalk = target; g.walkTarget = target;
-    lastAction = dodging ? "閃避敵方飛彈" : closeEnemy ? "保持敵人距離" : goal?.kind === "loot" ? "前往拾取符合條件的物品" : "前往" + (goal?.kind || "安全位置");
+    const label = goal?.kind === "loot" ? "拾取物品" : goal?.kind === "kick" ? "踢罐子" : goal?.kind || "安全位置";
+    lastAction = through ? "被包圍無路可閃，穿過怪群遠離最強敵人" : pursue ? "朝目標前進：" + label + (dodging ? "（閃避飛彈）" : "") : dodging ? "閃避敵方飛彈" : closeEnemy ? "保持敵人距離" : "前往" + label;
     if (!stuck) stuck = { x: s.p.x, y: s.p.y, at: now };
     if (now - stuck.at >= 2500) {
       stuckCount = dist(stuck, s.p) < 20 ? stuckCount + 1 : 0;
@@ -346,7 +405,247 @@
     } catch (err) { stop("切換關卡失敗：" + String(err.message || err)); }
     finally { transition = false; }
   }
+  // 全新存檔沒有恐怖層紀錄：在營地沿用原版傳送點流程（續玩存檔或開新局）。
+  let campSince = 0;
+  function campStart(g, now) {
+    if (g.state !== "camp") { campSince = 0; return false; }
+    if (!campSince) campSince = now;
+    // 實測：回營地的非同步載入偶爾停在 state=camp 但營地未生成；逾 15 秒仍可直接走原版開局。
+    if (!questOn() || !settings.quest.autoStart || (!g.camp && now - campSince < 15000) || !g.kit || g.swapping || transition || now - actionAt < 2000) return false;
+    if (terrorMode() !== "off" && g.save?.terror?.[g.kit.id]?.offers?.length) return false;
+    let view = null;
+    try { view = g.waypointView?.(g.kit); } catch { view = null; }
+    actionAt = now;
+    // 實測（2026-11-01）：回傳傳送點介面模型 tabs[].rows[].start = { kind: continue|new|terror|replay|training, ... }，open 表示可選。
+    const starts = (view?.tabs || []).flatMap((t) => t?.rows || []).filter((r) => r?.open !== false && r?.start).map((r) => r.start);
+    const order = ["normal", "nightmare", "hell"];
+    const resume = starts.find((s) => s.kind === "continue" && (s.whose ?? "hero") === "hero");
+    const fresh = starts.filter((s) => s.kind === "new" && order.includes(s.difficulty)).sort((a, b) => order.indexOf(b.difficulty) - order.indexOf(a.difficulty))[0];
+    if (resume && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; void g.continueRun(g.kit, "hero"); return true; }
+    if (!fresh || typeof g.startRun !== "function") return false;
+    lastAction = "從營地開新局：" + fresh.difficulty; void g.startRun(g.kit, fresh.difficulty);
+    return true;
+  }
+  // 以原版角色數值（傷害、生命、減傷、抗性）比較背包裝備，再走原版穿戴流程。
+  let gearAt = 0;
+  function gearScore(g, worn) {
+    const p = g.world.player, numbers = g.heroNumbers(g.makePlayer(p.sprite, p.cls, worn), g.build, worn, false);
+    const n = Object.fromEntries((numbers?.stats || []).map((s) => [s.label, finite(s.num) ? s.num : 0]));
+    const res = ["Fire Resistance", "Cold Resistance", "Lightning Resistance", "Poison Resistance"].reduce((a, k) => a + Math.min(75, n[k] || 0), 0);
+    return Math.log1p(Math.max(0, n.Damage || 0)) * 100 + Math.log1p(Math.max(0, n.Life || 0)) * 60 + (n["Damage Reduced"] || 0) * 0.8 + res * 0.1 + (n["Faster Cast Rate"] || 0) * 0.05 + (n["Replenish Life"] || 0) * 0.2 + (n["Magic Find"] || 0) * 0.01;
+  }
+  // 回傳候選中提升最多且達門檻者；候選可來自背包、倉庫、收藏庫或商店，只比較不寫入。
+  function bestGear(g, items) {
+    const p = g.world.player, worn = g.equippedOf(p.cls), base = gearScore(g, worn), doll = g.ownGear(p.cls).doll;
+    let best = null;
+    for (const item of items) {
+      if (!item?.base || item.type === "quest" || item.type === "rune" || item.type === "gem" || Object.values(worn).includes(item)) continue;
+      const preview = g.previewGear(p, g.build, false, item);
+      if (!preview || preview.refused) continue;
+      // 模擬原版 equip 會選的欄位與被擠掉的裝備。
+      const trial = { ...worn }, to = doll.slotFor?.(item, worn);
+      if (!to || !doll.canWear?.(item)) continue;
+      const displaced = doll.displaced?.(item, worn, to) || [];
+      for (const s of displaced) delete trial[s];
+      trial[to] = item;
+      // 分數以對數計：1 分約等於傷害 +1％。實測原版數值不含防禦，空欄位只要不變差就穿（至少得到防禦）。
+      const gain = gearScore(g, trial) - base, empty = !worn[to] && displaced.every((s) => !worn[s]);
+      if ((empty ? gain >= 0 : gain >= settings.gear.minGainPercent) && (!best || gain > best.gain)) best = { item, gain };
+    }
+    return best;
+  }
+  function autoEquip(g, now) {
+    if (!settings.progressEnabled || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
+    if (!["playing", "camp"].includes(g.state) || typeof g.gearActions !== "function" || typeof g.heroNumbers !== "function" || typeof g.makePlayer !== "function") return;
+    gearAt = now;
+    const p = g.world.player, best = bestGear(g, [...g.inventoryOf(p.cls)]);
+    if (!best) return;
+    g.gearActions(p.cls, () => {}, false).equip(best.item);
+    if (Object.values(g.equippedOf(p.cls)).includes(best.item)) lastAction = "已自動穿上較佳裝備：" + (best.item.name || best.item.base);
+  }
+  // 營地整備：沿用原版 openCampTrade 與商店介面回呼（hud.showTown 的參數），一次只做一個動作。
+  // 實測（2026-11-01）：store＝恰西升級與裝備、akara＝藥水（1000 金，下一局放入藥帶）、stash＝倉庫／收藏庫（toStash、collectAll、可直接 equip）。
+  let shop = null, trade = null;
+  const RANKS = ["Vitality", "Damage Reduced", "Replenish Life", "Potion Healing", "Faster Cast Rate", "Energy", "Faster Run/Walk", "Strength", "Dexterity", "Fire Pierce", "Cold Pierce", "Lightning Pierce", "Poison Pierce", "Physical Pierce", "Experience", "Magic Find", "Gold Find", "Sell Price", "Reroll", "Banish", "Skip"];
+  const keepType = (item) => ["quest", "rune", "gem", "jewel"].includes(item.type) || /charm|jewel|rune|gem|key|essence|token/i.test(String(item.type || "") + " " + String(item.base || ""));
+  function hookTown(g) {
+    const hud = g.hud;
+    if (!hud || typeof hud.showTown !== "function") return false;
+    if (hud.__d2autobotTown === api) return true;
+    const own = Object.prototype.hasOwnProperty.call(hud, "showTown"), original = hud.showTown;
+    hud.showTown = function (...args) { trade = { gold: args[0], wares: args[1] || [], acts: args[2] || {}, gear: args[3] || null }; return Reflect.apply(original, this, args); };
+    hud.__d2autobotTown = api;
+    restores.push(() => { if (own) hud.showTown = original; else delete hud.showTown; delete hud.__d2autobotTown; });
+    return true;
+  }
+  function leaveTrade(g) { if (g.state === "town") trade?.acts?.leave?.(); trade = null; if (shop) shop.open = null; }
+  function openTrade(g, kind) {
+    if (shop.open === kind && g.state === "town" && trade) return true;
+    leaveTrade(g);
+    if (g.state !== "camp") return false;
+    g.openCampTrade(kind); shop.open = kind;
+    return !!trade && g.state === "town";
+  }
+  function stashItems(view) {
+    const tabs = Object.values(view?.tabs || {}).flat(), kept = Object.values(view?.uniques || {}).flat();
+    return [...tabs, ...kept].map((x) => x?.item ?? x).filter((x) => x?.base);
+  }
+  const shopSteps = {
+    stash(g, cls) {
+      if (!openTrade(g, "stash")) return true;
+      const a = trade.gear?.actions, view = trade.gear?.view?.stash;
+      if (!a) return true;
+      if (settings.town.collect && view?.collect > 0 && !shop.collected && typeof a.collectAll === "function") { shop.collected = true; a.collectAll(); lastAction = "整備：把暗金／套裝收進收藏庫"; return false; }
+      if (settings.gear.autoEquip) {
+        // 倉庫與收藏庫的裝備一起評估；原版 equip 在倉庫情境可直接從倉庫或收藏庫取出穿上。
+        const best = bestGear(g, [...g.inventoryOf(cls), ...stashItems(view)].filter((x) => !shop.tried.has(x)));
+        if (best) { shop.tried.add(best.item); a.equip(best.item); lastAction = "整備：換上較佳裝備 " + (best.item.name || best.item.base); return false; }
+      }
+      if (settings.town.stash && typeof a.toStash === "function") {
+        const item = g.inventoryOf(cls).find((x) => x?.base && !shop.tried.has(x) && !keepType(x) && ["unique", "set", "runeword", "rare"].includes(x.rarity));
+        if (item) { shop.tried.add(item); a.toStash(item); lastAction = "整備：存入倉庫 " + (item.name || item.base); return false; }
+      }
+      return true;
+    },
+    sell(g, cls) {
+      if (!settings.town.sellJunk || !openTrade(g, "store")) return true;
+      const a = trade.gear?.actions, item = g.inventoryOf(cls).find((x) => x?.base && !shop.tried.has(x) && !keepType(x) && ["normal", "magic", "rare"].includes(x.rarity));
+      if (!a?.sell || !item) return true;
+      shop.tried.add(item); a.sell(item); lastAction = "整備：賣出 " + (item.name || item.base);
+      return false;
+    },
+    potions(g) {
+      if (!settings.town.buyPotions || !openTrade(g, "akara")) return true;
+      const i = trade.wares.findIndex((w) => w?.potion && /Healing/i.test(w.name || "")), w = trade.wares[i];
+      if (!w?.canBuy || (w.potion.bought ?? 0) >= settings.town.potionCount) return true;
+      trade.acts.buy(i); lastAction = "整備：向阿卡拉買生命藥水";
+      return false;
+    },
+    upgrades(g) {
+      if (!openTrade(g, "store")) return true;
+      const wares = trade.wares;
+      if (settings.town.buyGear && settings.gear.autoEquip) {
+        const offers = wares.filter((w) => w?.item && w.canBuy && !shop.tried.has(w.item));
+        const best = offers.length ? bestGear(g, offers.map((w) => w.item)) : null;
+        if (best) { shop.tried.add(best.item); trade.acts.buy(wares.findIndex((w) => w.item === best.item)); lastAction = "整備：向恰西買較佳裝備 " + (best.item.name || best.item.base); return false; }
+      }
+      if (!settings.town.charsiUpgrades) return true;
+      // 依優先順序加權並計入已買等級，讓金幣平均投入生命、減傷、回血等永久成長。
+      let pick = -1, score = Infinity;
+      wares.forEach((w, i) => {
+        if (!w || w.item || w.imbue || !w.canBuy || /^(?:Resurrect|Mercenary)/.test(w.name || "")) return;
+        const order = RANKS.indexOf(w.name), value = (order < 0 ? RANKS.length + 5 : order) + (w.rank || 0) * 3;
+        if (value < score) { pick = i; score = value; }
+      });
+      if (pick < 0 || shop.buys++ > 60) return true;
+      trade.acts.buy(pick); lastAction = "整備：恰西升級 " + wares[pick].name;
+      return false;
+    },
+  };
+  function campShop(g, now) {
+    if (!settings.progressEnabled || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
+    if (g.state === "playing") { shop = null; return false; }
+    if (shop?.done) return false;
+    if (!shop) {
+      if (g.state !== "camp" || !g.camp || g.swapping || typeof g.openCampTrade !== "function" || !g.kit || !g.world?.player || !hookTown(g)) return false;
+      shop = { steps: ["stash", "sell", "potions", "upgrades", "stash"], i: 0, at: 0, tried: new Set(), buys: 0, actions: 0, open: null, collected: false };
+    }
+    if (now - shop.at < 250) return true;
+    shop.at = now;
+    try {
+      while (shop.i < shop.steps.length) {
+        if (++shop.actions > 200) throw new Error("整備動作過多");
+        const name = shop.steps[shop.i];
+        if (!shopSteps[name](g, g.kit.id)) return true;
+        shop.i++;
+        if (name === "upgrades" || name === "potions") shop.tried.clear();
+      }
+    } catch (err) { lastAction = "整備中斷：" + String(err.message || err); }
+    leaveTrade(g); shop.done = true; actionAt = now;
+    return true;
+  }
+  // 排行榜學習：升級選卡依高手技能／被動權重，屬性點依高手配點比例；技能偏離時到阿卡拉重置（re-draft）。
+  let levelCards = null, campMenu = null, statsAt = 0, redraft = null, redraftVisits = 0;
+  function hookBuild(g) {
+    const hud = g.hud;
+    if (!hud || hud.__d2autobotBuild === api) return;
+    const wrapOwn = (object, name, factory) => {
+      if (typeof object?.[name] !== "function") return;
+      const own = Object.prototype.hasOwnProperty.call(object, name), original = object[name];
+      object[name] = factory(original);
+      restores.push(() => { if (own) object[name] = original; else delete object[name]; });
+    };
+    // 實測原版 hud.showLevelUp(cards, build, handlers)：cards 為 {title, subtitle, text, rarity}；showCampMenu(npc, items) 為 {label, disabled, run}。
+    wrapOwn(hud, "showLevelUp", (original) => function (...args) { levelCards = Array.isArray(args[0]) ? args[0] : null; return Reflect.apply(original, this, args); });
+    wrapOwn(g, "showCampMenu", (original) => function (...args) { campMenu = { npc: args[0], items: Array.isArray(args[1]) ? args[1] : [] }; return Reflect.apply(original, this, args); });
+    hud.__d2autobotBuild = api;
+    restores.push(() => { delete hud.__d2autobotBuild; });
+  }
+  const ladderOf = (g) => settings.build.ladder ? LADDER.classes[g?.kit?.id || g?.world?.player?.cls] : null;
+  function ladderScore(g, title) {
+    const l = ladderOf(g), name = String(title || "").trim().toLowerCase();
+    if (!l || !name) return 0;
+    const skill = l.skills.find(([, n]) => n.toLowerCase() === name), passive = l.passives.find(([, n]) => n.toLowerCase() === name);
+    return skill ? skill[2] * 10 : passive ? passive[2] * 6 : 0;
+  }
+  function pickCard(g, buttons) {
+    let best = 0, score = -Infinity;
+    buttons.forEach((button, i) => {
+      const card = levelCards?.[i], evolve = button.classList.contains("evolves") || !!button.querySelector(".evolves.ready");
+      // 實測卡名畫在 .d2-parts 內第一個 canvas（textContent 為名稱），舊版為 strong。
+      const title = card?.title ?? button.querySelector(".d2-parts canvas, strong")?.textContent;
+      const value = (evolve ? 100 : 0) + ladderScore(g, title) - i * 0.01;
+      if (value > score) { best = i; score = value; }
+    });
+    return best;
+  }
+  // 屬性點依高手比例分配；原版 spendStatPoints(屬性, 點數)。
+  function autoStats(g, now) {
+    if (!settings.progressEnabled || !settings.build.autoStats || now - statsAt < 1000 || typeof g.spendStatPoints !== "function") return;
+    statsAt = now;
+    const unspent = g.build?.unspent | 0, ratio = ladderOf(g)?.attributes;
+    if (unspent <= 0 || !ratio) return;
+    const order = Object.entries(ratio).sort((a, b) => b[1] - a[1]);
+    let left = unspent;
+    for (const [attr, share] of order) {
+      const n = attr === order[0][0] ? 0 : Math.min(left, Math.floor(unspent * share));
+      if (n > 0) { g.spendStatPoints(attr, n); left -= n; }
+    }
+    if (left > 0) g.spendStatPoints(order[0][0], left);
+    lastAction = "依排行榜比例分配屬性點 " + unspent + " 點";
+  }
+  // 目前技能投資與高手前 8 名技能重疊不到一半時，在營地向阿卡拉重置技能，再依排行榜重新選卡。
+  function alignment(g) {
+    const l = ladderOf(g), skills = Array.isArray(g.build?.skills) ? g.build.skills : [];
+    const total = skills.reduce((a, s) => a + (s.level || 1), 0);
+    if (!l || total < 6) return 1;
+    const top = new Set(l.skills.slice(0, 8).map(([id]) => id));
+    return skills.reduce((a, s) => a + (top.has(s.id) ? s.level || 1 : 0), 0) / total;
+  }
+  function campRedraft(g, now) {
+    if (g.state !== "camp") { if (g.state === "playing") redraft = null; return false; }
+    if (!settings.progressEnabled || !settings.build.redraft || !g.camp || g.swapping || typeof g.openAkara !== "function") return false;
+    if (redraft?.done) return false;
+    if (!redraft) {
+      redraftVisits++;
+      if (redraftVisits % 3 !== 1 || alignment(g) >= 0.5) { redraft = { done: true }; return false; }
+      hookBuild(g); redraft = { phase: "open", at: 0 }; campMenu = null;
+    }
+    if (now - redraft.at < 300) return true;
+    redraft.at = now;
+    const enabled = (re) => campMenu?.items.find((item) => !item.disabled && re.test(String(item.label || "")) && typeof item.run === "function");
+    if (redraft.phase === "open") { g.openAkara(); redraft.phase = "choose"; return true; }
+    const item = redraft.phase === "choose" ? enabled(/re-?draft your skills/i) : enabled(/re-?draft|reset|yes|confirm/i);
+    // 實測：重置在首次擊殺巴爾後才開放；關閉選單後原版停在 town，需比照原版自行回到 camp。
+    if (!item) { g.hud?.hideNpcMenu?.(); if (g.state === "town" && g.camp) g.state = "camp"; if (redraft.phase === "choose") lastAction = "重置技能：目前無法重置（金幣不足或未開放）"; redraft = { done: true }; return false; }
+    campMenu = null; item.run();
+    if (redraft.phase === "choose") { redraft.phase = "confirm"; lastAction = "重置技能：技能偏離排行榜高手配法，向阿卡拉重置"; return true; }
+    redraft = { done: true }; lastAction = "重置技能完成，依排行榜重新選卡";
+    return true;
+  }
   function progression(g, now) {
+    if (campRedraft(g, now)) return true;
+    if (campShop(g, now) || campStart(g, now)) return true;
     if (terrorMode() === "off") return false;
     const record = g.save?.terror?.[g.kit?.id];
     if (["camp", "select"].includes(g.state) && !g.swapping && record && g.save?.heroes?.[g.kit?.id]?.kept && record.playing === undefined && !record.replay) {
@@ -365,16 +664,24 @@
   function step(g, now) {
     checkRetreat(now);
     if (retreat || blocked()) { release(); return; }
+    if (g) { hookBuild(g); autoEquip(g, now); if (g.state === "playing") autoStats(g, now); }
     if (g && progression(g, now)) { release(); return; }
     if (g && g.state !== "playing") {
       release();
       if (questOn() && g.state === "dead" && g.afterBaal?.next && typeof g.afterBaal.continue === "function" && now - actionAt > 1500) {
         g.afterBaal.continue(); actionAt = now; return;
       }
-      // 推進時才自動選卡，優先進化；不操作商店、賭博或任務獎勵。
+      // 一般難度陣亡或結束：沿用原版結算畫面的「回主選單」（營地模式下回營地），再由 campStart 續玩。
+      if (questOn() && settings.quest.autoStart && g.state === "dead" && g.runOver && !g.world?.terror && !g.afterBaal?.next && typeof g.toMenu === "function" && (g.deathTime ?? 3) >= 3 && now - actionAt > 1500) {
+        actionAt = now; lastAction = "本局結束，返回營地"; void g.toMenu(); return;
+      }
+      // 推進時才自動選卡：進化優先，其次依排行榜高手的技能／被動權重。
+      // 實測：原版卡片有防誤觸，未經真實 pointerdown 的 click() 會被忽略，因此改按原版 1～3 鍵。
       if ((questOn() || terrorMode() !== "off") && visible(document.getElementById("level-up")) && now - actionAt > 800) {
         const cards = [...document.querySelectorAll("#choices button")].filter(visible);
-        (cards.find((e) => e.classList.contains("evolves")) || cards[0])?.click(); actionAt = now;
+        const i = pickCard(g, cards);
+        if (cards.length) { keyPulse("Digit" + (i + 1), String(i + 1)); lastAction = "已選擇升級卡 " + (i + 1); }
+        actionAt = now;
       }
       return;
     }
@@ -468,12 +775,15 @@
   group("生命與藥水");
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["autoMp", "自動補魔力（消耗回復活力藥水）"], ["mpThreshold", "魔力門檻（％）"], ["mpCooldownMs", "魔力藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"], ["fallbackMpSlot", "降級模式魔力藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
-  for (const [path, label] of [["enabled", "自動走位（保持距離與閃避）"], ["kiteDistance", "敵人安全距離"], ["dodgeProjectiles", "閃避敵方飛彈"], ["projectileSafetyRadius", "飛彈安全邊距"], ["smoothingFactor", "轉向平滑係數"]]) field("movement." + path, label);
-  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.minRuneTier", "最低符文編號");
+  for (const [path, label] of [["enabled", "自動走位（保持距離與閃避）"], ["chaseFirst", "推進時追目標優先（路上閃避，不越閃越遠）"], ["kiteDistance", "敵人安全距離"], ["attackRange", "王與精英怪攻擊範圍（閃避時不超過此距離）"], ["dodgeProjectiles", "閃避敵方飛彈"], ["projectileSafetyRadius", "飛彈安全邊距"], ["smoothingFactor", "轉向平滑係數"]]) field("movement." + path, label);
+  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.minRuneTier", "最低符文編號"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
   tab("progress"); group("總開關"); field("progressEnabled", "推層與任務總開關"); group("恐怖層數"); field("terror.progressEnabled", "自動推恐怖層數"); field("terror.farmEnabled", "固定層數重刷（與推層互斥）"); field("terror.targetFarmTier", "重刷層數（須已通關）"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
-  group("任務進程"); field("quest.autoProgress", "自動推任務（追蹤目標與選擇升級卡）"); field("quest.prioritizeBoss", "優先接近任務頭目");
+  group("任務進程"); field("quest.autoProgress", "自動推任務（追蹤目標與選擇升級卡）"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）");
+  group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "技能偏離時向阿卡拉重置技能");
+  group("裝備"); field("gear.autoEquip", "自動穿上較佳裝備"); field("gear.minGainPercent", "替換門檻（約等於傷害提升％）");
+  group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.potionCount", "每局最多預購藥水數"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
   tab("assist"); group("死亡保護"); field("deathProtection.enabled", "死亡保護（緊急離開本局）"); field("deathProtection.emergencyHpPercent", "緊急生命門檻（％）"); field("deathProtection.disableAutomation", "觸發後關閉兩頁總開關");
   function refreshControls() {
     for (const [path, input] of controls) {
