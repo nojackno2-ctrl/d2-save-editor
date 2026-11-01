@@ -711,7 +711,8 @@
     const fresh = fixed || (farm ? opened[1] : opened[0]);
     if (farm) failStreak[opened[0].difficulty] = 0;
     // 上次進度是較低難度的局（回刷中離場）時不再續玩，直接開最高難度。
-    const resumeDiff = resume ? resume.difficulty ?? lastRunDiff : null;
+    // 原版保留角色的難度在 save.heroes[職業].kept.difficulty；優先用它，沒有才用自己記住的上一局難度。
+    const resumeDiff = resume ? resume.difficulty ?? g.save?.heroes?.[g.kit.id]?.kept?.difficulty ?? lastRunDiff : null;
     const lowerResume = resume && opened[0] && resumeDiff && order.indexOf(resumeDiff) < order.indexOf(opened[0].difficulty) && settings.quest.farmDifficulty === "off";
     if (resume && !farm && !lowerResume && (settings.quest.farmDifficulty === "off" || resume.difficulty === settings.quest.farmDifficulty) && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; runStart = { diff: resumeDiff, lv: g.world?.player?.level, at: now }; void g.continueRun(g.kit, "hero"); return true; }
     if (!fresh || typeof g.startRun !== "function") return false;
