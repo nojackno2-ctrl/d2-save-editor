@@ -484,6 +484,11 @@
     if (!["playing", "camp"].includes(g.state) || typeof g.gearActions !== "function" || typeof g.heroNumbers !== "function" || typeof g.makePlayer !== "function") return;
     gearAt = now;
     const p = g.world.player, charm = g.inventoryOf(p.cls).find((x) => isCharm(x) && !charmTried.has(x));
+    // 實測長局會背包滿（原版提示 inventory is full）而撿不到裝備；原版 gearActions.sell 跑圖中也可用，先賣最沒價值的騰出空間。
+    if (g.state === "playing" && finite(g.lastInventoryFull) && performance.now() - g.lastInventoryFull < 5000) {
+      const rank = { normal: 0, magic: 1, rare: 2 }, junk = g.inventoryOf(p.cls).filter((x) => x?.base && !keepType(x) && !isCharm(x) && x.rarity in rank).sort((a, b) => rank[a.rarity] - rank[b.rarity])[0];
+      if (junk) { g.gearActions(p.cls, () => {}, false).sell(junk); g.lastInventoryFull = -Infinity; lastAction = "背包已滿，賣掉 " + (junk.name || junk.base); return; }
+    }
     // 護符：原版 equip 遇到護符會改放進護符格（moveCharm）；有空位就放，滿了留在背包。
     if (charm) { charmTried.add(charm); g.gearActions(p.cls, () => {}, false).equip(charm); if (!g.inventoryOf(p.cls).includes(charm)) lastAction = "已放入護符：" + (charm.name || charm.base); return; }
     const best = bestGear(g, [...g.inventoryOf(p.cls)]);
