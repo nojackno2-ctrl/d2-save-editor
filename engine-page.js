@@ -557,7 +557,7 @@ export function boot(G, itemstatsText) {
     // 恰西強化：{ key: { name, maxRank, endless } }；遊戲讀檔時 ranks 會被限制在 maxRank，額外強化只對 endless 項目、且 ranks 已滿時有效（最多 999）
     rankDefs() {
       if (!G.__rankDefs) return null;
-      return Object.fromEntries(Object.entries(G.__rankDefs).map(([k, d]) => [k, { name: d.name, maxRank: d.maxRank, endless: !!d.endless }]));
+      return Object.fromEntries(Object.entries(G.__rankDefs).map(([k, d]) => [k, { name: d.name, maxRank: d.maxRank, endless: !!d.endless, baseCost: d.baseCost }]));
     },
     // 技能修改：{ 職業: [{ id, name, passive, options: [{ id, name, describe }] }] }，只列該職業有、且有修改選項的技能（跟遊戲的檢查一樣）
     skillModDefs(classes) {

@@ -1265,8 +1265,21 @@ function rankGrid(id) {
   // 照恰西的規則：強化等級 0～上限；額外強化只有可無限升級的項目，而且強化等級要先升滿
   const defs = Object.entries(RANK_DEFS).filter(([, d]) => id === "ranks" || d.endless);
   $("#" + id).innerHTML = defs.map(([k, d]) => `<label><span>${RANK_ZH[k] ?? T(d.name)}${id === "ranks" ? `（上限 ${d.maxRank}）` : ""}</span>${id === "ranks"
-    ? `<select data-num data-path="ranks.${k}">${opts(d.maxRank)}</select>`
-    : `<input type="number" min="0" max="999" data-max="999" data-path="extraRanks.${k}">`}</label>`).join("");
+    ? `<select data-num data-path="ranks.${k}">${opts(charsiSafeMax(k, false))}</select>`
+    : `<input type="number" min="0" max="${charsiSafeMax(k, true)}" data-max="${charsiSafeMax(k, true)}" data-path="extraRanks.${k}" title="${unlocked() ? "" : "安全上限：單次升級花費不超過 100 億"}">`}</label>`).join("");
+}
+// 依使用者要求：恰西升級安全值＝單一次升級花費不超過 100 億（遊戲金幣上限，超過的那一級玩家付不出來）。
+// 價格公式取自遊戲（keepSave ep／sp）：普通第 t→t+1 級 round(baseCost×(t+1)^1.5/10)×10；額外第 j→j+1 級 round(普通最後一級價×(1+j/4)^2/10)×10。
+const CHARSI_SAFE_COST = 1e10;
+const charsiPrice = (d, t) => Math.round(d.baseCost * (t + 1) ** 1.5 / 10) * 10;
+const charsiExtraPrice = (d, j) => Math.round(charsiPrice(d, d.maxRank - 1) * (1 + j / 4) ** 2 / 10) * 10;
+// 未解除限制時的安全上限；資料缺少基礎價時不另外限制（照原本上限）。
+function charsiSafeMax(k, extra) {
+  const d = RANK_DEFS?.[k];
+  if (unlocked() || !d || !Number.isFinite(d.baseCost)) return extra ? 999 : d?.maxRank ?? 0;
+  let n = 0;
+  if (extra) { while (n < 999 && charsiExtraPrice(d, n) <= CHARSI_SAFE_COST) n++; return n; }
+  while (n < d.maxRank && charsiPrice(d, n) <= CHARSI_SAFE_COST) n++; return n;
 }
 // 強化等級沒升滿的項目，不能有額外強化
 function syncExtra() {
@@ -1330,7 +1343,8 @@ function collectHero() {
   // 原版上限：金幣 100 億、額外強化 999
   if (!unlocked()) {
     if (save.gold > 1e10) { save.gold = 1e10; status("金幣已限制在原版上限 10,000,000,000", "bad"); }
-    for (const k of Object.keys(save.extraRanks ?? {})) save.extraRanks[k] = Math.max(0, Math.min(999, Number(save.extraRanks[k]) || 0));
+    for (const k of Object.keys(save.extraRanks ?? {})) save.extraRanks[k] = Math.max(0, Math.min(charsiSafeMax(k, true), Number(save.extraRanks[k]) || 0));
+    if (!unlocked()) for (const k of Object.keys(save.ranks ?? {})) if (RANK_DEFS?.[k]) save.ranks[k] = Math.min(charsiSafeMax(k, false), Number(save.ranks[k]) || 0);
   }
   // 技能修改最多 10 個、不超過點數（遊戲讀檔時也只留前面這些）
   if (SKILL_MODS && !unlocked()) for (const m of Object.values(save.skillMods ?? {})) {
