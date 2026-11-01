@@ -533,7 +533,8 @@
   }
   function openTrade(g, kind) {
     // 跑圖中碰到恰西（幕末清場後出現）已開著他的商店：只能用這一間，不切換。
-    if (shop.smith) { if (!trade && typeof g.showTown === "function") g.showTown(); return kind === "store" && g.state === "town" && !!trade; }
+    // 原版 openSmith 的商店同時提供倉庫操作（toStash、collectAll、equip 可從倉庫取），stash 步驟也在同一畫面完成。
+    if (shop.smith) { if (!trade && typeof g.showTown === "function") g.showTown(); return ["store", "stash"].includes(kind) && g.state === "town" && !!trade; }
     if (shop.open === kind && g.state === "town" && trade) return true;
     leaveTrade(g);
     if (g.state !== "camp") return false;
@@ -549,7 +550,7 @@
       if (!openTrade(g, "stash")) return true;
       const a = trade.gear?.actions, view = trade.gear?.view?.stash;
       if (!a) return true;
-      if (settings.town.collect && view?.collect > 0 && !shop.collected && typeof a.collectAll === "function") { shop.collected = true; a.collectAll(); lastAction = "整備：把暗金／套裝收進收藏庫"; return false; }
+      if (settings.town.collect && (view ? view.collect > 0 : shop.smith) && !shop.collected && typeof a.collectAll === "function") { shop.collected = true; a.collectAll(); lastAction = "整備：把暗金／套裝收進收藏庫"; return false; }
       if (settings.gear.autoEquip) {
         const charm = stashItems(view).find((x) => isCharm(x) && !shop.tried.has(x));
         if (charm) { shop.tried.add(charm); a.equip(charm); lastAction = "整備：從倉庫放入護符 " + (charm.name || charm.base); return false; }
@@ -616,7 +617,7 @@
       // 剛逛過就直接離開，避免反覆碰到恰西。
       if (now - smithAt < 60000) { if (!trade) g.showTown?.(); trade?.acts?.leave?.(); trade = null; return true; }
       smithAt = now;
-      shop = { steps: ["sell", "upgrades"], i: 0, at: 0, tried: new Set(), buys: 0, actions: 0, open: "store", collected: true, smith: true };
+      shop = { steps: ["stash", "sell", "upgrades", "stash"], i: 0, at: 0, tried: new Set(), buys: 0, actions: 0, open: "store", collected: false, smith: true };
     }
     if (!shop) {
       if (g.state !== "camp" || !g.camp || g.swapping || typeof g.openCampTrade !== "function" || !g.kit || !g.world?.player || !hookTown(g)) return false;
