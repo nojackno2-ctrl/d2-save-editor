@@ -115,6 +115,9 @@
     #mods .limit, #cmods .limit, .cmods-table .limit { display:block; overflow-wrap:anywhere; }
     #mods .rm, #cmods .rm, .cmods-table .rm { min-width:44px; min-height:44px; }
   }
+  .version-warn { width:100%; background:#3b1812; border:1px solid #c84b31; color:#ffded8; border-radius:4px; padding:6px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; font-weight:bold; box-sizing:border-box; margin-top:4px; }
+  .version-warn button { background:transparent; border:none; color:#ffded8; font-size:18px; cursor:pointer; padding:0 4px; line-height:1; }
+  .version-warn button:hover { color:#fff; }
 </style>
 </head>
 <body>
@@ -125,6 +128,7 @@
   <button id="write" class="primary">寫入存檔</button>
   <button id="closeWeb" hidden>關閉</button>
   <span id="status">請先關閉遊戲</span>
+  <div id="versionWarn" class="version-warn" hidden><span id="versionMsg"></span><button type="button" id="versionDismiss" aria-label="關閉提示">×</button></div>
 </header>
 <nav>
   <button data-page="items" class="on">物品</button>
@@ -310,6 +314,8 @@
 <script src="zh.js?b=mvwg4l4m"></script>
 <script>
 const LOCALE = window.LANG === "en" ? "en-US" : "zh-TW";
+const TESTED_GAME_BUILD = "20261030.2"; // 每次確認新版遊戲相容後更新此值
+const BUILD_KEY = "d2edit:gameBuild";
 const CLASSES = ["amazon","sorceress","necromancer","paladin","barbarian","druid","assassin"];
 const CLASS_ZH = ZH_CLASS;
 const DIFFS = ["", "normal", "nightmare", "hell"];
@@ -327,6 +333,81 @@ const status = (t, cls = "") => {
   LOG.push(`${new Date().toLocaleTimeString(LOCALE)} ${cls === "bad" ? "✖ " : ""}${t}`);
   if (LOG.length > 60) LOG.shift();
 };
+let checkedGameBuild = false, versionNotice = "", versionDismissed = false;
+function parseBuild(s) { return String(s || "").trim().split(".").map((n) => Number(n) || 0); }
+function isBuildNewer(latest, tested) {
+  const p1 = parseBuild(latest), p2 = parseBuild(tested);
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const v1 = p1[i] || 0, v2 = p2[i] || 0;
+    if (v1 !== v2) return v1 > v2;
+  }
+  return false;
+}
+function findGameScript() {
+  try {
+    for (const e of performance?.getEntriesByType?.("resource") || []) {
+      const m = String(e.name || "").match(/\/(Game-[\w-]+\.js)(?:\?.*)?$/i);
+      if (m) return m[1];
+    }
+    for (const s of document.querySelectorAll("script[src],link[rel=modulepreload]")) {
+      const m = String(s.src || s.href || "").match(/\/(Game-[\w-]+\.js)(?:\?.*)?$/i);
+      if (m) return m[1];
+    }
+  } catch {}
+  try {
+    for (const e of window.parent?.performance?.getEntriesByType?.("resource") || []) {
+      const m = String(e.name || "").match(/\/(Game-[\w-]+\.js)(?:\?.*)?$/i);
+      if (m) return m[1];
+    }
+  } catch {}
+  return "";
+}
+function refreshVersionNotice() {
+  const w = $("#versionWarn"), m = $("#versionMsg");
+  if (!w || !m) return;
+  if (versionNotice && !versionDismissed) { m.textContent = versionNotice; w.hidden = false; }
+  else { w.hidden = true; }
+}
+async function checkGameVersion() {
+  if (checkedGameBuild) return;
+  checkedGameBuild = true;
+  try {
+    const gameJs = findGameScript();
+    let prev = null;
+    try { prev = JSON.parse(localStorage.getItem(BUILD_KEY) || "null"); } catch {}
+    const prevJs = prev?.gameJs || "";
+    const gameChanged = !!(gameJs && prevJs && gameJs !== prevJs);
+    let latestBuild = "", latestDate = "";
+    const ctrl = new AbortController(), tid = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const res = await fetch("https://d2survivors.lol/changelog.json", { signal: ctrl.signal, cache: "no-cache" }).catch(() => fetch("/changelog.json", { signal: ctrl.signal, cache: "no-cache" }));
+      if (res && res.ok) {
+        const list = await res.json();
+        const first = Array.isArray(list) ? list[0] : null;
+        if (first?.build) { latestBuild = String(first.build); latestDate = String(first.date || ""); }
+      }
+    } catch {} finally { clearTimeout(tid); }
+    const compareBuild = latestBuild || prev?.build || "";
+    const compareDate = latestDate || prev?.date || "";
+    const isNewer = compareBuild ? isBuildNewer(compareBuild, TESTED_GAME_BUILD) : false;
+    if (isNewer) {
+      versionNotice = `遊戲已更新到 ${compareBuild}${compareDate ? `（${compareDate}）` : ""}，存檔修改器只驗證到 ${TESTED_GAME_BUILD}，請更新修改器；部分功能可能失效${gameChanged ? "；遊戲程式已變更" : ""}`;
+    } else if (gameChanged) {
+      versionNotice = `遊戲程式已變更，存檔修改器只驗證到 ${TESTED_GAME_BUILD}，請更新修改器；部分功能可能失效`;
+    }
+    try {
+      const record = {
+        build: latestBuild || prev?.build || "",
+        date: latestDate || prev?.date || "",
+        gameJs: gameJs || prevJs || "",
+        tested: TESTED_GAME_BUILD,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(BUILD_KEY, JSON.stringify(record));
+    } catch {}
+    refreshVersionNotice();
+  } catch {}
+}
 window.addEventListener("error", (e) => LOG.push("JS 錯誤：" + e.message));
 window.addEventListener("unhandledrejection", (e) => LOG.push("未處理的錯誤：" + (e.reason?.message ?? e.reason)));
 const getP = (o, p) => p.split(".").reduce((a, k) => a?.[k], o);
@@ -577,7 +658,7 @@ async function makeDiag() {
     faults = Array.isArray(f) ? { checked: items.length, notLegit: items.filter((_, i) => f[i]).map(nameZh).slice(0, 10) } : f;
   } catch (e) { faults = { error: e.message }; }
   const lines = {
-    修改器: { build: EDITOR_BUILD, web: !!window.api.web, mode: $("#mode").value, unlocked: unlocked(), seal: lastSeal, chineseEntries: Object.keys(DICT).length },
+    修改器: { build: EDITOR_BUILD, web: !!window.api.web, mode: $("#mode").value, unlocked: unlocked(), seal: lastSeal, chineseEntries: Object.keys(DICT).length, gameBuild: (() => { try { return JSON.parse(localStorage.getItem(BUILD_KEY) || "null"); } catch { return null; } })() },
     遊戲端: host,
     目前編輯中的存檔: saveSummary(save),
     物品合法性: faults,
@@ -1406,6 +1487,7 @@ function renderAll() {
 }
 let zhMissing = false;
 async function load() {
+  versionDismissed = false; refreshVersionNotice(); void checkGameVersion();
   status("讀取中…");
   if (!A) {
     A = await window.api.assets();
@@ -1486,6 +1568,7 @@ $("#diagCopy").onclick = async () => {
   try { await navigator.clipboard.writeText(t.value); } catch { t.select(); document.execCommand("copy"); }
   $("#diagMsg").textContent = "已複製，可以貼上了";
 };
+$("#versionDismiss").onclick = () => { versionDismissed = true; refreshVersionNotice(); };
 $("#unlockMode").onchange = (e) => {
   if (e.target.checked && !confirm("開啟「解除修改限制」？將不再檢查原版數值範圍與裝備屬性規則，做出來的東西很可能被遊戲判定為外部修改，後果由你自行負責。")) { e.target.checked = false; return; }
   settings.unlock = e.target.checked; saveSettings(); applyUnlockUI();

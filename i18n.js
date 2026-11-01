@@ -19,6 +19,11 @@
     "（已解除限制）": " (restrictions off)", "一般模式": "Softcore", "硬核模式": "Hardcore", "重新讀取": "Reload", "寫入存檔": "Write save",
     "關閉": "Close", "請先關閉遊戲": "Please close the game first", "物品": "Items", "製作裝備": "Craft", "裝備庫": "Item library",
     "帳號 / 強化": "Account / Upgrades", "反修改偵測": "Anti-tamper check", "存檔管理": "Saves", "原始存檔資料": "Raw save data", "設定": "Settings",
+    // 版本驗證
+    "遊戲已更新到 ": "The game has updated to ", "，輔助器只驗證到 ": ", helper tested only up to ", "，存檔修改器只驗證到 ": ", save editor tested only up to ",
+    "遊戲已更新到": "The game has updated to ", "輔助器只驗證到": "helper tested only up to", "存檔修改器只驗證到": "save editor tested only up to",
+    "請更新輔助器；部分功能可能失效": "please update the helper; some features may not work", "請更新修改器；部分功能可能失效": "please update the editor; some features may not work",
+    "；遊戲程式已變更": "; game code has changed", "遊戲程式已變更": "Game code has changed", "關閉提示": "Dismiss notice",
     // 設定
     "解除修改限制": "Remove editing restrictions", "介面語言": "Interface language", "自動（依系統語言）": "Auto (system language)",
     "預設關閉。關閉時修改器會依原版規則把關，確保上傳排行榜的存檔不出現不合理的裝備：": "Off by default. While off, the editor enforces the original game rules so that saves uploaded to the leaderboard never contain impossible gear:",

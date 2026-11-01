@@ -4,6 +4,8 @@
   "use strict";
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
+  const BUILD_KEY = "d2autobot:gameBuild";
+  const TESTED_GAME_BUILD = "20261030.2"; // 每次確認新版遊戲相容後更新此值
   const defaults = {
     version: 7, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, fallbackHpSlot: 1 },
@@ -757,6 +759,9 @@
       trial[to] = item;
       // 分數以對數計：1 分約等於傷害 +1％。實測原版數值不含防禦，空欄位只要不變差就穿（至少得到防禦）。
       const numbers = gearNumbers(g, trial), damage = Math.max(0, numbers.Damage || 0);
+      // 依使用者要求：每個欄位都要有裝備。原本是空欄位、也不擠掉任何已穿裝備時一律穿上（不看分數與降傷護欄），且優先於一般換裝。
+      const fillsEmpty = !worn[to] && displaced.every((s) => !worn[s]);
+      if (fillsEmpty) { const gain = 1e6 + gearScore(g, trial, numbers) - base; if (!best || gain > best.gain) best = { item, gain }; continue; }
       // 依使用者要求：武器被擠空不得降傷；降傷超過一成僅在半血以下或平均負抗且生存分數至少提升 20 分時放行。
       if (!trial.weapon && damage < baseDamage) continue;
       if (damage < baseDamage * 0.9 && !((p.maxLife > 0 && p.life / p.maxLife < 0.5 || averageRes < 0) && survival(numbers) - baseSurvival >= 20)) continue;
@@ -1239,9 +1244,72 @@
       wrap(proto, "tick", (original) => function (...args) { if (alive) { game = this; guarded(this, performance.now()); } return Reflect.apply(original, this, args); });
       // 原版 steer 會為拾取目標重建 walkTarget，記住該參照才能在停止時完全放手。
       wrap(proto, "steer", (original) => function (...args) { const result = Reflect.apply(original, this, args); if (alive && this === game && ownReach && this.world?.reaching === ownReach) ownWalk = this.walkTarget; return result; });
-      hookUrl = url; hookNote = "已掛接原版 Game，等待下一幀"; return;
+      hookUrl = url; hookNote = "已掛接原版 Game，等待下一幀"; void checkGameVersion(url); return;
     }
     hookNote = "簽名不相容：僅使用 HUD／藥水按鍵；走位、撿物與推進停用";
+    void checkGameVersion("");
+  }
+  let versionNotice = "", versionDismissed = false, checkedGameBuild = false;
+  function parseBuild(s) { return String(s || "").trim().split(".").map((n) => Number(n) || 0); }
+  function isBuildNewer(latest, tested) {
+    const p1 = parseBuild(latest), p2 = parseBuild(tested);
+    for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+      const v1 = p1[i] || 0, v2 = p2[i] || 0;
+      if (v1 !== v2) return v1 > v2;
+    }
+    return false;
+  }
+  function findGameScript(fallbackUrl) {
+    try {
+      if (fallbackUrl) { const m = String(fallbackUrl).match(/\/(Game-[\w-]+\.js)(?:\?.*)?$/i); if (m) return m[1]; }
+      for (const e of performance?.getEntriesByType?.("resource") || []) {
+        const m = String(e.name || "").match(/\/(Game-[\w-]+\.js)(?:\?.*)?$/i); if (m) return m[1];
+      }
+      for (const s of document.querySelectorAll("script[src],link[rel=modulepreload]")) {
+        const m = String(s.src || s.href || "").match(/\/(Game-[\w-]+\.js)(?:\?.*)?$/i); if (m) return m[1];
+      }
+    } catch {}
+    return "";
+  }
+  async function checkGameVersion(currentUrl) {
+    if (checkedGameBuild) return;
+    checkedGameBuild = true;
+    try {
+      const gameJs = findGameScript(currentUrl);
+      let prev = null;
+      try { prev = JSON.parse(localStorage.getItem(BUILD_KEY) || "null"); } catch {}
+      const prevJs = prev?.gameJs || "";
+      const gameChanged = !!(gameJs && prevJs && gameJs !== prevJs);
+      let latestBuild = "", latestDate = "";
+      const ctrl = new AbortController(), tid = setTimeout(() => ctrl.abort(), 5000);
+      try {
+        const res = await fetch("/changelog.json", { signal: ctrl.signal, cache: "no-cache" }).catch(() => fetch("https://d2survivors.lol/changelog.json", { signal: ctrl.signal, cache: "no-cache" }));
+        if (res && res.ok) {
+          const list = await res.json();
+          const first = Array.isArray(list) ? list[0] : null;
+          if (first?.build) { latestBuild = String(first.build); latestDate = String(first.date || ""); }
+        }
+      } catch {} finally { clearTimeout(tid); }
+      const compareBuild = latestBuild || prev?.build || "";
+      const compareDate = latestDate || prev?.date || "";
+      const isNewer = compareBuild ? isBuildNewer(compareBuild, TESTED_GAME_BUILD) : false;
+      if (isNewer) {
+        versionNotice = `遊戲已更新到 ${compareBuild}${compareDate ? `（${compareDate}）` : ""}，輔助器只驗證到 ${TESTED_GAME_BUILD}，請更新輔助器；部分功能可能失效${gameChanged ? "；遊戲程式已變更" : ""}`;
+      } else if (gameChanged) {
+        versionNotice = `遊戲程式已變更，輔助器只驗證到 ${TESTED_GAME_BUILD}，請更新輔助器；部分功能可能失效`;
+      }
+      try {
+        const record = {
+          build: latestBuild || prev?.build || "",
+          date: latestDate || prev?.date || "",
+          gameJs: gameJs || prevJs || "",
+          tested: TESTED_GAME_BUILD,
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(BUILD_KEY, JSON.stringify(record));
+      } catch {}
+      refreshVersionNotice();
+    } catch {}
   }
   const launcher = document.createElement("button"), stopButton = document.createElement("button"), host = document.createElement("div");
   launcher.type = stopButton.type = "button"; launcher.id = "d2autobot-launcher"; launcher.textContent = "輔助";
@@ -1261,10 +1329,17 @@
     h2{margin:0;color:#d4a84a}h3{color:#d4a84a;margin:20px 0 8px}p{margin:8px 0}.head{display:flex;justify-content:space-between;align-items:center;gap:12px}
     label{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;border-bottom:1px solid #fff1;padding:5px 0}
     button,input,select{font:inherit;min-height:44px}button,select,input[type=number]{background:#2a231a;color:#fff0cb;border:1px solid #9c7e41;border-radius:5px;padding:5px 10px}
-    .toggle{min-width:112px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:10px}.toggle::before{content:"";width:16px;height:16px;border-radius:50%;background:#b0a49c}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:110px}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px}
+    .toggle{min-width:112px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:10px}.toggle::before{content:"";width:16px;height:16px;border-radius:50%;background:#b0a49c}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:110px}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px}.version-warn{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#451a14;border:1px solid #d45d48;color:#ffded7;border-radius:6px;padding:8px 12px;margin:10px 0 4px;font-size:13px;font-weight:bold}.version-warn button{min-height:28px;padding:2px 8px;background:transparent;border:none;color:#ffded7;font-size:18px;cursor:pointer;line-height:1}.version-warn button:hover{color:#fff}
     @media(max-width:600px){.backdrop{padding:0}.box{width:100%;max-height:100dvh;height:100dvh;border-radius:0;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}}
-  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">自動戰鬥</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點上方「停止輔助」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button></section></div>`;
+  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><div id="version-warn" class="version-warn" hidden><span class="version-msg"></span><button type="button" class="version-dismiss" aria-label="關閉提示">×</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">自動戰鬥</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點上方「停止輔助」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button></section></div>`;
   const panel = root.querySelector(".backdrop"), status = root.querySelector(".status"), controls = new Map();
+  const versionWarn = root.querySelector("#version-warn"), versionMsg = root.querySelector(".version-msg"), versionDismiss = root.querySelector(".version-dismiss");
+  function refreshVersionNotice() {
+    if (!versionWarn) return;
+    if (versionNotice && !versionDismissed) { versionMsg.textContent = versionNotice; versionWarn.hidden = false; }
+    else versionWarn.hidden = true;
+  }
+  versionDismiss.onclick = () => { versionDismissed = true; versionWarn.hidden = true; };
   const panes = Object.fromEntries([...root.querySelectorAll("[data-pane]")].map((el) => [el.dataset.pane, el]));
   let fields = panes.assist;
   function tab(name) { fields = panes[name]; }
@@ -1310,7 +1385,7 @@
     }
   }
   function closePanel() { panel.hidden = true; if (launcher.style.display !== "none") launcher.focus(); }
-  launcher.onclick = () => { if (!paused()) return; release(); panel.hidden = false; refreshControls(); root.getElementById("close").focus(); };
+  launcher.onclick = () => { if (!paused()) return; release(); panel.hidden = false; versionDismissed = false; refreshVersionNotice(); refreshControls(); root.getElementById("close").focus(); };
   root.getElementById("close").onclick = closePanel; root.getElementById("stop").onclick = stopButton.onclick = () => stop();
   for (const el of [host, launcher, stopButton]) for (const name of ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "keydown", "keyup", "click", "wheel"]) el.addEventListener(name, (e) => e.stopPropagation(), { signal: abort.signal });
   root.addEventListener("keydown", (e) => {
@@ -1337,9 +1412,9 @@
   }, 200);
   const api = {
     destroy() { if (!alive) return; alive = false; release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
-    diagnostics: () => ({ hellClears, hookUrl, hookNote, connected: !!game, state: game?.state ?? null, lastAction, storageNote }),
+    diagnostics: () => ({ hellClears, hookUrl, hookNote, connected: !!game, state: game?.state ?? null, lastAction, storageNote, gameBuild: (() => { try { return JSON.parse(localStorage.getItem(BUILD_KEY) || "null"); } catch { return null; } })() }),
     get game() { return game; },
   };
   window.__d2autobot = api;
-  connect().catch((err) => { if (alive) hookNote = "掛鉤無法載入，使用 HUD／按鍵降級：" + String(err.message || err); });
+  connect().catch((err) => { if (alive) hookNote = "掛鉤無法載入，使用 HUD／按鍵降級：" + String(err.message || err); void checkGameVersion(""); });
 })();
