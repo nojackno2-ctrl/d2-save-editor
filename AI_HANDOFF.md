@@ -1,4 +1,25 @@
 # 交接紀錄
+- 2026-11-01｜Antigravity：訂製裝備改版（前綴與後綴欄位分開，選好底材直接顯示可添加欄位數量）：
+  1. 引擎（`web/engine-page.js` 與 `editor/engine-page.js`）新增 API `affixSlots(item, mods)`：
+     - 回傳 `{ limit: { pre, suf, max } | null, used: { pre, suf }, kinds: { [stat]: "prefix"|"suffix"|"both" } }`。
+     - 品質為魔法／稀有時依原版規則（魔法 1/1/2、稀有 3/3/6、稀有珠寶 3/3/4）計算上限；其餘品質 limit 為 null。
+     - 排除稀有不可用的 magicOnly 詞綴；以 DFS 嚴格可行指派與複合詞綴（alike/also）推算已用前綴與後綴數量；無解時保底計入當前明確歸屬列。
+  2. 訂製裝備介面（`web/editor.html` 與 `editor/index.html`）：
+     - 品質為魔法或稀有時，將詞綴拆為「前綴」「後綴」「底材固有屬性」三個獨立區塊與表格（`#cmods-pre`、`#cmods-suf`、`#cmods-imp`），各自具備「＋ 新增前綴」「＋ 新增後綴」「＋ 新增固有屬性」按鈕。
+     - 區塊標題即時顯示「前綴 已用 x / 上限 y」「後綴 已用 x / 上限 y」，以及上方合計上限（魔法 1～2、稀有 2～6、珠寶 2～4）；選好底材或品質或任何一列變動即立刻重新推算更新。達上限時停用新增按鈕並顯示提示（「前綴數量已達上限」或「詞綴總數已達上限」）。
+     - 前綴／後綴下拉選單僅列出該類可用詞綴（`both` 兩邊皆列）；固有屬性下拉僅列底材固有屬性。
+     - 普通、暗金、套裝、符文之語品質維持原本單一表格（`#cmods`）行為；切換品質時保留使用者已填列並自動分類同步。
+     - 送出製作（`makeCustom`）前將各區列合併為原本的 `mods` 格式送出，既有規則檢查（`assertLegal`）、屬性命名與建立邏輯不受影響。
+     - 嚴格保留既有修正：`updateCraftRanges` 先 `showRanges` 自動填最大值再 `filterCraftSplit`/`filterStats`，以及未解除限制禁止製作暗金／套裝／符文之語。
+     - 響應式 CSS 擴充至 `.cmods-table`，保留兩 HTML 間僅差 script query string 的既有差異。
+  3. 多語言（`web/i18n.js` 與 `editor/i18n.js`）：
+     - 同步擴充中英對照字典：前後綴標籤、新增按鈕文字、已用／上限、上限提示等。
+  4. 驗證：
+     - 抽出兩 html 內嵌 script 至臨時 scratchpad 執行 `node --check` 通過。
+     - `engine-page.js`（web／editor）與 `i18n.js`（web／editor）執行 `node --check` 全數通過。
+     - 執行 `test_affix_slots.mjs` 針對魔法、稀有、珠寶、普通、暗金、複合詞綴、magicOnly 排除、空列等 9 項單元測試全數通過。
+     - 專案工作目錄無任何暫存檔殘留；未執行 git commit/push。
+
 - 2026-11-01（Codex）：依使用者要求修正屬性逐點累積與換裝傷害護欄，並同步 web／editor 腳本與設計文件；`node --check autobot.js`、`git diff --check` 通過，`node -e` 累積 10000 點符合 27／55／12／6 比例；未進行遊戲驗證。
 
 - 2026-11-01｜Antigravity：依需求限制「未解除限制製作裝備不准製作暗金、套裝、符文之語」：

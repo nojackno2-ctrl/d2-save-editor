@@ -96,24 +96,24 @@
     .slots .row, .list .row { min-height:44px; flex-wrap:wrap; }
     .slots .row span, .list .row span { overflow-wrap:anywhere; }
     .bar select { min-width:0; max-width:100%; min-height:44px; }
-    #mods, #cmods { display:block; }
-    #mods thead, #cmods thead { display:none; }
-    #mods tbody, #cmods tbody { display:grid; gap:10px; }
-    #mods tr, #cmods tr { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:6px 10px; padding:10px; border:1px solid var(--line); border-radius:6px; }
-    #mods td, #cmods td { min-width:0; padding:0; border:0; }
-    #mods td:nth-child(1), #mods td:nth-child(2), #mods td:nth-child(3),
-    #cmods td:nth-child(1), #cmods td:nth-child(2), #cmods td:nth-child(3) { grid-column:1 / -1; }
-    #mods td:nth-child(2)::before, #cmods td:nth-child(2)::before { content:"屬性"; display:block; color:var(--dim); }
-    #mods td:nth-child(3)::before, #cmods td:nth-child(3)::before { content:"數值與範圍"; display:block; color:var(--dim); }
-    #mods td:nth-child(4), #cmods td:nth-child(4) { display:flex; align-items:center; gap:8px; }
-    #mods td:nth-child(4)::before, #cmods td:nth-child(4)::before { content:"固有"; color:var(--dim); }
-    html[lang=en] #mods td:nth-child(2)::before, html[lang=en] #cmods td:nth-child(2)::before { content:"Stat"; }
-    html[lang=en] #mods td:nth-child(3)::before, html[lang=en] #cmods td:nth-child(3)::before { content:"Value & range"; }
-    html[lang=en] #mods td:nth-child(4)::before, html[lang=en] #cmods td:nth-child(4)::before { content:"Implicit"; }
-    #mods select.stat, #cmods select.stat { width:100%; max-width:none !important; min-height:44px; }
-    #mods input.val, #cmods input.val { width:100%; min-height:44px; }
-    #mods .limit, #cmods .limit { display:block; overflow-wrap:anywhere; }
-    #mods .rm, #cmods .rm { min-width:44px; min-height:44px; }
+    #mods, #cmods, .cmods-table { display:block; }
+    #mods thead, #cmods thead, .cmods-table thead { display:none; }
+    #mods tbody, #cmods tbody, .cmods-table tbody { display:grid; gap:10px; }
+    #mods tr, #cmods tr, .cmods-table tr { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:6px 10px; padding:10px; border:1px solid var(--line); border-radius:6px; }
+    #mods td, #cmods td, .cmods-table td { min-width:0; padding:0; border:0; }
+    #mods td:first-child, #cmods td:first-child, .cmods-table td:first-child { grid-column:1 / -1; }
+    #cmods td:nth-child(1), #cmods td:nth-child(2), #cmods td:nth-child(3), .cmods-table td:nth-child(1), .cmods-table td:nth-child(2), .cmods-table td:nth-child(3) { grid-column:1 / -1; }
+    #mods td:nth-child(2)::before, #cmods td:nth-child(2)::before, .cmods-table td:nth-child(2)::before { content:"屬性"; display:block; color:var(--dim); }
+    #mods td:nth-child(3)::before, #cmods td:nth-child(3)::before, .cmods-table td:nth-child(3)::before { content:"數值與範圍"; display:block; color:var(--dim); }
+    #mods td:nth-child(4), #cmods td:nth-child(4), .cmods-table td:nth-child(4) { display:flex; align-items:center; gap:8px; }
+    #mods td:nth-child(4)::before, #cmods td:nth-child(4)::before, .cmods-table td:nth-child(4)::before { content:"固有"; color:var(--dim); }
+    html[lang=en] #mods td:nth-child(2)::before, html[lang=en] #cmods td:nth-child(2)::before, html[lang=en] .cmods-table td:nth-child(2)::before { content:"Stat"; }
+    html[lang=en] #mods td:nth-child(3)::before, html[lang=en] #cmods td:nth-child(3)::before, html[lang=en] .cmods-table td:nth-child(3)::before { content:"Value & range"; }
+    html[lang=en] #mods td:nth-child(4)::before, html[lang=en] #cmods td:nth-child(4)::before, html[lang=en] .cmods-table td:nth-child(4)::before { content:"Implicit"; }
+    #mods select.stat, #cmods select.stat, .cmods-table select.stat { width:100%; max-width:none !important; min-height:44px; }
+    #mods input.val, #cmods input.val, .cmods-table input.val { width:100%; min-height:44px; }
+    #mods .limit, #cmods .limit, .cmods-table .limit { display:block; overflow-wrap:anywhere; }
+    #mods .rm, #cmods .rm, .cmods-table .rm { min-width:44px; min-height:44px; }
   }
 </style>
 </head>
@@ -193,8 +193,35 @@
       <span>底材</span><select id="xBase"></select>
       <span>品質</span><select id="xRar"></select>
     </div>
-    <table id="cmods" style="margin-top:8px"><thead><tr><th>中文說明</th><th>屬性</th><th>數值／詞綴範圍</th><th>固有</th><th></th></tr></thead><tbody></tbody></table>
-    <div class="bar"><button id="xAdd">＋ 新增屬性</button><span class="dim">放到</span><select id="xDest"></select><button class="primary" id="xMake">製作</button></div>
+    <div id="c-affix-total" class="bar" style="margin:10px 0 4px;font-weight:bold" hidden></div>
+    <div id="c-sec-pre" style="margin-top:10px" hidden>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <h3 style="margin:0;font-size:1rem">前綴 <span id="c-pre-slots" style="font-weight:normal;color:var(--dim)"></span></h3>
+        <span id="c-pre-tip" class="bad" style="font-size:0.85rem"></span>
+      </div>
+      <table id="cmods-pre" class="cmods-table"><thead><tr><th>中文說明</th><th>屬性</th><th>數值／詞綴範圍</th><th>固有</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="bar" style="margin-top:6px"><button id="xAddPre">＋ 新增前綴</button></div>
+    </div>
+    <div id="c-sec-suf" style="margin-top:10px" hidden>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <h3 style="margin:0;font-size:1rem">後綴 <span id="c-suf-slots" style="font-weight:normal;color:var(--dim)"></span></h3>
+        <span id="c-suf-tip" class="bad" style="font-size:0.85rem"></span>
+      </div>
+      <table id="cmods-suf" class="cmods-table"><thead><tr><th>中文說明</th><th>屬性</th><th>數值／詞綴範圍</th><th>固有</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="bar" style="margin-top:6px"><button id="xAddSuf">＋ 新增後綴</button></div>
+    </div>
+    <div id="c-sec-imp" style="margin-top:10px" hidden>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <h3 style="margin:0;font-size:1rem">固有屬性（底材）</h3>
+      </div>
+      <table id="cmods-imp" class="cmods-table"><thead><tr><th>中文說明</th><th>屬性</th><th>數值／詞綴範圍</th><th>固有</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="bar" style="margin-top:6px"><button id="xAddImp">＋ 新增固有屬性</button></div>
+    </div>
+    <div id="c-sec-flat">
+      <table id="cmods" style="margin-top:8px"><thead><tr><th>中文說明</th><th>屬性</th><th>數值／詞綴範圍</th><th>固有</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="bar" style="margin-top:6px"><button id="xAdd">＋ 新增屬性</button></div>
+    </div>
+    <div class="bar" style="margin-top:12px"><span class="dim">放到</span><select id="xDest"></select><button class="primary" id="xMake">製作</button></div>
   </section>
 </div>
 
@@ -630,8 +657,11 @@ async function renderCraft() {
   if (!$("#xBase").options.length) {
     $("#xBase").innerHTML = baseOptions();
     $("#xAdd").onclick = () => { $("#cmods tbody").insertAdjacentHTML("beforeend", craftModRow()); updateCraftRanges(); };
+    $("#xAddPre").onclick = () => { $("#cmods-pre tbody").insertAdjacentHTML("beforeend", craftModRow("prefix")); updateCraftRanges(); };
+    $("#xAddSuf").onclick = () => { $("#cmods-suf tbody").insertAdjacentHTML("beforeend", craftModRow("suffix")); updateCraftRanges(); };
+    $("#xAddImp").onclick = () => { $("#cmods-imp tbody").insertAdjacentHTML("beforeend", craftModRow("imp")); updateCraftRanges(); };
     $("#xBase").onchange = $("#xRar").onchange = updateCraftRanges;
-    $("#cmods").onchange = $("#cmods").oninput = (e) => {
+    const onCraftInput = (e) => {
       const tr = e.target.closest("tr"); if (!tr) return;
       if (e.target.classList.contains("val")) delete tr.dataset.auto;
       const v = tr.querySelector(".val").value;
@@ -639,13 +669,18 @@ async function renderCraft() {
       tr.querySelector(".zh").textContent = modZh({ stat: tr.querySelector(".stat").value.trim(), value: isNaN(v) || v === "" ? v : Number(v), implicit: tr.querySelector(".imp").checked });
       if (e.type === "change" || e.target.classList.contains("val")) updateCraftRanges();
     };
-    $("#cmods").onclick = (e) => { if (e.target.classList.contains("rm")) e.target.closest("tr").remove(); };
+    for (const id of ["#cmods", "#cmods-pre", "#cmods-suf", "#cmods-imp"]) {
+      const tbl = $(id);
+      if (tbl) {
+        tbl.onchange = tbl.oninput = onCraftInput;
+        tbl.onclick = (e) => { if (e.target.classList.contains("rm")) { e.target.closest("tr").remove(); updateCraftRanges(); } };
+      }
+    }
     $("#xMake").onclick = makeCustom;
   }
-  const rarBefore = $("#xRar").value;
   updateCraftRarities();
-  // 品質選單重建後重新檢查各列屬性，避免留下切換前的「不符合原版規則」標記
-  if ($("#cmods tbody tr") || rarBefore !== $("#xRar").value) updateCraftRanges();
+  // 品質選單重建後重新檢查各列屬性與刷新欄位數量顯示
+  updateCraftRanges();
   const dest = $("#xDest").value;
   $("#xDest").innerHTML = destOptions();
   if ([...$("#xDest").options].some(o => o.value === dest)) $("#xDest").value = dest;
@@ -732,8 +767,34 @@ function statOptions() {
     .sort((a, b) => a[1].localeCompare(b[1], "zh-Hant")).map(([s, z]) => `<option value="${esc(s)}">${esc(z)}</option>`).join("");
   return STAT_OPTS;
 }
-const craftModRow = () => `<tr data-auto="1"><td class="zh"></td><td><select class="stat" style="max-width:320px">${statOptions()}</select></td>
-  <td><input class="val" value="0"><small class="limit"></small></td><td><input type="checkbox" class="imp"></td><td><button class="rm danger">✕</button></td></tr>`;
+const craftModRow = (kind = "") => `<tr data-auto="1"${kind ? ` data-kind="${kind}"` : ""}><td class="zh"></td><td><select class="stat" style="max-width:320px">${statOptions()}</select></td>
+  <td><input class="val" value="0"><small class="limit"></small></td><td><input type="checkbox" class="imp"${kind === "imp" ? " checked" : ""}></td><td><button class="rm danger">✕</button></td></tr>`;
+// 在單一表格與前後綴分開區塊之間同步列
+let lastCraftSplit = null;
+function syncCraftTables(toSplit, kinds = {}) {
+  if (lastCraftSplit === toSplit) return;
+  lastCraftSplit = toSplit;
+  if (toSplit) {
+    const rows = [...document.querySelectorAll("#cmods tbody tr")];
+    for (const tr of rows) {
+      const imp = tr.querySelector(".imp")?.checked;
+      const stat = tr.querySelector(".stat")?.value;
+      const k = kinds[stat];
+      if (imp) {
+        $("#cmods-imp tbody").appendChild(tr);
+      } else if (k === "suffix") {
+        $("#cmods-suf tbody").appendChild(tr);
+      } else {
+        $("#cmods-pre tbody").appendChild(tr);
+      }
+    }
+  } else {
+    const rows = [...document.querySelectorAll("#cmods-pre tbody tr, #cmods-suf tbody tr, #cmods-imp tbody tr")];
+    for (const tr of rows) {
+      $("#cmods tbody").appendChild(tr);
+    }
+  }
+}
 // 未解除限制：屬性下拉選單只列出依原版規則還能加入的屬性（每列依其他列已選的屬性計算）
 const syncImp = (tr) => { const o = tr.querySelector(".stat").selectedOptions[0]; if (!unlocked() && o?.dataset.imp) tr.querySelector(".imp").checked = o.dataset.imp === "1"; };
 const filterSeq = {};
@@ -760,16 +821,124 @@ async function filterStats(table, item) {
     if (!cur.stat && !list.length) tr.querySelector(".limit").textContent = "依原版規則已無法再加入屬性";
   });
 }
+// 魔法／稀有前後綴分開時的屬性下拉選單過濾
+async function filterCraftSplit(item, kinds, db) {
+  const preRows = [...document.querySelectorAll("#cmods-pre tbody tr")];
+  const sufRows = [...document.querySelectorAll("#cmods-suf tbody tr")];
+  const impRows = [...document.querySelectorAll("#cmods-imp tbody tr")];
+  const allRows = [...preRows, ...sufRows, ...impRows];
+  for (const tr of allRows) tr.querySelector(".imp").disabled = !unlocked();
+
+  // 若解除限制：依 kinds 與底材固有屬性列出各區可用屬性
+  if (unlocked()) {
+    const allAffixStats = Object.keys(kinds);
+    const preStats = allAffixStats.filter(s => kinds[s] === "prefix" || kinds[s] === "both");
+    const sufStats = allAffixStats.filter(s => kinds[s] === "suffix" || kinds[s] === "both");
+    const impStats = Object.keys(db?.fixed ?? {}).map(k => k.replace(/^[01]:/, ""));
+
+    const renderUnlockedOptions = (rows, statList, isImp) => {
+      const list = statList.map(s => ({ stat: s, label: modZh({ stat: s, value: "#", implicit: isImp }) + (isImp ? "（固有）" : "") }))
+        .sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
+      for (const tr of rows) {
+        const sel = tr.querySelector(".stat"), cur = sel.value;
+        const extra = cur && !list.some(a => a.stat === cur) ? `<option value="${esc(cur)}" data-imp="${isImp ? 1 : 0}" selected>${esc(modZh({ stat: cur, value: "#", implicit: isImp }))}</option>` : "";
+        sel.innerHTML = '<option value="">（請選擇屬性）</option>' + extra + list.map(a => `<option value="${esc(a.stat)}" data-imp="${isImp ? 1 : 0}" ${a.stat === cur ? "selected" : ""}>${esc(a.label)}</option>`).join("");
+      }
+    };
+    renderUnlockedOptions(preRows, preStats, false);
+    renderUnlockedOptions(sufRows, sufStats, false);
+    renderUnlockedOptions(impRows, impStats, true);
+    return;
+  }
+
+  if (!allRows.length) return;
+  const num = (v) => (v.trim() !== "" && !isNaN(v) ? Number(v) : v);
+  const mods = allRows.map(tr => ({ stat: tr.querySelector(".stat").value, value: num(tr.querySelector(".val").value), ...(tr.querySelector(".imp").checked && { implicit: true }),
+    ...JSON.parse(tr.dataset.original || "{}").length !== undefined && JSON.parse(tr.dataset.original).stat === tr.querySelector(".stat").value && { length: JSON.parse(tr.dataset.original).length } }));
+  const seq = filterSeq["#craft"] = (filterSeq["#craft"] ?? 0) + 1;
+  let r;
+  try { r = await window.api.engine("allowedStatsMany", item, allRows.map((_, i) => mods.filter((m, j) => j !== i && m.stat))); } catch { return; }
+  if (seq !== filterSeq["#craft"] || !Array.isArray(r)) return;
+  allRows.forEach((tr, i) => {
+    let allowed = r[i];
+    if (!Array.isArray(allowed) || !tr.isConnected) return;
+    const isPre = tr.closest("#cmods-pre") != null;
+    const isSuf = tr.closest("#cmods-suf") != null;
+    const isImp = tr.closest("#cmods-imp") != null;
+    if (isPre) allowed = allowed.filter(a => !a.implicit && (kinds[a.stat] === "prefix" || kinds[a.stat] === "both"));
+    else if (isSuf) allowed = allowed.filter(a => !a.implicit && (kinds[a.stat] === "suffix" || kinds[a.stat] === "both"));
+    else if (isImp) allowed = allowed.filter(a => a.implicit);
+    const sel = tr.querySelector(".stat"), cur = mods[i];
+    const list = allowed.map(a => ({ ...a, label: modZh({ stat: a.stat, value: "#", implicit: a.implicit }) + (a.implicit ? "（固有）" : "") }))
+      .sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
+    const isCur = (a) => a.stat === cur.stat && !!a.implicit === !!cur.implicit;
+    const extra = cur.stat && !list.some(isCur) ? `<option value="${esc(cur.stat)}" data-imp="${cur.implicit ? 1 : 0}" selected>${esc(modZh({ stat: cur.stat, value: "#", implicit: cur.implicit }))}（不符合原版規則）</option>` : "";
+    sel.innerHTML = '<option value="">（請選擇屬性）</option>' + extra + list.map(a => `<option value="${esc(a.stat)}" data-imp="${a.implicit ? 1 : 0}" ${isCur(a) ? "selected" : ""}>${esc(a.label)}</option>`).join("");
+    if (!cur.stat && !list.length) tr.querySelector(".limit").textContent = "依原版規則已無法再加入屬性";
+  });
+}
 let craftRangeRequest = 0;
 async function updateCraftRanges() {
   const request = ++craftRangeRequest;
   const item = { base: $("#xBase").value, rarity: $("#xRar").value };
+  const isSplit = item.rarity === "magic" || item.rarity === "rare";
+  $("#c-affix-total").hidden = !isSplit;
+  $("#c-sec-pre").hidden = !isSplit;
+  $("#c-sec-suf").hidden = !isSplit;
+  $("#c-sec-imp").hidden = !isSplit;
+  $("#c-sec-flat").hidden = isSplit;
+
   // 先套用範圍（會把新選屬性的數值自動填成最大值），再檢查原版規則；
   // 舊版兩者同時跑，規則檢查讀到自動填值前的舊數值而誤標「不符合原版規則」，切換底材重檢後才消失。
   const db = await loadStatRanges(item);
   if (request !== craftRangeRequest) return;
-  showRanges("#cmods", db);
-  await filterStats("#cmods", item);
+  if (isSplit) {
+    showRanges("#cmods-pre", db);
+    showRanges("#cmods-suf", db);
+    showRanges("#cmods-imp", db);
+  } else {
+    showRanges("#cmods", db);
+  }
+
+  const num = (v) => (v.trim() !== "" && !isNaN(v) ? Number(v) : v);
+  let currentMods = [];
+  if (isSplit) {
+    currentMods = [
+      ...[...document.querySelectorAll("#cmods-pre tbody tr")].map(tr => ({ stat: tr.querySelector(".stat").value.trim(), value: num(tr.querySelector(".val").value), kind: "prefix" })),
+      ...[...document.querySelectorAll("#cmods-suf tbody tr")].map(tr => ({ stat: tr.querySelector(".stat").value.trim(), value: num(tr.querySelector(".val").value), kind: "suffix" })),
+      ...[...document.querySelectorAll("#cmods-imp tbody tr")].map(tr => ({ stat: tr.querySelector(".stat").value.trim(), value: num(tr.querySelector(".val").value), implicit: true }))
+    ];
+  } else {
+    currentMods = [...document.querySelectorAll("#cmods tbody tr")].map(tr => {
+      const m = { stat: tr.querySelector(".stat").value.trim(), value: num(tr.querySelector(".val").value) };
+      if (tr.querySelector(".imp").checked) m.implicit = true;
+      return m;
+    });
+  }
+
+  let slots = null;
+  try { slots = await window.api.engine("affixSlots", item, currentMods); } catch (_) {}
+  syncCraftTables(isSplit, slots?.kinds ?? {});
+
+  if (isSplit && slots?.limit) {
+    const totalUsed = (slots.used?.pre ?? 0) + (slots.used?.suf ?? 0);
+    const totalLimitStr = item.rarity === "magic" ? "1～2" : `2～${slots.limit.max}`;
+    $("#c-affix-total").textContent = `合計上限：${totalLimitStr}（目前已用 ${totalUsed}）`;
+    $("#c-pre-slots").textContent = `已用 ${slots.used.pre} / 上限 ${slots.limit.pre}`;
+    const preFull = slots.used.pre >= slots.limit.pre || totalUsed >= slots.limit.max;
+    $("#xAddPre").disabled = preFull;
+    $("#c-pre-tip").textContent = preFull ? (slots.used.pre >= slots.limit.pre ? "前綴數量已達上限" : "詞綴總數已達上限") : "";
+    $("#c-suf-slots").textContent = `已用 ${slots.used.suf} / 上限 ${slots.limit.suf}`;
+    const sufFull = slots.used.suf >= slots.limit.suf || totalUsed >= slots.limit.max;
+    $("#xAddSuf").disabled = sufFull;
+    $("#c-suf-tip").textContent = sufFull ? (slots.used.suf >= slots.limit.suf ? "後綴數量已達上限" : "詞綴總數已達上限") : "";
+  }
+
+  if (isSplit) {
+    await filterCraftSplit(item, slots?.kinds ?? {}, db);
+  } else {
+    await filterStats("#cmods", item);
+  }
 }
 async function makeCustom() {
   const rarity = $("#xRar").value;
@@ -779,7 +948,9 @@ async function makeCustom() {
   }
   const b = BASES.find(b => b.name === $("#xBase").value);
   const num = (v) => (v.trim() !== "" && !isNaN(v) ? Number(v) : v);
-  const mods = [...document.querySelectorAll("#cmods tbody tr")].map(tr => {
+  const isSplit = rarity === "magic" || rarity === "rare";
+  const rows = [...document.querySelectorAll(isSplit ? "#cmods-pre tbody tr, #cmods-suf tbody tr, #cmods-imp tbody tr" : "#cmods tbody tr")];
+  const mods = rows.map(tr => {
     const m = { stat: tr.querySelector(".stat").value.trim(), value: num(tr.querySelector(".val").value) };
     if (tr.querySelector(".imp").checked) m.implicit = true;
     return m;

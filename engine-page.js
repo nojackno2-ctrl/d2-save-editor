@@ -207,6 +207,105 @@ export function boot(G, itemstatsText) {
     };
     return dfs();
   }
+  // 查詢物品詞綴欄位上限、目前指派已用數量與可用屬性的前後綴歸屬
+  function affixSlots(item, mods = []) {
+    const empty = { limit: null, used: { pre: 0, suf: 0 }, kinds: {} };
+    if (!item || typeof item !== "object") return empty;
+    const base = bases.get(item.base || item.name);
+    if (!base || !["magic", "rare"].includes(item.rarity)) return empty;
+    const lim = limitOf(base, item.rarity);
+    if (!lim) return empty;
+    const limit = { pre: lim.pre, suf: lim.suf, max: lim.max };
+
+    // 此底材與品質可用的詞綴屬性（排除稀有不可用的 magicOnly）
+    const affixes = (G.__affixes ?? []).filter(a => G.__affixApplies?.(a, base, a.cls) && !(item.rarity === "rare" && a.d2?.magicOnly));
+    const kinds = {};
+    for (const a of affixes) {
+      const k = a.kind;
+      if (!k) continue;
+      const statsInA = [a.stat, ...(a.d2?.alike ?? []), ...(a.d2?.also?.stat ? [a.d2.also.stat] : [])];
+      for (const s of statsInA) {
+        if (!s) continue;
+        if (!kinds[s]) kinds[s] = k;
+        else if (kinds[s] !== k) kinds[s] = "both";
+      }
+    }
+
+    // 依目前 mods 以可行指派推算已用前綴與後綴數量
+    const free = (mods ?? []).filter(m => m && !m.implicit && !m.auto);
+    if (!free.length) return { limit, used: { pre: 0, suf: 0 }, kinds };
+
+    const withStat = free.filter(m => m.stat);
+    const emptyPre = free.filter(m => !m.stat && m.kind === "prefix").length;
+    const emptySuf = free.filter(m => !m.stat && m.kind === "suffix").length;
+
+    const matches = [];
+    for (const a of affixes) {
+      const d = a.d2 ?? {};
+      const parts = [[a.stat, a.min, a.max, d.length], ...(d.alike ?? []).map(s => [s, a.min, a.max]), ...(d.also ? [[d.also.stat, d.also.min, d.also.max]] : [])];
+      const opts = parts.map(([s, lo, hi, len]) => [
+        -1,
+        ...withStat.map((m, i) => i).filter(i => {
+          const m = withStat[i];
+          if (m.stat !== s) return false;
+          if (m.kind && m.kind !== a.kind) return false;
+          if (len !== undefined && m.length !== undefined && m.length !== len) return false;
+          if (typeof m.value === "number" && Number.isFinite(m.value)) {
+            if (m.value < lo || m.value > hi) return false;
+          }
+          return true;
+        })
+      ]);
+      const walk = (k, used) => {
+        if (k === parts.length) {
+          const u = used.filter(i => i >= 0);
+          if (u.length && new Set(u).size === u.length) matches.push({ affix: a, used: u });
+          return;
+        }
+        for (const i of opts[k]) walk(k + 1, [...used, i]);
+      };
+      walk(0, []);
+    }
+
+    const covered = new Array(withStat.length).fill(false), groups = new Set();
+    let pre = 0, suf = 0, n = 0;
+    let best = { pre: 0, suf: 0, count: -1 };
+
+    const dfs = () => {
+      const count = covered.filter(Boolean).length;
+      if (count > best.count) {
+        best = { pre, suf, count };
+      }
+      const i = covered.indexOf(false);
+      if (i < 0) return n <= lim.max;
+      for (const x of matches) {
+        if (!x.used.includes(i) || x.used.some(j => covered[j])) continue;
+        const isPre = x.affix.kind === "prefix", g = x.affix.d2?.group ?? "n:" + x.affix.name;
+        if ((isPre ? pre >= lim.pre : suf >= lim.suf) || groups.has(g) || n >= lim.max) continue;
+        x.used.forEach(j => covered[j] = true); groups.add(g); isPre ? pre++ : suf++; n++;
+        if (dfs()) return true;
+        x.used.forEach(j => covered[j] = false); groups.delete(g); isPre ? pre-- : suf--; n--;
+      }
+      return false;
+    };
+
+    const ok = dfs();
+    let resPre = (ok ? pre : best.pre) + emptyPre;
+    let resSuf = (ok ? suf : best.suf) + emptySuf;
+
+    if (!ok) {
+      const explicitPre = emptyPre + withStat.filter(m => m.kind === "prefix" || (!m.kind && kinds[m.stat] === "prefix")).length;
+      const explicitSuf = emptySuf + withStat.filter(m => m.kind === "suffix" || (!m.kind && kinds[m.stat] === "suffix")).length;
+      resPre = Math.max(resPre, explicitPre);
+      resSuf = Math.max(resSuf, explicitSuf);
+    }
+
+    return {
+      limit,
+      used: { pre: resPre, suf: resSuf },
+      kinds
+    };
+  }
   // 在目前屬性之外，依原版規則還能加入哪些屬性：[{ stat, implicit, value }]（value 為建議值＝原版最大值）
   function allowedStats(item, mods) {
     const base = bases.get(item.base);
@@ -294,7 +393,11 @@ export function boot(G, itemstatsText) {
   return {
     // 依原版規則檢查物品（未解除限制時使用）；回傳每件物品的問題清單
     // 屬性下拉選單用：modsList 每一組是「其他列的屬性」，回傳每組還能加入的屬性
-    allowedStatsMany(item, modsList) {
+    // 取得詞綴欄位上限、目前指派已用數量與可用屬性前後綴歸屬
+        affixSlots(item, mods) {
+          return affixSlots(item, mods);
+        },
+        allowedStatsMany(item, modsList) {
       return modsList.map(mods => { try { return allowedStats(item, mods); } catch (e) { return null; } });
     },
     validateItems(items) {
