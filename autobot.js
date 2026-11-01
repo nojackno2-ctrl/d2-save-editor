@@ -30,7 +30,8 @@
   // 兩個分頁各有總開關：戰鬥輔助（enabled）、自動戰鬥（progressEnabled）。
   const questOn = () => settings.progressEnabled && settings.quest.autoProgress;
   const terrorMode = () => settings.progressEnabled ? settings.terror.mode : "off";
-  const assistOn = () => settings.enabled;
+  // 依使用者回報：只開自動戰鬥時角色不走位、不喝水，自動戰鬥跑不起來；自動戰鬥開著就包含戰鬥輔助（走位、閃避、喝水、撿物）。
+  const assistOn = () => settings.enabled || settings.progressEnabled;
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) || "{}");
     settings = merge(defaults, stored);
@@ -122,7 +123,8 @@
     catch { storageNote = "設定無法儲存，本次仍有效"; }
     refreshControls();
   }
-  function stop(reason = "輔助已停止") { settings.enabled = false; settings.progressEnabled = false; release(); lastAction = reason; save(); }
+  // 自動停機（如離場失敗）不改寫使用者儲存的設定；使用者按「停止輔助」才存成關閉（依使用者回報：舊版按停止後下次載入又是開的）。
+  function stop(reason = "輔助已停止", byUser = false) { settings.enabled = false; settings.progressEnabled = false; release(); lastAction = reason; save(byUser); }
   function manual(e) {
     if (!e.isTrusted || host.contains(e.target) || e.target === launcher || e.target === stopButton) return;
     manualUntil = performance.now() + 1200;
@@ -1398,7 +1400,7 @@
     h2{margin:0;color:#d4a84a}h3{color:#d4a84a;margin:20px 0 8px}p{margin:8px 0}.head{display:flex;justify-content:space-between;align-items:center;gap:12px}
     label{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;border-bottom:1px solid #fff1;padding:5px 0}
     button,input,select{font:inherit;min-height:44px}button,select,input[type=number]{background:#2a231a;color:#fff0cb;border:1px solid #9c7e41;border-radius:5px;padding:5px 10px}
-    .toggle{min-width:112px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:10px}.toggle::before{content:"";width:16px;height:16px;border-radius:50%;background:#b0a49c}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:110px}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px}.version-warn{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#451a14;border:1px solid #d45d48;color:#ffded7;border-radius:6px;padding:8px 12px;margin:10px 0 4px;font-size:13px;font-weight:bold}.version-warn button{min-height:28px;padding:2px 8px;background:transparent;border:none;color:#ffded7;font-size:18px;cursor:pointer;line-height:1}.version-warn button:hover{color:#fff}
+    .toggle{min-width:112px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:10px}.toggle::before{content:"";width:16px;height:16px;border-radius:50%;background:#b0a49c}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:110px}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px}.version-warn[hidden]{display:none!important}.version-warn{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#451a14;border:1px solid #d45d48;color:#ffded7;border-radius:6px;padding:8px 12px;margin:10px 0 4px;font-size:13px;font-weight:bold}.version-warn button{min-height:28px;padding:2px 8px;background:transparent;border:none;color:#ffded7;font-size:18px;cursor:pointer;line-height:1}.version-warn button:hover{color:#fff}
     @media(max-width:600px){.backdrop{padding:0}.box{width:100%;max-height:100dvh;height:100dvh;border-radius:0;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}}
   </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><div id="version-warn" class="version-warn" hidden><span class="version-msg"></span><button type="button" class="version-dismiss" aria-label="關閉提示">×</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">自動戰鬥</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點上方「停止輔助」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button></section></div>`;
   const panel = root.querySelector(".backdrop"), status = root.querySelector(".status"), controls = new Map();
@@ -1466,7 +1468,7 @@
   }
   function closePanel() { panel.hidden = true; if (launcher.style.display !== "none") launcher.focus(); }
   launcher.onclick = () => { if (!paused()) return; release(); panel.hidden = false; versionDismissed = false; refreshVersionNotice(); refreshControls(); root.getElementById("close").focus(); };
-  root.getElementById("close").onclick = closePanel; root.getElementById("stop").onclick = stopButton.onclick = () => stop();
+  root.getElementById("close").onclick = closePanel; root.getElementById("stop").onclick = stopButton.onclick = () => stop("已手動停止輔助", true);
   for (const el of [host, launcher, stopButton]) for (const name of ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "keydown", "keyup", "click", "wheel"]) el.addEventListener(name, (e) => e.stopPropagation(), { signal: abort.signal });
   root.addEventListener("keydown", (e) => {
     if (e.code === "Escape") { e.preventDefault(); closePanel(); }
