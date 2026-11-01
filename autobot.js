@@ -1209,7 +1209,20 @@
     redraft = { done: true }; lastAction = "重置技能完成，重新集中升級";
     return true;
   }
+  // 依使用者要求：回到營地優先回報已完成的任務。原版 talkToCain 先呼叫 cainHandOver() 發放已完成任務的獎勵（技能書、屬性書等），
+  // 再開任務日誌；輔助器只呼叫 cainHandOver（不開介面），每次回營地一次，排在整備、重置技能與開局之前。獎勵由 useCodex 接著使用。
+  let cainVisit = null;
+  function reportQuests(g) {
+    if (g.state !== "camp" || !g.camp || g.swapping || g.trade) { if (g.state !== "camp") cainVisit = null; return false; }
+    if (cainVisit === g.camp || !questOn() || typeof g.cainHandOver !== "function") return false;
+    cainVisit = g.camp;
+    let r = null; try { r = g.cainHandOver(); } catch { r = null; }
+    for (const e of r?.given || []) if (e?.quest) g.questsHanded?.add?.(e.quest);
+    if (r?.given?.length) { lastAction = "回營地先向凱恩回報任務：領取 " + r.given.length + " 項獎勵" + (r.waiting?.length ? "（背包滿，" + r.waiting.length + " 項待領）" : ""); return true; }
+    return false;
+  }
   function progression(g, now) {
+    if (reportQuests(g)) return true;
     if (campRedraft(g, now)) return true;
     if (menuResume(g, now) || campShop(g, now) || campStart(g, now)) return true;
     if (terrorMode() === "off") return false;
