@@ -492,7 +492,14 @@
     // 護符：原版 equip 遇到護符會改放進護符格（moveCharm）；有空位就放，滿了留在背包。
     if (charm) { charmTried.add(charm); g.gearActions(p.cls, () => {}, false).equip(charm); if (!g.inventoryOf(p.cls).includes(charm)) lastAction = "已放入護符：" + (charm.name || charm.base); return; }
     const best = bestGear(g, [...g.inventoryOf(p.cls)]);
-    if (!best) return;
+    if (!best) {
+      // 沒用的裝備（普通／魔法／稀有且不比身上好）撿到就賣，不等背包滿；暗金、套裝、符文之語、護符留給收藏與倉庫。
+      if (settings.town.sellJunk) {
+        const junk = g.inventoryOf(p.cls).find((x) => x?.base && !keepType(x) && !isCharm(x) && ["normal", "magic", "rare"].includes(x.rarity));
+        if (junk) { g.gearActions(p.cls, () => {}, false).sell(junk); if (!g.inventoryOf(p.cls).includes(junk)) lastAction = "賣掉用不到的裝備 " + (junk.name || junk.base); }
+      }
+      return;
+    }
     g.gearActions(p.cls, () => {}, false).equip(best.item);
     if (Object.values(g.equippedOf(p.cls)).includes(best.item)) lastAction = "已自動穿上較佳裝備：" + (best.item.name || best.item.base);
   }
