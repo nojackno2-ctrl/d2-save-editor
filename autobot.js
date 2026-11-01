@@ -465,11 +465,16 @@
     }
     return best;
   }
+  let charmTried = new WeakSet();
+  const isCharm = (item) => !!item?.base && /charm/i.test(String(item.type || "") + " " + String(item.base));
   function autoEquip(g, now) {
     if (!settings.progressEnabled || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
     if (!["playing", "camp"].includes(g.state) || typeof g.gearActions !== "function" || typeof g.heroNumbers !== "function" || typeof g.makePlayer !== "function") return;
     gearAt = now;
-    const p = g.world.player, best = bestGear(g, [...g.inventoryOf(p.cls)]);
+    const p = g.world.player, charm = g.inventoryOf(p.cls).find((x) => isCharm(x) && !charmTried.has(x));
+    // 護符：原版 equip 遇到護符會改放進護符格（moveCharm）；有空位就放，滿了留在背包。
+    if (charm) { charmTried.add(charm); g.gearActions(p.cls, () => {}, false).equip(charm); if (!g.inventoryOf(p.cls).includes(charm)) lastAction = "已放入護符：" + (charm.name || charm.base); return; }
+    const best = bestGear(g, [...g.inventoryOf(p.cls)]);
     if (!best) return;
     g.gearActions(p.cls, () => {}, false).equip(best.item);
     if (Object.values(g.equippedOf(p.cls)).includes(best.item)) lastAction = "已自動穿上較佳裝備：" + (best.item.name || best.item.base);
@@ -514,6 +519,8 @@
       if (!a) return true;
       if (settings.town.collect && view?.collect > 0 && !shop.collected && typeof a.collectAll === "function") { shop.collected = true; a.collectAll(); lastAction = "整備：把暗金／套裝收進收藏庫"; return false; }
       if (settings.gear.autoEquip) {
+        const charm = stashItems(view).find((x) => isCharm(x) && !shop.tried.has(x));
+        if (charm) { shop.tried.add(charm); a.equip(charm); lastAction = "整備：從倉庫放入護符 " + (charm.name || charm.base); return false; }
         // 倉庫與收藏庫的裝備一起評估；原版 equip 在倉庫情境可直接從倉庫或收藏庫取出穿上。
         const best = bestGear(g, [...g.inventoryOf(cls), ...stashItems(view)].filter((x) => !shop.tried.has(x)));
         if (best) { shop.tried.add(best.item); a.equip(best.item); lastAction = "整備：換上較佳裝備 " + (best.item.name || best.item.base); return false; }
@@ -568,6 +575,7 @@
     if (shop?.done) return false;
     if (!shop) {
       if (g.state !== "camp" || !g.camp || g.swapping || typeof g.openCampTrade !== "function" || !g.kit || !g.world?.player || !hookTown(g)) return false;
+      charmTried = new WeakSet();
       shop = { steps: ["stash", "sell", "potions", "upgrades", "stash"], i: 0, at: 0, tried: new Set(), buys: 0, actions: 0, open: null, collected: false };
     }
     if (now - shop.at < 250) return true;
