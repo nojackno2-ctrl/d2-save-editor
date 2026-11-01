@@ -5,7 +5,7 @@
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
   const BUILD_KEY = "d2autobot:gameBuild";
-  const TESTED_GAME_BUILD = "20261030.2"; // 每次確認新版遊戲相容後更新此值
+  const TESTED_GAME_BUILD = "20261101.1"; // 每次確認新版遊戲相容後更新此值
   const defaults = {
     version: 7, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, fallbackHpSlot: 1 },
