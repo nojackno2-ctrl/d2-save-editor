@@ -593,7 +593,8 @@ function updateCraftRarities() {
   if (xRar) {
     const prevX = xRar.value;
     const xOpts = Object.entries(RARITY_ZH).filter(([k]) => unlocked() || !FORBIDDEN_CRAFT_RARITIES.has(k));
-    const defX = unlocked() ? "unique" : xOpts[0]?.[0];
+    // 未解除限制時預設稀有（普通品質不能有詞綴，當預設會讓加上的屬性全被標成不符合規則）
+    const defX = unlocked() ? "unique" : "rare";
     const targetX = xOpts.some(([k]) => k === prevX) ? prevX : defX;
     xRar.innerHTML = xOpts.map(([k, v]) => `<option value="${k}" ${k === targetX ? "selected" : ""}>${v}</option>`).join("");
     if (targetX) xRar.value = targetX;
@@ -641,7 +642,10 @@ async function renderCraft() {
     $("#cmods").onclick = (e) => { if (e.target.classList.contains("rm")) e.target.closest("tr").remove(); };
     $("#xMake").onclick = makeCustom;
   }
+  const rarBefore = $("#xRar").value;
   updateCraftRarities();
+  // 品質選單重建後重新檢查各列屬性，避免留下切換前的「不符合原版規則」標記
+  if ($("#cmods tbody tr") || rarBefore !== $("#xRar").value) updateCraftRanges();
   const dest = $("#xDest").value;
   $("#xDest").innerHTML = destOptions();
   if ([...$("#xDest").options].some(o => o.value === dest)) $("#xDest").value = dest;
