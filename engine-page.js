@@ -114,6 +114,8 @@ export function boot(G, itemstatsText) {
   // 原版規則（Diablo II）：魔法最多 1 前綴 + 1 後綴；稀有 2～6 個詞綴（Arreat Summit 官方說明）、前後綴各最多 3 個；稀有珠寶最多 4 個；同群組不可重複
   const AFFIX_LIMIT = { magic: { pre: 1, suf: 1, min: 1, max: 2 }, rare: { pre: 3, suf: 3, min: 2, max: 6 }, rareJewel: { pre: 3, suf: 3, min: 2, max: 4 } };
   const limitOf = (base, rarity) => AFFIX_LIMIT[rarity === "rare" && (base.type === "jewel" || base.itype === "jewl") ? "rareJewel" : rarity];
+  // 遊戲將職業限定技能詞綴歸入 prefix:125；複合詞綴依實際指派計為一個。
+  const affixGroup = a => a.kind === "prefix" && a.cls ? "prefix:125" : (a.d2?.group ?? "n:" + a.name);
   function affixPlan(base, rarity, mods) {
     const lim = limitOf(base, rarity), matches = affixMatches(base, rarity, mods);
     const covered = new Array(mods.length).fill(false), groups = new Set(), pick = [];
@@ -123,7 +125,7 @@ export function boot(G, itemstatsText) {
       if (i < 0) return pick.length >= lim.min && pick.length <= lim.max;
       for (const x of matches) {
         if (!x.used.includes(i) || x.used.some(j => covered[j])) continue;
-        const isPre = x.affix.kind === "prefix", g = x.affix.d2?.group ?? "n:" + x.affix.name;
+        const isPre = x.affix.kind === "prefix", g = affixGroup(x.affix);
         if ((isPre ? pre >= lim.pre : suf >= lim.suf) || groups.has(g)) continue;
         x.used.forEach(j => covered[j] = true); groups.add(g); pick.push(x); isPre ? pre++ : suf++;
         if (dfs()) return true;
@@ -197,7 +199,7 @@ export function boot(G, itemstatsText) {
       if (i < 0) return n <= lim.max;
       for (const x of matches) {
         if (!x.used.includes(i) || x.used.some(j => covered[j])) continue;
-        const isPre = x.affix.kind === "prefix", g = x.affix.d2?.group ?? "n:" + x.affix.name;
+        const isPre = x.affix.kind === "prefix", g = affixGroup(x.affix);
         if ((isPre ? pre >= lim.pre : suf >= lim.suf) || groups.has(g) || n >= lim.max) continue;
         x.used.forEach(j => covered[j] = true); groups.add(g); isPre ? pre++ : suf++; n++;
         if (dfs()) return true;
@@ -280,7 +282,7 @@ export function boot(G, itemstatsText) {
       if (i < 0) return n <= lim.max;
       for (const x of matches) {
         if (!x.used.includes(i) || x.used.some(j => covered[j])) continue;
-        const isPre = x.affix.kind === "prefix", g = x.affix.d2?.group ?? "n:" + x.affix.name;
+        const isPre = x.affix.kind === "prefix", g = affixGroup(x.affix);
         if ((isPre ? pre >= lim.pre : suf >= lim.suf) || groups.has(g) || n >= lim.max) continue;
         x.used.forEach(j => covered[j] = true); groups.add(g); isPre ? pre++ : suf++; n++;
         if (dfs()) return true;

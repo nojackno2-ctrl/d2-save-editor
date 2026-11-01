@@ -716,7 +716,7 @@ function updateCraftRarities() {
   // 底材與目錄資料已載入時重繪清單與相關介面
   if (typeof BASES !== "undefined" && BASES) {
     if (typeof CATALOG !== "undefined" && CATALOG && typeof renderCraftList === "function") renderCraftList();
-    if (page === "craft" && typeof updateCraftRanges === "function") updateCraftRanges();
+    if (typeof updateCraftRanges === "function" && $("#xBase")?.options.length) updateCraftRanges();
     if (page === "library" && craftSel && typeof renderCraftPick === "function") renderCraftPick();
   }
 }
@@ -882,7 +882,17 @@ const filterSeq = {};
 async function filterStats(table, item) {
   const rows = [...document.querySelectorAll(`${table} tbody tr`)];
   for (const tr of rows) tr.querySelector(".imp").disabled = !unlocked();
-  if (unlocked() || !rows.length) return;
+  if (unlocked()) {
+    filterSeq[table] = (filterSeq[table] ?? 0) + 1;
+    for (const tr of rows) {
+      const sel = tr.querySelector(".stat"), cur = sel.value;
+      sel.innerHTML = statOptions();
+      if (cur && ![...sel.options].some(o => o.value === cur)) sel.add(new Option(cur, cur));
+      sel.value = cur;
+    }
+    return;
+  }
+  if (!rows.length) return;
   const num = (v) => (v.trim() !== "" && !isNaN(v) ? Number(v) : v);
   const mods = rows.map(tr => ({ stat: tr.querySelector(".stat").value, value: num(tr.querySelector(".val").value), ...(tr.querySelector(".imp").checked && { implicit: true }),
     ...JSON.parse(tr.dataset.original || "{}").length !== undefined && JSON.parse(tr.dataset.original).stat === tr.querySelector(".stat").value && { length: JSON.parse(tr.dataset.original).length } }));
@@ -910,25 +920,15 @@ async function filterCraftSplit(item, kinds, db) {
   const allRows = [...preRows, ...sufRows, ...impRows];
   for (const tr of allRows) tr.querySelector(".imp").disabled = !unlocked();
 
-  // 若解除限制：依 kinds 與底材固有屬性列出各區可用屬性
+  // 解除限制後，各區都提供完整屬性清單。
   if (unlocked()) {
-    const allAffixStats = Object.keys(kinds);
-    const preStats = allAffixStats.filter(s => kinds[s] === "prefix" || kinds[s] === "both");
-    const sufStats = allAffixStats.filter(s => kinds[s] === "suffix" || kinds[s] === "both");
-    const impStats = Object.keys(db?.fixed ?? {}).map(k => k.replace(/^[01]:/, ""));
-
-    const renderUnlockedOptions = (rows, statList, isImp) => {
-      const list = statList.map(s => ({ stat: s, label: modZh({ stat: s, value: "#", implicit: isImp }) + (isImp ? "（固有）" : "") }))
-        .sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
-      for (const tr of rows) {
-        const sel = tr.querySelector(".stat"), cur = sel.value;
-        const extra = cur && !list.some(a => a.stat === cur) ? `<option value="${esc(cur)}" data-imp="${isImp ? 1 : 0}" selected>${esc(modZh({ stat: cur, value: "#", implicit: isImp }))}</option>` : "";
-        sel.innerHTML = '<option value="">（請選擇屬性）</option>' + extra + list.map(a => `<option value="${esc(a.stat)}" data-imp="${isImp ? 1 : 0}" ${a.stat === cur ? "selected" : ""}>${esc(a.label)}</option>`).join("");
-      }
-    };
-    renderUnlockedOptions(preRows, preStats, false);
-    renderUnlockedOptions(sufRows, sufStats, false);
-    renderUnlockedOptions(impRows, impStats, true);
+    filterSeq["#craft"] = (filterSeq["#craft"] ?? 0) + 1;
+    for (const tr of allRows) {
+      const sel = tr.querySelector(".stat"), cur = sel.value;
+      sel.innerHTML = statOptions();
+      if (cur && ![...sel.options].some(o => o.value === cur)) sel.add(new Option(cur, cur));
+      sel.value = cur;
+    }
     return;
   }
 
@@ -999,9 +999,15 @@ async function updateCraftRanges() {
 
   let slots = null;
   try { slots = await window.api.engine("affixSlots", item, currentMods); } catch (_) {}
+  if (request !== craftRangeRequest) return;
   syncCraftTables(isSplit, slots?.kinds ?? {});
 
-  if (isSplit && slots?.limit) {
+  if (isSplit && unlocked()) {
+    $("#c-affix-total").textContent = "";
+    $("#c-pre-slots").textContent = $("#c-suf-slots").textContent = "";
+    $("#c-pre-tip").textContent = $("#c-suf-tip").textContent = "";
+    $("#xAddPre").disabled = $("#xAddSuf").disabled = false;
+  } else if (isSplit && slots?.limit) {
     const totalUsed = (slots.used?.pre ?? 0) + (slots.used?.suf ?? 0);
     const totalLimitStr = item.rarity === "magic" ? "1～2" : `2～${slots.limit.max}`;
     $("#c-affix-total").textContent = `合計上限：${totalLimitStr}（目前已用 ${totalUsed}）`;
@@ -1038,14 +1044,20 @@ async function makeCustom() {
   }).filter(m => m.stat);
   // 魔法／稀有／普通不需名稱即可檢查，先檢查才能清楚說明哪裡不符原版規則
   if (!["unique", "set", "runeword"].includes(rarity)) try { await assertLegal([{ base: b.name, type: b.type, rarity, mods }]); } catch (e) { return fail(e); }
-  let info, resolved;
-  try {
-    [info, resolved] = await Promise.all([
-      window.api.engine("affixInfo", b.name, rarity, mods),
-      window.api.engine("resolveName", { base: b.name, rarity, mods })
-    ]);
-  } catch (e) { return status(e.message, "bad"); }
-  if (!info || info.error || !resolved?.name) return status(resolved?.error ?? "無法依屬性設定物品資料。", "bad");
+  let resolved;
+  if (unlocked()) {
+    // 自訂屬性不一定能還原原版名稱，解除限制時沿用底材名稱。
+    resolved = { name: b.name };
+  } else {
+    let info;
+    try {
+      [info, resolved] = await Promise.all([
+        window.api.engine("affixInfo", b.name, rarity, mods),
+        window.api.engine("resolveName", { base: b.name, rarity, mods })
+      ]);
+    } catch (e) { return status(e.message, "bad"); }
+    if (!info || info.error || !resolved?.name) return status(resolved?.error ?? "無法依屬性設定物品資料。", "bad");
+  }
   const it = { id: newId(), base: b.name, type: b.type, rarity, name: resolved.name, level: 99, mods };
   try { await assertLegal([it]); } catch (e) { return fail(e); }
 
@@ -1347,8 +1359,32 @@ function allItems(s) {
 }
 // 遊戲對「暗金／符文之語且沒有 stats」的物品直接略過檢查；其他品質沒有 roll（種子）就會被判定不合法
 const riskyItem = (it) => it.type !== "quest" && !((it.rarity === "unique" || it.rarity === "runeword") && !it.stats) && !it.roll;
+// 依遊戲 Ci／wi／Ti 與角色保存的最高 Tome 進度檢查。
+function attributeChecks(s) {
+  const difficulties = ["normal", "nightmare", "hell"];
+  const out = [];
+  if (!s.heroes || typeof s.heroes !== "object" || Array.isArray(s.heroes)) return [{ unknown: true, text: "屬性點未驗證：缺少角色資料" }];
+  for (const [cls, hero] of Object.entries(s.heroes)) for (const key of ["kept", "run"]) {
+    const state = hero?.[key];
+    if (state == null) continue;
+    const name = CLASS_ZH[cls] ?? cls, label = name + " " + key;
+    const unknown = () => out.push({ unknown: true, text: "屬性點未驗證：" + label });
+    const validState = v => v && difficulties.includes(v.difficulty) && Number.isInteger(v.act) && v.act >= 1 && v.act <= 5 && v.run && typeof v.run === "object";
+    const b = state.build, level = state.run?.level;
+    const unlockedDifficulty = s.unlocked?.[cls] ?? "normal";
+    const tome = hero.tomes ?? 0;
+    if (!validState(state) || !b || !Array.isArray(b.history) || !b.history.every(x => typeof x === "string") || !Number.isInteger(level) || level < 1 || level > 99 || b.level !== level || !Number.isInteger(b.unspent ?? 0) || (b.unspent ?? 0) < 0 || !Number.isInteger(tome) || tome < 0 || tome > 3 || !difficulties.includes(unlockedDifficulty) || (s.terror?.[cls] != null && typeof s.terror[cls] !== "object") || (hero.kept != null && !validState(hero.kept))) { unknown(); continue; }
+    const reached = v => difficulties.indexOf(v.difficulty) + (v.run.terror !== undefined || v.act - 1 >= 2 ? 1 : 0);
+    const highest = s.terror?.[cls] ? 3 : Math.max(difficulties.indexOf(unlockedDifficulty), tome, reached(state), hero.kept ? reached(hero.kept) : 0);
+    const used = (b.unspent ?? 0) + b.history.reduce((n, x) => n + (x.startsWith("attribute:") ? 5 : x.startsWith("point:") ? 1 : 0), 0);
+    const cap = 5 * (level - 1) + 5 * highest;
+    out.push({ ok: used <= cap, text: (used <= cap ? "屬性點合規：" : "屬性點不合規：") + label + "（" + used + " / " + cap + "）" });
+  }
+  return out.length ? out : [{ unknown: true, text: "屬性點未驗證：沒有可檢查的角色" }];
+}
 function detect() {
   const out = [], s = save;
+  out.push(...attributeChecks(s));
   out.push(lastSeal === "sealed" ? { ok: true, text: "簽章正確" } : { ok: false, text: "簽章損壞或不存在", note: "寫入時自動修復" });
   out.push(s.gold <= 1e10 ? { ok: true, text: "金幣在上限內（≤ 100 億）" }
     : { ok: false, text: `金幣 ${s.gold.toLocaleString(LOCALE)} 超過 100 億上限`, fix: () => { s.gold = 1e10; }, fixText: "設為 100 億" });
@@ -1363,10 +1399,11 @@ function detect() {
     note: faultyItems ? "遊戲檢查" : "近似檢查",
     fix: async () => { if (regen.length) await maxItems(regen); for (const it of other) { it.rarity = "unique"; delete it.stats; delete it.roll; } }, fixText: "重新產生為合法物品" }
     : { ok: true, text: "物品合法性檢查通過", note: faultyItems ? "遊戲檢查" : "近似檢查" });
-  if (ruleBad) out.push(ruleBad.length ? { ok: false, text: `${ruleBad.length} 件物品不符合原版屬性規則：${ruleBad.slice(0, 5).map(x => nameZh(x.item)).join("、")}${ruleBad.length > 5 ? "…" : ""}`,
+  if (!ruleBad) out.push({ unknown: true, text: "稀有職業技能詞綴未驗證：物品規則檢查無法使用" });
+  else out.push(ruleBad.length ? { ok: false, text: `原版屬性規則不合規（含稀有職業技能詞綴）：${ruleBad.slice(0, 5).map(x => nameZh(x.item) + "：" + x.problems.map(problemText).join("；")).join("、")}${ruleBad.length > 5 ? "…" : ""}`,
       note: "排行榜不應出現", ...(ruleBad.some(x => ["unique", "set", "runeword"].includes(x.item.rarity)) && {
         fix: async () => maxItems(ruleBad.map(x => x.item).filter(it => ["unique", "set", "runeword"].includes(it.rarity))), fixText: "重新產生暗金／套裝／符文之語" }) }
-    : { ok: true, text: "所有物品符合原版屬性規則" });
+    : { ok: true, text: "所有物品符合原版屬性規則（含稀有職業技能詞綴）" });
   const badLv = [];
   for (const [c, h] of Object.entries(s.heroes ?? {})) for (const k of ["kept", "run"]) { const lv = h?.[k]?.build?.level; if (lv !== undefined && !(Number.isInteger(lv) && lv >= 1 && lv <= 99)) badLv.push([c, k]); }
   out.push(badLv.length ? { ok: false, text: `角色等級超出 1–99：${badLv.map(([c]) => CLASS_ZH[c]).join("、")}`, fix: () => { for (const [c, k] of badLv) s.heroes[c][k].build.level = 99; }, fixText: "設為 99" }
@@ -1392,7 +1429,7 @@ async function renderGuard() {
   const t = await window.api.traces($("#mode").value, false);
   traceKeys = Array.isArray(t) ? t : [];
   const list = detect();
-  $("#issues").innerHTML = list.map((x, i) => `<tr><td class="${x.ok ? "ok" : "bad"}">${x.ok ? "✔ 安全" : "✖ 會被偵測"}</td><td>${esc(x.text)}${x.note ? ` <span class="dim">（${x.note}）</span>` : ""}</td>
+  $("#issues").innerHTML = list.map((x, i) => `<tr><td class="${x.unknown ? "dim" : x.ok ? "ok" : "bad"}">${x.unknown ? "未驗證" : x.ok ? "✔ 安全" : "✖ 會被偵測"}</td><td>${esc(x.text)}${x.note ? ` <span class="dim">（${x.note}）</span>` : ""}</td>
     <td>${x.fix ? `<button data-fix="${i}">${x.fixText}</button>` : ""}</td></tr>`).join("");
   for (const b of document.querySelectorAll("[data-fix]")) b.onclick = async () => { await list[b.dataset.fix].fix(); renderGuard(); status("已規避（記得寫入存檔）", "ok"); };
   const lb = save.leaderboard ?? {}, row = (k, v) => `<tr><td class="dim" style="width:160px">${k}</td><td>${esc(v ?? "—")}</td></tr>`;
@@ -1507,6 +1544,8 @@ async function write() {
   if (!save) return;
   if (page === "hero") collectHero();
   if (!unlocked()) {
+    const invalidPoints = attributeChecks(save).filter(x => x.ok === false);
+    if (invalidPoints.length) return fail(new Error(invalidPoints.map(x => x.text).join("；")));
     if (save.gold > 1e10) return fail(new Error("金幣超過原版上限 10,000,000,000，已拒絕寫入（如需強制修改，請到「設定」開啟解除修改限制）。"));
     try { await assertLegal(allItems(save).filter(it => !BASELINE.has(itemKey(it)))); } catch (e) { return fail(e); }
   }

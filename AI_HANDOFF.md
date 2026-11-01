@@ -9,6 +9,9 @@
 - 官方更新內容先讀 `/changelog.json`，與合法性、存檔欄位、掉落與經驗規則相關的改動要優先核對。
 
 ## 工作紀錄
+- 2026-11-01｜Codex：同步 web／editor 的稀有職業技能詞綴群組、屬性點上限檢查及解除限制製作介面。依本機 keepSave 的 Ci／wi／Ti 與 Tome 進度計算，欄位不足時顯示未驗證；解除限制時開放完整屬性及自訂名稱備援。`node --check` 四個 JS 與兩頁內嵌指令碼通過；Node 模擬屬性點合規、超額、進度及缺欄，以及兩份引擎的職業技能群組與可選屬性通過。未執行 Electron、真實存檔、排行榜或遊戲測試；未提交及推送。
+
+
 - 2026-11-01｜Antigravity：訂製裝備改版（前綴與後綴欄位分開，選好底材直接顯示可添加欄位數量）：
   1. 引擎（`web/engine-page.js` 與 `editor/engine-page.js`）新增 API `affixSlots(item, mods)`：
      - 回傳 `{ limit: { pre, suf, max } | null, used: { pre, suf }, kinds: { [stat]: "prefix"|"suffix"|"both" } }`。

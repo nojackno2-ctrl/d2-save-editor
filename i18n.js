@@ -14,6 +14,15 @@
 
   // 中文片段 → 英文；由長到短替換，整句優先
   const EN = {
+    "原版屬性規則不合規（含稀有職業技能詞綴）：": "Original stat rules failed (including rare class skill affixes): ",
+    "屬性點未驗證：缺少角色資料": "Attribute points unverified: character data missing",
+    "屬性點未驗證：沒有可檢查的角色": "Attribute points unverified: no character to check",
+    "屬性點未驗證：": "Attribute points unverified: ",
+    "屬性點合規：": "Attribute points compliant: ",
+    "屬性點不合規：": "Attribute points exceed the earned limit: ",
+    "稀有職業技能詞綴未驗證：物品規則檢查無法使用": "Rare class skill affixes unverified: item rule check unavailable",
+    "所有物品符合原版屬性規則（含稀有職業技能詞綴）": "All items meet original stat rules, including rare class skill affixes",
+    "未驗證": "Unverified",
     // 標題與頁籤
     "D2 倖存者 存檔修改器": "D2 Survivors Save Editor", "D2 倖存者存檔修改器 診斷資訊": "D2 Survivors Save Editor diagnostics",
     "（已解除限制）": " (restrictions off)", "一般模式": "Softcore", "硬核模式": "Hardcore", "重新讀取": "Reload", "寫入存檔": "Write save",
