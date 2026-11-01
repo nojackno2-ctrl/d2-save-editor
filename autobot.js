@@ -163,7 +163,8 @@
       const force = 4 / Math.max(0.15, time + 0.15);
       dodgeX += away.x * force; dodgeY += away.y * force;
     }
-    for (const e of s.enemies) if (dist(e, p) <= (e.radius || 12) + (p.radius || 12) + 45) damage += Math.max(0, e.damage || 0) * taken;
+    // 貼身近戰傷害：依原版怪物近戰距離（見 meleeGap）＋20 預留下一步；不會近戰的怪不算。
+    for (const e of s.enemies) { const gap = meleeGap(e); if (gap !== -Infinity && dist(e, p) <= (e.radius || 12) + (p.radius || 12) + gap + 20) damage += Math.max(0, e.damage || 0) * taken; }
     return { damage, dodgeX, dodgeY };
   }
   function drink(s, now, lethal = false) {
@@ -385,6 +386,8 @@
   // 全圖走位規劃（依使用者要求：一直保持移動，並分析地圖上所有怪物，而不只是閃開貼近的怪）：
   // 威脅場＝所有存活怪物在 0.6 秒後的預測位置，依「單次傷害佔目前生命比例」加權（精英×2）；
   // 24 方向×2 距離以原版牆面滑動取樣候選點，評分＝−威脅場−飛彈命中−擁擠＋攻擊站位＋目標吸引＋移動慣性。
+  // 原版怪物近戰距離（itemArt ig()）：中心距 ≤ 怪物半徑＋角色半徑＋6，觸手類再＋28；type.melee 沒招式的怪不會近戰。
+  const meleeGap = (e) => e?.type && Array.isArray(e.type.melee) && !e.type.melee.length ? -Infinity : 6 + (e?.type?.behaviour === "tentacle" ? 28 : 0);
   let planHeading = { x: 1, y: 0 };
   function planMove(s, goal, st, now, pursue = false) {
     const p = s.p, taken = Math.max(1, finite(p.damageTaken) ? p.damageTaken : 1), hpNow = Math.max(1, s.hp.now);
@@ -399,15 +402,21 @@
     if (!near.length && !shots.length) return null;
     // 安全距離＝不會被近戰打到：原版怪物近戰命中為中心距 ≤ 角色半徑＋怪物半徑＋45。
     // 遠程站在近戰範圍外再多 15（不超出自己攻擊距離）；近戰技能只有 46～58，站在自己攻擊距離邊緣。
-    const pr = p.radius || 12, melee = 45, ranged = !fighter(), reach = Math.min(myReach(), 450);
-    const wantFor = (e) => ranged ? Math.min(Math.max(reach - 10, 40), (e?.radius || 12) + pr + melee + 15) : (e?.radius || 12) + pr + Math.max(10, Math.min(reach, 150) - 4);
-    const scale = ranged ? 120 : 90;
+    const pr = p.radius || 12, ranged = !fighter(), reach = Math.min(myReach(), 450);
+    // 怪物會移動：近戰範圍外再預留 0.4 秒的移動距離（20～80），避免怪一往前就打到而反覆觸發死亡保護。
+    const lead = (e) => Math.min(80, Math.max(20, (e?.speed || e?.moveSpeed || 90) * 0.4));
+    // 依使用者要求以怪物自己的近戰距離為安全距離（不會近戰的怪以 6 計），再加移動緩衝；近戰角色站在自己攻擊距離邊緣。
+    const wantFor = (e) => ranged ? Math.min(Math.max(reach - 10, 40), (e?.radius || 12) + pr + Math.max(6, meleeGap(e)) + 10 + lead(e)) : (e?.radius || 12) + pr + Math.max(10, Math.min(reach, 150) - 4);
+    // 依使用者要求攻擊性強一點：威脅場作用範圍縮小、權重減半，不再一直跑路。
+    const scale = ranged ? 70 : 60;
     // 依使用者要求優先攻擊精英與王：900 內有幕末王＞頭目＞精英就鎖定，保持在安全的攻擊距離；王活著時少分心去撿東西。
     const rankOrder = { actBoss: 3, boss: 2, champion: 1 };
     const boss = s.enemies.filter((e) => isElite(e) && dist(e, p) < 900).reduce((a, e) => !a || (rankOrder[e.rank] || 0) > (rankOrder[a.rank] || 0) || ((rankOrder[e.rank] || 0) === (rankOrder[a.rank] || 0) && dist(e, p) < dist(a, p)) ? e : a, null);
     const focus = boss || near.reduce((a, f) => !a || dist(f, p) < dist(a, p) ? f : a, null)?.e;
     const looting = goal && (goal.kind === "loot" || goal.kind === "kick");
-    const threat = (pt) => near.reduce((a, f) => { const d = Math.max(0, dist(pt, f) - f.r); return a + f.w / (1 + (d / scale) ** 2); }, 0);
+    // 實測（女巫面對精英越跑越遠）：鎖定的王／精英不計入往外推的威脅場，只由近戰範圍＋移動緩衝的禁區處理；
+    // 其他怪照常計入。
+    const threat = (pt) => near.reduce((a, f) => { if (boss && f.e === boss) return a; const d = Math.max(0, dist(pt, f) - f.r); return a + f.w / (1 + (d / scale) ** 2); }, 0);
     const shotHit = (pt) => shots.reduce((a, sh) => {
       const vx = sh.vx || 0, vy = sh.vy || 0, rr = (sh.radius || 5) + (p.radius || 12) + settings.movement.projectileSafetyRadius;
       for (let t = 0; t <= 0.6; t += 0.1) if (Math.hypot(sh.x + vx * t - pt.x, sh.y + vy * t - pt.y) < rr) return a + Math.max(0.5, Math.max(0, sh.damage || 0) * taken / hpNow * 10);
@@ -426,10 +435,15 @@
         const moved = Math.hypot(x - p.x, y - p.y);
         if (moved < step * 0.4) continue;
         const pt = { x, y };
-        let score = -threat(pt) * 4 - shotHit(pt) * 6 - near.filter((f) => dist(f, pt) < 110).length * 0.4;
+        let score = -threat(pt) * 2 - shotHit(pt) * 6 - near.filter((f) => dist(f, pt) < 110).length * 0.4;
         // 落在任何怪（目前或預測位置）的近戰範圍內就重扣，精英／王扣更多。
-        for (const f of near) { const zone = f.r + pr + melee; if (dist(pt, f.e) < zone || dist(pt, f) < zone) score -= isElite(f.e) ? 6 : 2.5; }
-        if (focus) { const want = wantFor(focus); score -= Math.abs(dist(pt, focus) - want) / want * (boss ? 3 : 1.5); }
+        for (const f of near) { const gap = meleeGap(f.e); if (gap === -Infinity) continue; const zone = f.r + pr + gap + (ranged ? lead(f.e) : 0); if (dist(pt, f.e) < zone || dist(pt, f) < zone) score -= isElite(f.e) ? 6 : 2.5; }
+        if (focus) {
+          const want = wantFor(focus), d = dist(pt, focus);
+          score -= Math.abs(d - want) / want * (boss ? 3 : 2.5);
+          // 超出自己攻擊距離九成就重扣，避免跑出打得到的範圍。
+          if (d > reach * 0.9) score -= (d - reach * 0.9) / 40 * 3;
+        }
         if (goal && dist(goal, p) > 5) score += (dist(p, goal) - dist(pt, goal)) / step * (boss && looting ? 0.3 : pursue ? 5 : danger < 0.6 ? 2.5 : 0.8);
         score += (dir.x * planHeading.x + dir.y * planHeading.y) * 0.5;
         if (!best || score > best.score) best = { score, dir, pt };
@@ -648,7 +662,8 @@
   let charmTried = new WeakSet();
   const isCharm = (item) => !!item?.base && /charm/i.test(String(item.type || "") + " " + String(item.base));
   function autoEquip(g, now) {
-    if (!settings.progressEnabled || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
+    // 依使用者要求：任一總開關（戰鬥輔助或推層與任務）開著就自動換裝、賣用不到的裝備。
+    if ((!settings.enabled && !settings.progressEnabled) || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
     if (!["playing", "camp"].includes(g.state) || typeof g.gearActions !== "function" || typeof g.heroNumbers !== "function" || typeof g.makePlayer !== "function") return;
     gearAt = now;
     const p = g.world.player, charm = g.inventoryOf(p.cls).find((x) => isCharm(x) && !charmTried.has(x));
@@ -778,7 +793,8 @@
   };
   let townSince = 0;
   function campShop(g, now) {
-    if (!settings.progressEnabled || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
+    // 依使用者要求：任一總開關開著，回營地就買水、賣裝、存倉、升級（不必開推層）。
+    if ((!settings.enabled && !settings.progressEnabled) || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
     if (g.state === "playing") { shop = null; townSince = 0; return false; }
     // 實測：死亡保護離場後原版停在營地的城鎮商店畫面（state=town），整備已完成就沒人離開而卡住；
     // 營地裡停在商店 3 秒以上且不在整備中，就用原版離開回到營地，讓自動開局／繼續接手。
