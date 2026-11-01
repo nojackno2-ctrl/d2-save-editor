@@ -68,3 +68,17 @@
 `## 推測與未驗證範圍
 `
 `傷害預估尚未完整重現抗性、護盾、格擋、敵人攻速或控制效果；包圍取樣不是完整尋路，也未精確預測敵人移動，可能提早離場或漏判。藥水的後續持續回復未精確建模。原版未保證進村莊的模式會誠實回報角色選單。尚未驗證真實存檔實戰、硬核模式離場結果、手機及長時間掛機；不保證存活或所有任務自動完成。
+
+## 技能攻擊距離（2026-11-01 靜態分析 itemArt-Bh8qPZQJ.js）
+
+命中判定：中心距 ≤ 角色半徑＋reach＋怪物半徑，以下數字是「邊緣間距」，近戰不必貼身。
+
+| 類型 | 技能（邊緣距離） |
+|---|---|
+| 亞馬遜近戰 | Jab／Power Strike／Charged Strike／Lightning Strike／Impale 58、Fend 84 |
+| 刺客近戰 | Tiger／Cobra Strike、Blades of Ice、Fists of Fire、Claws of Thunder、Dragon Claw／Tail 46；Dragon Talon 90；Phoenix Strike 128 |
+| 野蠻人 | Double Swing 48、Bash／Stun 54、Concentrate／Berserk 58、Frenzy 66、Battle Cry／War Cry／Howl 範圍 100、Whirlwind 衝刺 200、Leap Attack 340 |
+| 聖騎士 | Zeal 46、Smite／Sacrifice／Vengeance 54、Charge 範圍 90、Conversion 220 |
+| 法術／弓／標槍 | 多數索敵 450（Arctic Blast 170、Terror／Confuse／Attract 300、Bone Prison 350、Armageddon／Hurricane 360）；Nova 140＋15／級、Static Field 160＋10／級、Poison Nova 100、Blizzard 落點 450 |
+
+輔助器 `REACH` 表依此設定：已學攻擊技能的最遠距離 < 150 視為近戰，站在約六成攻擊距離處（不貼身）；否則照遠程保持距離。未列出的技能以 450 計，增益技能不計。部分技能經多層共用函式取目標，未完整追蹤（如 Blessed Hammer 繞身、召喚物、德魯伊變身）。

@@ -5,17 +5,18 @@
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
   const defaults = {
-    version: 3, enabled: false, progressEnabled: false,
+    version: 5, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, autoMp: false, mpThreshold: 30, mpCooldownMs: 2000, fallbackHpSlot: 1, fallbackMpSlot: 2 },
     movement: { enabled: true, combatStyle: "auto", ignoreDamagePercent: 3, chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
-    loot: { enabled: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: true },
+    loot: { enabled: true, vacuum: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: true },
     terror: { mode: "off", targetFarmTier: 1, autoReviveOrRestart: false, postClearWaitSec: 3 },
     quest: { autoProgress: false, prioritizeBoss: true, autoStart: true, farmDifficulty: "off" },
     gear: { autoEquip: true, minGainPercent: 2 },
     // 陣亡回營地後的整備：收藏、倉庫、賣裝、買藥、恰西升級，讓每一局都比上一局強。
-    town: { enabled: true, collect: true, stash: true, sellJunk: true, buyPotions: true, potionCount: 4, charsiUpgrades: true, buyGear: true },
+    town: { enabled: true, collect: true, stash: true, sellJunk: true, buyPotions: true, charsiUpgrades: true, buyGear: true },
     build: { ladder: true, autoStats: true, redraft: true },
-    deathProtection: { enabled: false, emergencyHpPercent: 15, disableAutomation: true },
+    // 實測 39～46 級角色陣亡會從 1 級重來；預設開啟：快被打死時原版「儲存並離開」，回營地後自動繼續上次進度。
+    deathProtection: { enabled: true, emergencyHpPercent: 15, disableAutomation: false },
   };
   // 由 d2survivors.lol 排行榜 API 產生（地獄榜各職業前 50 名）：技能／被動 [id, 名稱, 權重]、常用變體、配點比例、各欄常用暗金套裝。
   const LADDER = {"source":"d2survivors.lol/api/leaderboard（地獄榜各職業前 50 名）","generatedAt":"2026-11-01","classes":{"amazon":{"skills":[["fireArrow","Fire Arrow",1.64],["explodingArrow","Exploding Arrow",1.44],["magicArrow","Magic Arrow",1.28],["guidedArrow","Guided Arrow",1.28],["multipleShot","Multiple Shot",1.16],["seekerArrow","Widowmaker",1.13],["strafe","Strafe",1.1],["immolationArrow","Immolation Arrow",1.06],["freezingArrow","Freezing Arrow",0.97],["iceArrow","Ice Arrow",0.92],["coldArrow","Cold Arrow",0.88],["valkyrie","Valkyrie",0.84],["lightningFury","Lightning Fury",0.65],["lightningStrike","Lightning Strike",0.25],["lightningBolt","Lightning Bolt",0.24],["chargedStrike","Charged Strike",0.09]],"mods":{"immolationArrow":"pyre","freezingArrow":"focused","seekerArrow":"blackArrow","lightningFury":"chain","fireArrow":"kindle","explodingArrow":"focused","strafe":"bullseye","magicArrow":"ricochet","iceArrow":"deepFreeze","coldArrow":"split","multipleShot":"narrow","guidedArrow":"bounty","lightningBolt":"thunderbolt","lightningStrike":"grounding","chargedStrike":"grounded","powerStrike":"overcharge","valkyrie":"shieldmaidens","fend":"onslaught","jab":"heavy","plagueJavelin":"lingering"},"passives":[["pierce","Pierce",2],["criticalStrike","Critical Strike",1.96],["dodge","Dodge",1.92],["dopplezon","Decoy",1.92],["innerSight","Inner Sight",1.88],["penetrate","Penetrate",1.84],["slowMissiles","Slow Missiles",1.76],["avoid","Avoid",1.72],["fcr","Faster Cast Rate",1.52],["evade","Evade",1.44],["frw","Faster Run/Walk",0.8],["vitality","Vitality",0.56],["telekinesis","Telekinesis",0.42],["replenish","Replenish Life",0.16]],"attributes":{"strength":0.02,"dexterity":0.66,"vitality":0.3,"energy":0.02},"gear":{"weapon":["Lycander's Aim","Blood Raven's Charge","Windforce"],"body":["Skin of the Vipermagi","Arkaine's Valor","Tyrael's Might"],"belt":["Arachnid Mesh","Thundergod's Vigor","Goldwrap"],"boots":["Gore Rider","Goblin Toe","War Traveler"],"amulet":["Mara's Kaleidoscope","Highlord's Wrath","Atma's Scarab"],"ring1":["Bul-Kathos' Wedding Band","Wisp Projector","Raven Frost"],"ring2":["Bul-Kathos' Wedding Band","Raven Frost","Wisp Projector"],"head":["Harlequin Crest","Guillaume's Face","Andariel's Visage"],"gloves":["Steelrend","Dracul's Grasp","Laying of Hands"],"shield":["Spirit Ward","Tiamat's Rebuke","Umbral Disk"]}},"assassin":{"skills":[["cobraStrike","Cobra Strike",1.88],["cloakOfShadows","Cloak of Shadows",1.76],["royalStrike","Phoenix Strike",1.13],["dragonFlight","Dragon Flight",1.1],["bladesOfIce","Blades of Ice",1.1],["tigerStrike","Tiger Strike",1.08],["clawsOfThunder","Claws of Thunder",0.88],["dragonTail","Dragon Tail",0.83],["fistsOfFire","Fists of Fire",0.68],["dragonClaw","Dragon Claw",0.63],["shadowMaster","Shadow Master",0.59],["bladeShield","Blade Shield",0.52],["dragonTalon","Dragon Talon",0.51],["deathSentry","Death Sentry",0.38],["mindBlast","Mind Blast",0.32],["infernoSentry","Wake of Inferno",0.16]],"mods":{"dragonFlight":"hunter","dragonTail":"focusedTail","cloakOfShadows":"mark","bladesOfIce":"deepCold","cobraStrike":"fang","clawsOfThunder":"thunderclap","dragonClaw":"slayer","tigerStrike":"patience","dragonTalon":"crack","bladeShield":"hunt","royalStrike":"tempest","shadowMaster":"stalker","mindBlast":"focus","deathSentry":"overcharge","fistsOfFire":"sear","bladeFury":"bullseye","infernoSentry":"brazier","lightningSentry":"hunter","psychicHammer":"maul"},"passives":[["weaponBlock","Weapon Block",2],["clawMastery","Claw Mastery",2],["fade","Fade",2],["frw","Faster Run/Walk",2],["quickness","Burst of Speed",2],["venom","Venom",1.99],["fcr","Faster Cast Rate",1.99],["vitality","Vitality",1.96],["replenish","Replenish Life",1.79],["telekinesis","Telekinesis",1.41]],"attributes":{"strength":0.38,"dexterity":0.16,"vitality":0.29,"energy":0.15},"gear":{"weapon":["Firelizard's Talons","Bartuc's Cut-Throat","Jade Talon"],"head":["Harlequin Crest","Andariel's Visage","Natalya's Totem"],"body":["Arkaine's Valor","Skin of the Vipermagi","Skullder's Ire"],"gloves":["Laying of Hands","Dracul's Grasp","Hellmouth"],"belt":["Arachnid Mesh","Wilhelm's Pride","Nosferatu's Coil"],"boots":["Gore Rider","Goblin Toe","Shadow Dancer"],"amulet":["Mara's Kaleidoscope","Highlord's Wrath","Seraph's Hymn"],"ring1":["Bul-Kathos' Wedding Band","The Stone of Jordan","Raven Frost"],"ring2":["Wisp Projector","The Stone of Jordan","Bul-Kathos' Wedding Band"],"shield":["Jade Talon","Bartuc's Cut-Throat","Natalya's Mark"]}},"barbarian":{"skills":[["battleCry","Battle Cry",1.84],["doubleSwing","Double Swing",1.6],["doubleThrow","Double Throw",1.48],["whirlwind","Whirlwind",1.32],["frenzy","Frenzy",1.13],["warCry","War Cry",1.11],["stun","Stun",1.08],["taunt","Taunt",1],["battleCommand","Battle Command",0.99],["whirlingAxes","Lacerator",0.95],["grimWard","Grim Ward",0.84],["berserk","Berserk",0.81],["concentrate","Concentrate",0.56],["bash","Bash",0.56],["leapAttack","Leap Attack",0.38],["leap","Leap",0.2]],"mods":{"berserk":"gore","concentrate":"crush","whirlwind":"blazingPath","frenzy":"flameEdge","battleCry":"contagion","grimWard":"lure","whirlingAxes":"stormAxes","doubleThrow":"venom","doubleSwing":"stormEdge","leapAttack":"hammerfall","battleCommand":"warBanner","warCry":"bellow","taunt":"rabble","leap":"gather","stun":"crack","battleOrders":"bloodlust","bash":"pin","howl":"cower"},"passives":[["increasedSpeed","Increased Speed",2],["ironSkin","Iron Skin",1.96],["increasedStamina","Increased Stamina",1.92],["vitality","Vitality",1.91],["naturalResistance","Natural Resistance",1.88],["findItem","Find Item",1.8],["throwingMastery","Throwing Mastery",1.68],["fcr","Faster Cast Rate",1.48],["axeMastery","Axe Mastery",1.4],["frw","Faster Run/Walk",1.04],["swordMastery","Sword Mastery",0.96],["telekinesis","Telekinesis",0.45],["maceMastery","Mace Mastery",0.36],["poleArmMastery","Pole Arm Mastery",0.28]],"attributes":{"strength":0.66,"dexterity":0.02,"vitality":0.32,"energy":0},"gear":{"head":["Arreat's Face","Immortal King's Will","Harlequin Crest"],"gloves":["Dracul's Grasp","Immortal King's Forge","Steelrend"],"belt":["Arachnid Mesh","Immortal King's Detail","Nosferatu's Coil"],"boots":["Gore Rider","Immortal King's Pillar","Goblin Toe"],"amulet":["Mara's Kaleidoscope","Highlord's Wrath","Atma's Scarab"],"ring1":["Bul-Kathos' Wedding Band","Wisp Projector","Nature's Peace"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","Raven Frost"],"weapon":["Immortal King's Stone Crusher","Djinn Slayer","The Grandfather"],"shield":["Stormshield","Death Cleaver","Azurewrath"],"body":["Arkaine's Valor","Immortal King's Soul Cage","Tyrael's Might"]}},"druid":{"skills":[["arcticBlast","Arctic Blast",1.2],["twister","Twister",1.17],["fury","Fury",1.06],["spiritOfBarbs","Spirit of Barbs",0.9],["volcano","Volcano",0.88],["hurricane","Hurricane",0.86],["shockWave","Shock Wave",0.86],["vines","Solar Creeper",0.81],["armageddon","Armageddon",0.79],["summonGrizzly","Summon Grizzly",0.79],["eruption","Fissure",0.78],["tornado","Tornado",0.72],["moltenBoulder","Molten Boulder",0.7],["firestorm","Firestorm",0.67],["plaguePoppy","Poison Creeper",0.2],["oakSage","Oak Sage",0.16]],"mods":{"fury":"lacerate","hurricane":"eyeWall","shockWave":"earthquake","armageddon":"wrath","tornado":"maelstrom","summonGrizzly":"wildPack","twister":"vortex","volcano":"lavaBombs","moltenBoulder":"magmaCore","firestorm":"wildfire","eruption":"rift","arcticBlast":"iceLance","spiritOfBarbs":"thornNova","vines":"sunburst","plaguePoppy":"thicket","heartOfWolverine":"huntersHeart"},"passives":[["shapeShifting","Lycanthropy",1.92],["feralRage","Feral Rage",1.92],["cycloneArmor","Cyclone Armor",1.84],["fcr","Faster Cast Rate",1.84],["spiritKeeper","Spirit Keeper",1.84],["vitality","Vitality",1.71],["replenish","Replenish Life",1.68],["frw","Faster Run/Walk",1.56],["fireClaws","Fire Claws",1.52],["ravenlore","Ravenlore",1.52],["hunger","Hunger",1.44],["rabies","Rabies",0.92],["telekinesis","Telekinesis",0.22]],"attributes":{"strength":0.57,"dexterity":0.03,"vitality":0.25,"energy":0.14},"gear":{"head":["Jalal's Mane","Cerebus' Bite","Harlequin Crest"],"gloves":["Steelrend","Dracul's Grasp","Soul Drainer"],"belt":["Arachnid Mesh","String of Ears","Nightsmoke"],"boots":["Gore Rider","War Traveler","Goblin Toe"],"amulet":["Mara's Kaleidoscope","Atma's Scarab","Highlord's Wrath"],"ring1":["Bul-Kathos' Wedding Band","Raven Frost","Carrion Wind"],"ring2":["Bul-Kathos' Wedding Band","Raven Frost","Carrion Wind"],"weapon":["Stone Crusher","Windhammer","Stormlash"],"shield":["Spirit Ward","Lidless Wall","Stormshield"],"body":["Arkaine's Valor","Skin of the Vipermagi","Aldur's Deception"]}},"necromancer":{"skills":[["corpseExplosion","Corpse Explosion",1.88],["raiseSkeletalMage","Raise Skeletal Mage",1.64],["lifeTap","Life Tap",1.39],["bonePrison","Bone Prison",1.15],["teeth","Teeth",1.12],["boneSpirit","Bone Spirit",1.06],["revive","Revive",1.06],["decrepify","Decrepify",1.03],["boneSpear","Bone Spear",0.95],["attract","Attract",0.86],["ironMaiden","Iron Maiden",0.67],["fireGolem","Fire Golem",0.65],["poisonNova","Poison Nova",0.41],["weaken","Weaken",0.32],["bloodGolem","Blood Golem",0.25],["poisonDagger","Poison Dagger",0.16]],"mods":{"boneSpirit":"reaper","raiseSkeletalMage":"legion","revive":"legion","corpseExplosion":"chain","attract":"sacrifice","fireGolem":"inferno","decrepify":"contagion","teeth":"clench","poisonNova":"plagueWave","poisonExplosion":"vileBurst","poisonDagger":"thrown","boneSpear":"impaler","lifeTap":"feast","weaken":"contagion","bonePrison":"crushing","bloodGolem":"bloodbond","ironMaiden":"spite","terror":"cower","amplifyDamage":"contagion"},"passives":[["boneArmor","Bone Armor",2],["fcr","Faster Cast Rate",2],["lowerResist","Lower Resist",2],["vitality","Vitality",1.96],["skeletonMastery","Skeleton Mastery",1.96],["frw","Faster Run/Walk",1.91],["boneWall","Bone Wall",1.88],["golemMastery","Golem Mastery",1.64],["summonResist","Summon Resist",1.56],["telekinesis","Telekinesis",1.44],["replenish","Replenish Life",1.04]],"attributes":{"strength":0,"dexterity":0,"vitality":0.2,"energy":0.8},"gear":{"weapon":["Boneshade","Death's Web","Arm of King Leoric"],"shield":["Homunculus","Boneflame","Trang-Oul's Wing"],"head":["Harlequin Crest","Trang-Oul's Guise","Andariel's Visage"],"body":["Skin of the Vipermagi","Trang-Oul's Scales","Que-Hegan's Wisdom"],"belt":["Arachnid Mesh","Trang-Oul's Girth","String of Ears"],"boots":["Marrowwalk","War Traveler","Tearhaunch"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","The Stone of Jordan"],"gloves":["Trang-Oul's Claws","Soul Drainer","Magefist"],"amulet":["Mara's Kaleidoscope","The Eye of Etlich"],"ring1":["Bul-Kathos' Wedding Band","The Stone of Jordan","Wisp Projector"]}},"paladin":{"skills":[["zeal","Zeal",1.52],["charge","Charge",1.44],["smite","Smite",1.16],["holyCharge","Herald of Zakarum",1.13],["almaNegra","Alma Negra",1.1],["fanaticZeal","Passion",1.08],["holyShield","Holy Shield",0.96],["conversion","Conversion",0.9],["blessedHammer","Blessed Hammer",0.88],["sacrifice","Sacrifice",0.84],["rusthandle","Rusthandle",0.83],["hammerOfZakarum","Zakarum's Hand",0.72],["vengeance","Vengeance",0.6],["exile","Exile",0.54],["fistOfTheHeavens","Fist of the Heavens",0.54],["bloodrise","Bloodrise",0.43]],"mods":{"charge":"arrival","fanaticZeal":"fervor","almaNegra":"wideWave","rusthandle":"cascade","holyCharge":"lance","conversion":"fealty","zeal":"holyEdge","hammerOfZakarum":"tightOrbit","blessedHammer":"return","fistOfTheHeavens":"judgement","vengeance":"attuned","holyShield":"retribution","smite":"pin","exile":"retribution","bloodrise":"whirl","sacrifice":"bloodletting","holyBolt":"ricochet"},"passives":[["vigor","Vigor",2],["fanaticism","Fanaticism",1.96],["might","Might",1.92],["concentration","Concentration",1.84],["holyShock","Holy Shock",1.76],["conviction","Conviction",1.72],["salvation","Salvation",1.08],["resistFire","Resist Fire",0.96],["defiance","Defiance",0.96],["resistLightning","Resist Lightning",0.92],["redemption","Redemption",0.88],["holyFire","Holy Fire",0.76],["resistCold","Resist Cold",0.76],["blessedAim","Blessed Aim",0.68]],"attributes":{"strength":0.27,"dexterity":0.1,"vitality":0.55,"energy":0.05},"gear":{"weapon":["Heaven's Light","The Redeemer","Astreon's Iron Ward"],"head":["Harlequin Crest","Andariel's Visage","Tal Rasha's Horadric Crest"],"body":["Arkaine's Valor","Guardian Angel","Que-Hegan's Wisdom"],"gloves":["Dracul's Grasp","Soul Drainer","Chance Guards"],"belt":["Arachnid Mesh","Nosferatu's Coil","String of Ears"],"boots":["Gore Rider","War Traveler","Marrowwalk"],"amulet":["Mara's Kaleidoscope","Highlord's Wrath","Seraph's Hymn"],"ring1":["Bul-Kathos' Wedding Band","Wisp Projector","Raven Frost"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","Carrion Wind"],"shield":["Herald of Zakarum","Steelclash","Griswold's Honor"]}},"sorceress":{"skills":[["staticField","Static Field",1.84],["lightning","Lightning",1.84],["chainLightning","Chain Lightning",1.1],["teleport","Teleport",1.04],["meteor","Meteor",0.97],["hydra","Hydra",0.96],["frozenOrb","Frozen Orb",0.9],["thunderStorm","Thunder Storm",0.88],["blizzard","Blizzard",0.81],["frostNova","Frost Nova",0.8],["chargedBolt","Charged Bolt",0.64],["chillingArmor","Chilling Armor",0.61],["nova","Nova",0.56],["fireBall","Fire Ball",0.38],["fireWall","Fire Wall",0.38],["glacialSpike","Glacial Spike",0.34]],"mods":{"chainLightning":"tether","frozenOrb":"shatter","meteor":"shower","blizzard":"hailstorm","staticField":"bane","fireBall":"cluster","fireBolt":"split","lightning":"thunderbolt","glacialSpike":"icicle","frostNova":"deepFreeze","thunderStorm":"wrath","nova":"coldSnap","teleport":"rideTheBolt","chillingArmor":"duel","fireWall":"crossfire","hydra":"champion","chargedBolt":"split","iceBolt":"frostLance","shiverArmor":"duel","iceBlast":"ricochet","blaze":"frostTrail"},"passives":[["warmth","Warmth",2],["energyShield","Energy Shield",2],["lightningMastery","Lightning Mastery",2],["fcr","Faster Cast Rate",1.96],["frw","Faster Run/Walk",1.84],["enchant","Enchant",1.84],["coldMastery","Cold Mastery",1.84],["replenish","Replenish Life",1.84],["vitality","Vitality",1.84],["fireMastery","Fire Mastery",1.84],["telekinesis","Telekinesis",0.77]],"attributes":{"strength":0,"dexterity":0,"vitality":0.06,"energy":0.94},"gear":{"weapon":["Mang Song's Lesson","The Oculus","Eschuta's Temper"],"shield":["Lidless Wall","Spirit Ward","Stormshield"],"head":["Harlequin Crest","Griffon's Eye","Nightwing's Veil"],"body":["Skin of the Vipermagi","Tal Rasha's Guardianship","Arkaine's Valor"],"gloves":["Magefist","Frostburn","Trang-Oul's Claws"],"belt":["Arachnid Mesh","Tal Rasha's Fine-Spun Cloth","Trang-Oul's Girth"],"boots":["War Traveler","Marrowwalk","Aldur's Advance"],"amulet":["Mara's Kaleidoscope","Tal Rasha's Adjudication","Seraph's Hymn"],"ring1":["The Stone of Jordan","Bul-Kathos' Wedding Band","Wisp Projector"],"ring2":["The Stone of Jordan","Bul-Kathos' Wedding Band","Wisp Projector"]}}}};
@@ -33,14 +34,18 @@
     settings = merge(defaults, stored);
     // 版本 3 起預設撿取所有品質；舊設定只補開普通與魔法，不覆蓋其他選擇。
     if ((stored.version || 0) < 3) { settings.loot.qualityThreshold.normal = true; settings.loot.qualityThreshold.magic = true; }
+    // 版本 5：死亡保護改為預設開啟、離場後自動繼續（舊版預設關閉，並非使用者選的）。
+    if ((stored.version || 0) < 5) { settings.deathProtection.enabled = true; settings.deathProtection.disableAutomation = false; settings.version = 5; }
   }
   catch { storageNote = "設定無法讀取，使用預設值"; }
+  // 走位只開放開關、戰鬥方式、閃避飛彈；距離與係數一律用內建值（依職業自動調整）。
+  for (const k of ["chaseFirst", "kiteDistance", "ignoreDamagePercent", "attackRange", "projectileSafetyRadius", "smoothingFactor"]) settings.movement[k] = defaults.movement[k];
   const bounds = {
     "deathProtection.emergencyHpPercent": [1, 90],
     "potion.hpThreshold": [10, 90], "potion.mpThreshold": [10, 80], "potion.lethalLookaheadSec": [0.1, 1],
     "potion.hpCooldownMs": [500, 5000], "potion.mpCooldownMs": [1000, 5000], "potion.fallbackHpSlot": [1, 4], "potion.fallbackMpSlot": [1, 4],
     "movement.kiteDistance": [40, 500], "movement.ignoreDamagePercent": [0, 50], "movement.attackRange": [100, 800], "movement.projectileSafetyRadius": [20, 100], "movement.smoothingFactor": [0.1, 1],
-    "loot.searchRadius": [50, 1200], "loot.minRuneTier": [1, 33], "terror.targetFarmTier": [1, 9999], "terror.postClearWaitSec": [1, 15], "gear.minGainPercent": [0, 50], "town.potionCount": [0, 16],
+    "loot.searchRadius": [50, 1200], "loot.minRuneTier": [1, 33], "terror.targetFarmTier": [1, 9999], "terror.postClearWaitSec": [1, 15], "gear.minGainPercent": [0, 50],
   };
   // 推層與重刷共用既有 mode，兩個開關互斥，舊設定無須人工轉換。
   const get = (path) => path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
@@ -58,11 +63,11 @@
       const n = get(path), fallback = path.split(".").reduce((o, k) => o[k], defaults);
       put(path, Math.min(max, Math.max(min, Number.isFinite(n) ? n : fallback)));
     }
-    for (const path of ["town.potionCount", "loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot", "potion.fallbackMpSlot"]) put(path, Math.round(get(path)));
+    for (const path of ["loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot", "potion.fallbackMpSlot"]) put(path, Math.round(get(path)));
     if (!["off", "progress", "farm"].includes(settings.terror.mode)) settings.terror.mode = "off";
     if (!["off", "normal", "nightmare", "hell"].includes(settings.quest.farmDifficulty)) settings.quest.farmDifficulty = "off";
     if (!["auto", "melee", "ranged"].includes(settings.movement.combatStyle)) settings.movement.combatStyle = "auto";
-    settings.version = 3;
+    settings.version = defaults.version;
   }
   normalize();
   const abort = new AbortController(), restores = [], blockedLoot = new WeakMap();
@@ -83,9 +88,12 @@
     ownWalk = ownReach = lootTarget = stuck = null; stuckCount = 0;
     smooth = { x: 0, y: 0 };
   }
-  function save() {
+  // 只儲存使用者在面板上選的設定；停止輔助、死亡保護、錯誤停機等自動關閉只在本次有效，下次開啟仍是上次選的設定。
+  let chosen = null;
+  function save(fromUser = false) {
     normalize();
-    try { localStorage.setItem(KEY, JSON.stringify(settings)); storageNote = ""; }
+    if (fromUser || !chosen) chosen = JSON.parse(JSON.stringify(settings));
+    try { localStorage.setItem(KEY, JSON.stringify(chosen)); storageNote = ""; }
     catch { storageNote = "設定無法儲存，本次仍有效"; }
     refreshControls();
   }
@@ -178,32 +186,13 @@
     const columns = s.w?.belt?.columns;
     return typeof game?.drinkFrom === "function" && Array.isArray(columns) && columns.some((c) => ["potion", "healing", "rejuvenation"].includes(c?.[0]));
   }
-  function surrounded(s, danger) {
-    if (!s.p || danger.damage <= 0) return false;
-    const p = s.p, radius = p.radius || 12;
-    const near = s.enemies.filter((e) => dist(e, p) <= radius + (e.radius || 12) + 60);
-    if (near.length < 3) return false;
-    // 只取樣局部通道；不改座標，也不宣稱完成全圖路徑搜尋。
-    const reach = Math.max(60, Math.min(120, (p.speed || 150) * 0.5));
-    for (let i = 0; i < 16; i++) {
-      const angle = i * Math.PI / 8, dx = Math.cos(angle) * reach / 16, dy = Math.sin(angle) * reach / 16;
-      let x = p.x, y = p.y, clear = true;
-      for (let j = 0; j < 16; j++) {
-        const next = typeof s.w.walls?.slide === "function" ? s.w.walls.slide(x, y, dx, dy) : { x: x + dx, y: y + dy };
-        if (!point(next) || Math.hypot(next.x - x, next.y - y) < Math.hypot(dx, dy) * 0.5 || near.some((e) => dist(next, e) < radius + (e.radius || 12) + 5)) { clear = false; break; }
-        x = next.x; y = next.y;
-      }
-      if (clear) return false;
-    }
-    return true;
-  }
+  let hellClears = 0;
   function deathReason(s, danger, now, healingFailed = false) {
     if (!assistOn() || !settings.deathProtection.enabled || !s.p || !s.hp || s.hp.now <= 0 || s.w === protectedWorld) return "";
     if (danger.damage > 0 && danger.damage >= s.hp.now && (healingFailed || !healingAvailable(s, now))) return "預估致命傷害且無可用回血藥水";
     if (s.hp.now / s.hp.max * 100 <= settings.deathProtection.emergencyHpPercent && now - lastHp < settings.potion.hpCooldownMs) return "生命低於緊急門檻且回血藥水冷卻中";
-    // 實測：滿血被小怪貼身也會判定包圍而誤離場，須同時有實際危險（低血或預估傷害過半）。
-    const risky = s.hp.now / s.hp.max <= 0.5 || danger.damage >= s.hp.now * 0.5;
-    if (risky && surrounded(s, danger)) return "周圍通道皆受阻，預估無法閃避包圍";
+    // 依使用者要求：死亡保護只看「預判接下來的傷害會不會致死」，不再以被包圍判定
+    //（實測 35 存檔的觸發幾乎都是包圍判定，造成同一處反覆離場→繼續→離場而卡關）。
     return "";
   }
   function retreatFailed(message) {
@@ -224,8 +213,10 @@
     protectedWorld = s.w;
     retreat = { g, deadline: now + 8000 };
     release();
-    settings.terror.mode = "off"; settings.quest.autoProgress = false;
-    if (settings.deathProtection.disableAutomation) { settings.enabled = false; settings.progressEnabled = false; }
+    // 死亡保護離場也算一次失敗：最高難度累積 2 次就照既有邏輯回低一級刷一局。
+    if (g.difficulty) failStreak[g.difficulty] = (failStreak[g.difficulty] || 0) + 1;
+    // 只有設定「離場後關閉總開關」才停止推進；否則回營地後由營地流程自動繼續上次進度。
+    if (settings.deathProtection.disableAutomation) { settings.terror.mode = "off"; settings.quest.autoProgress = false; settings.enabled = false; settings.progressEnabled = false; }
     lastAction = "死亡保護：" + reason + "，正在離開本局"; save();
     try {
       // 原版已確認的暫停選單出口：leaveRun -> toMenu -> enterCamp（營地模式）。
@@ -255,6 +246,8 @@
     const item = drop.item;
     // 原版寶箱是 kind=chest 的掉落物（碰到即收進待開寶箱），一律撿。
     if (drop.kind === "chest") return true;
+    // 實測：地上藥水是 kind=potion 且沒有 item，舊版只接受金幣，藥水全被略過（角色 49/294 血、腳邊 4 瓶藥水沒撿）。
+    if (drop.kind === "potion") { const cols = game?.world?.belt?.columns; return !Array.isArray(cols) || cols.some((c) => (c?.length || 0) < 4); }
     if (!item) return drop.kind === "gold" && settings.loot.pickupGold;
     if (item.type === "quest") return questOn();
     if (item.type === "rune") { const n = String(item.base).match(/^r(\d{2})$/); return !!n && +n[1] >= settings.loot.minRuneTier; }
@@ -272,18 +265,38 @@
     worthCache.set(item, { ok, at: now });
     return ok;
   }
+  // 會去撿的掉落物（不含罐子）；通關後沒有就直接離開。
+  const wantedLoot = (s, now, lootOn = assistOn() && settings.loot.enabled) => s.pickups.filter((e) => !e.flippy && !e.discarded && e.loot !== "sell" && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && accepts(e) && dist(e, s.p) <= settings.loot.searchRadius);
+  // 全圖撿取（非原版行為，可關閉）：要撿的掉落物設原版 magnet 自己飛來；寶箱原版不吸，直接移到角色身上讓原版開啟。
+  function vacuum(s, now) {
+    if (!assistOn() || !settings.loot.enabled || !settings.loot.vacuum || !s.p) return;
+    for (const e of s.pickups) {
+      if (e.dead || e.flippy || e.discarded || e.loot === "sell" || e.kind === "xp" || !accepts(e)) continue;
+      if (e.kind === "chest") { e.x = s.p.x; e.y = s.p.y; e.sprite?.position?.set?.(e.x, e.y); }
+      else e.magnet = true;
+    }
+  }
   function lootGoal(s, now) {
     const lootOn = assistOn() && settings.loot.enabled;
     if (!lootOn && !questOn()) return null;
     if (lootTarget && !lootTarget.dead && now - lootSince > 3500) { blockedLoot.set(lootTarget, now + 15000); lootTarget = null; }
-    const candidates = s.pickups.filter((e) => !e.flippy && !e.discarded && e.loot !== "sell" && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && accepts(e) && dist(e, s.p) <= settings.loot.searchRadius);
-    const weight = (e) => e.item?.type === "quest" ? 2000 : e.kind === "chest" ? 1500 : ["unique", "set", "runeword"].includes(e.item?.rarity) ? 1000 : e.item ? 500 : 50;
+    const candidates = wantedLoot(s, now, lootOn);
+    const lowHp = s.hp.now / s.hp.max < 0.7;
+    const weight = (e) => e.kind === "potion" ? (lowHp ? 2500 : 600) : e.item?.type === "quest" ? 2000 : e.kind === "chest" ? 1500 : ["unique", "set", "runeword"].includes(e.item?.rarity) ? 1000 : e.item ? 500 : 50;
     candidates.sort((a, b) => weight(b) - weight(a) || dist(a, s.p) - dist(b, s.p));
     // 原版碰到罐子、木桶會自動踢破（可能掉藥水），走過去即可；不呼叫內部擊破函式。
     // 實測：最終王倒下（出現通關門／clearing）後不再踢罐；附近有敵人時也不為罐子冒險；藥帶滿了也不踢。
     const beltRoom = !Array.isArray(s.w.belt?.columns) || s.w.belt.columns.some((c) => (c?.length || 0) < 4);
-    const calm = !s.enemies.some((e) => dist(e, s.p) < settings.movement.kiteDistance);
-    if (lootOn && settings.loot.kickJars && beltRoom && calm && !game?.clearing && !point(game?.clearing?.portal)) candidates.push(...s.jars.filter((e) => (blockedLoot.get(e) || 0) < now && dist(e, s.p) <= settings.loot.searchRadius).sort((a, b) => dist(a, s.p) - dist(b, s.p)).slice(0, 1));
+    // 實測：前期買不起藥水、藥帶全空又不會自動回血，生命偏低時罐子是唯一藥水來源：
+    // 藥帶空且生命 < 70％ 時罐子排第一、搜尋距離放寬到 800、只要敵人不貼近就去踢（不必等最終王倒下）。
+    const beltEmpty = Array.isArray(s.w.belt?.columns) && s.w.belt.columns.every((c) => !(c?.length));
+    const needPotion = beltEmpty && s.hp.now / s.hp.max < 0.7;
+    // 依使用者要求踢罐子優先度不要太高：缺藥時排在藥水／寶箱／裝備之後，不缺藥時附近 1.5 倍距離內有怪就不踢。
+    const calm = !s.enemies.some((e) => dist(e, s.p) < settings.movement.kiteDistance * (needPotion ? 0.5 : 1.5));
+    if (lootOn && settings.loot.kickJars && beltRoom && calm && (needPotion || (!game?.clearing && !point(game?.clearing?.portal)))) {
+      const jars = s.jars.filter((e) => (blockedLoot.get(e) || 0) < now && dist(e, s.p) <= settings.loot.searchRadius).sort((a, b) => dist(a, s.p) - dist(b, s.p)).slice(0, 1);
+      candidates.push(...jars);
+    }
     const target = candidates[0];
     if (!target) { lootTarget = null; return null; }
     if (target.rank === "breakable") { if (lootTarget !== target) { lootTarget = target; lootSince = now; } return { x: target.x, y: target.y, kind: "kick", target }; }
@@ -291,10 +304,28 @@
     return { x: target.x, y: target.y, kind: "loot", target };
   }
   // 近戰／遠程：依排行榜該職業高手的力量配點比例判斷（≥25％ 為近戰：野蠻人、聖騎士、刺客、德魯伊）。
-  const isMelee = () => settings.movement.combatStyle === "melee" || (settings.movement.combatStyle === "auto" && (ladderOf(game)?.attributes?.strength ?? 0) >= 0.25);
-  const style = () => isMelee() ? { kite: Math.min(settings.movement.kiteDistance, 45), range: Math.min(settings.movement.attackRange, 90) } : { kite: settings.movement.kiteDistance, range: settings.movement.attackRange };
+  // 技能攻擊距離（原版 itemArt-Bh8qPZQJ.js 靜態分析，2026-11-01）：命中條件為中心距 ≤ 角色半徑＋reach＋怪物半徑，以下為邊緣間距。
+  // 未列出的攻擊技能多以 450 為索敵距離（法術、弓、標槍）；0 表示增益／被動，不影響走位。
+  const REACH = {
+    jab: 58, powerStrike: 58, chargedStrike: 58, lightningStrike: 58, impale: 58, fend: 84,
+    tigerStrike: 46, cobraStrike: 46, bladesOfIce: 46, fistsOfFire: 46, clawsOfThunder: 46, dragonClaw: 46, dragonTail: 46, dragonTalon: 90, royalStrike: 128,
+    doubleSwing: 48, bash: 54, stun: 54, frenzy: 66, concentrate: 58, berserk: 58, whirlwind: 200, leapAttack: 340, battleCry: 100, warCry: 100, howl: 100,
+    shout: 0, battleOrders: 0, battleCommand: 0, taunt: 0, grimWard: 0, leap: 0,
+    zeal: 46, smite: 54, sacrifice: 54, vengeance: 54, charge: 90, holyShield: 0, conversion: 220,
+  };
+  // 角色實際能打到的最遠距離：取已學攻擊技能的最大值；全部都短（< 150）就是近戰配置。
+  function myReach() {
+    const list = (game?.build?.skills || []).map((x) => REACH[x.id] ?? 450).filter((r) => r > 0);
+    return list.length ? Math.max(...list) : 450;
+  }
+  const isMelee = () => settings.movement.combatStyle === "melee" || (settings.movement.combatStyle === "auto" && myReach() < 150);
+  // 實測近戰前期沒藥水，血量見底仍貼身打精英而陣亡：生命低於一半時改用遠程拉距離，回血後再貼身。
+  const meleeHurt = () => { const p = game?.world?.player; return !!p && p.maxLife > 0 && p.life / p.maxLife < 0.5; };
+  const fighter = () => isMelee() && !meleeHurt();
+  // 近戰站在攻擊距離約六成處（不必貼身），遠程照常保持距離。
+  const style = () => fighter() ? { kite: Math.max(20, Math.min(myReach(), 150) * 0.6), range: Math.min(myReach(), 150) + 30 } : { kite: settings.movement.kiteDistance, range: settings.movement.attackRange };
   function battleGoal(e, p, kind = "戰鬥") {
-    const u = unit(p.x - e.x, p.y - e.y), distance = isMelee() ? (e.radius || 12) + (p.radius || 12) + 6 : settings.movement.kiteDistance;
+    const u = unit(p.x - e.x, p.y - e.y), distance = fighter() ? (e.radius || 12) + (p.radius || 12) + Math.min(myReach(), 150) * 0.6 : settings.movement.kiteDistance;
     return { x: e.x + (u.x || 1) * distance, y: e.y + u.y * distance, kind };
   }
   function questGoal(s) {
@@ -317,8 +348,8 @@
     return null;
   }
   // 實測：多敵貼近時排斥力互相抵銷，角色原地被圍死；改沿牆面滑動取樣 16 方向，選路徑上離敵最遠者。
-  function escapeDirection(s) {
-    const p = s.p, near = s.enemies.filter((e) => dist(e, p) < settings.movement.kiteDistance * 1.5);
+  function escapeDirection(s, list = null) {
+    const p = s.p, near = list || s.enemies.filter((e) => dist(e, p) < settings.movement.kiteDistance * 1.5);
     let best = null;
     for (let i = 0; i < 16; i++) {
       const a = i * Math.PI / 8, dx = Math.cos(a) * 15, dy = Math.sin(a) * 15;
@@ -337,7 +368,56 @@
   const isElite = (e) => ["actBoss", "boss", "champion"].includes(e.rank) || !!e.name;
   const power = (e) => Math.max(1, e.damage || 1) * Math.max(1, e.maxLife || e.life || 1) * (isElite(e) ? 3 : 1);
   function nearestElite(s) { return s.enemies.filter((e) => isElite(e) && dist(e, s.p) < 900).reduce((a, e) => !a || dist(e, s.p) < dist(a, s.p) ? e : a, null); }
+  // 全圖走位規劃（依使用者要求：一直保持移動，並分析地圖上所有怪物，而不只是閃開貼近的怪）：
+  // 威脅場＝所有存活怪物在 0.6 秒後的預測位置，依「單次傷害佔目前生命比例」加權（精英×2）；
+  // 24 方向×2 距離以原版牆面滑動取樣候選點，評分＝−威脅場−飛彈命中−擁擠＋攻擊站位＋目標吸引＋移動慣性。
+  let planHeading = { x: 1, y: 0 };
+  function planMove(s, goal, st, now, pursue = false) {
+    const p = s.p, taken = Math.max(1, finite(p.damageTaken) ? p.damageTaken : 1), hpNow = Math.max(1, s.hp.now);
+    const foes = s.enemies.map((e) => {
+      const d = dist(e, p), u = unit(p.x - e.x, p.y - e.y), sp = Math.min(d, Math.max(40, e.speed || e.moveSpeed || 90) * 0.6);
+      const w = Math.min(6, Math.max(0.15, Math.max(0, e.damage || 0) * taken / hpNow * 8)) * (isElite(e) ? 2 : 1);
+      return { x: e.x + u.x * sp, y: e.y + u.y * sp, r: e.radius || 12, w, e };
+    });
+    // 打不痛的飛彈（單次低於目前生命的忽略門檻）不納入，沿用原本不閃的規則。
+    const shots = (s.shots || []).filter((sh) => Math.max(0, sh.damage || 0) * taken >= hpNow * settings.movement.ignoreDamagePercent / 100);
+    const near = foes.filter((f) => dist(f, p) < 900);
+    if (!near.length && !shots.length) return null;
+    const ranged = !fighter(), want = ranged ? Math.max(st.kite, Math.min(st.range * 0.8, myReach() * 0.7)) : Math.max(20, Math.min(myReach(), 150) * 0.6);
+    const scale = ranged ? Math.max(120, want) : 90;
+    const focus = (goal && goal.kind !== "loot" && goal.kind !== "kick" && nearestElite(s)) || near.reduce((a, f) => !a || dist(f, p) < dist(a, p) ? f : a, null)?.e;
+    const threat = (pt) => near.reduce((a, f) => { const d = Math.max(0, dist(pt, f) - f.r); return a + f.w / (1 + (d / scale) ** 2); }, 0);
+    const shotHit = (pt) => shots.reduce((a, sh) => {
+      const vx = sh.vx || 0, vy = sh.vy || 0, rr = (sh.radius || 5) + (p.radius || 12) + settings.movement.projectileSafetyRadius;
+      for (let t = 0; t <= 0.6; t += 0.1) if (Math.hypot(sh.x + vx * t - pt.x, sh.y + vy * t - pt.y) < rr) return a + Math.max(0.5, Math.max(0, sh.damage || 0) * taken / hpNow * 10);
+      return a;
+    }, 0);
+    const danger = threat(p);
+    let best = null;
+    for (let i = 0; i < 24; i++) {
+      const a = i * Math.PI / 12, dir = { x: Math.cos(a), y: Math.sin(a) };
+      for (const step of [70, 150]) {
+        let x = p.x, y = p.y;
+        for (let j = 0; j < 5; j++) {
+          const next = typeof s.w.walls?.slide === "function" ? s.w.walls.slide(x, y, dir.x * step / 5, dir.y * step / 5) : { x: x + dir.x * step / 5, y: y + dir.y * step / 5 };
+          if (!point(next)) break; x = next.x; y = next.y;
+        }
+        const moved = Math.hypot(x - p.x, y - p.y);
+        if (moved < step * 0.4) continue;
+        const pt = { x, y };
+        let score = -threat(pt) * 4 - shotHit(pt) * 6 - near.filter((f) => dist(f, pt) < 110).length * 0.4;
+        if (focus) score -= Math.abs(dist(pt, focus) - want) / want * 1.5;
+        if (goal && dist(goal, p) > 5) score += (dist(p, goal) - dist(pt, goal)) / step * (pursue ? 5 : danger < 0.6 ? 2.5 : 0.8);
+        score += (dir.x * planHeading.x + dir.y * planHeading.y) * 0.5;
+        if (!best || score > best.score) best = { score, dir, pt };
+      }
+    }
+    if (!best) return null;
+    planHeading = best.dir;
+    return { dir: best.dir, target: best.pt, danger };
+  }
   function navigate(s, danger, now) {
+    vacuum(s, now);
     const st = style(), g = game, m = { ...settings.movement, kiteDistance: st.kite, attackRange: st.range, enabled: assistOn() && settings.movement.enabled }, progressing = questOn() || terrorMode() !== "off", portal = g.clearing?.portal;
     if (point(portal) && clearWorld !== s.w) { clearWorld = s.w; clearAt = now; }
     let closeEnemy = false, x = 0, y = 0;
@@ -361,6 +441,23 @@
         if (strong) { const away = unit(s.p.x - strong.x, s.p.y - strong.y); x = (away.x || 1) * 8; y = away.y * 8; through = true; }
       }
     }
+    // 預判包圍：看地圖上較遠的怪（約 2.5 倍走位距離），預測 0.8 秒後位置；
+    // 怪從多個方向圍過來（最大空隙小於 240°）就提前往空隙走，不等貼身被卡死才逃。
+    let pre = null;
+    if (m.enabled && !through) {
+      const R = Math.max(450, settings.movement.kiteDistance * 2.5), taken2 = taken;
+      const threats = s.enemies.filter((e) => dist(e, s.p) < R && (isElite(e) || Math.max(0, e.damage || 0) * taken2 >= s.hp.now * m.ignoreDamagePercent / 100));
+      if (threats.length >= (fighter() ? 5 : 3)) {
+        const ahead = threats.map((e) => { const d = dist(e, s.p), u = unit(s.p.x - e.x, s.p.y - e.y), sp = Math.min(d, Math.max(40, e.speed || e.moveSpeed || 90) * 0.8); return { x: e.x + u.x * sp, y: e.y + u.y * sp, radius: e.radius }; });
+        const angles = ahead.map((e) => Math.atan2(e.y - s.p.y, e.x - s.p.x)).sort((a, b) => a - b);
+        let gap = 0;
+        for (let i = 0; i < angles.length; i++) gap = Math.max(gap, (i + 1 < angles.length ? angles[i + 1] : angles[0] + 2 * Math.PI) - angles[i]);
+        if (gap < Math.PI * 4 / 3) {
+          const out = escapeDirection(s, ahead);
+          if (out) { const w = 3 + 5 * (1 - gap / (Math.PI * 4 / 3)); pre = { x: out.x * w, y: out.y * w }; x += pre.x; y += pre.y; closeEnemy = true; lastAction = "預判怪物包圍，提前往空隙走位"; }
+        }
+      }
+    }
     // 王與精英怪要留在攻擊範圍內：閃避時若離太遠就往回拉，不會越躲越遠。
     const elite = m.enabled ? nearestElite(s) : null;
     if (elite && dist(elite, s.p) > m.attackRange) { const back = unit(elite.x - s.p.x, elite.y - s.p.y); x += back.x * 6; y += back.y * 6; }
@@ -368,14 +465,15 @@
     if (dodging) { x += danger.dodgeX; y += danger.dodgeY; }
     // 王／精英掉的寶箱與暗金以上裝備還在附近時，最多等 20 秒撿完再走通關門。
     const treasure = s.pickups.some((e) => (e.kind === "chest" || ["unique", "set", "runeword"].includes(e.item?.rarity)) && (blockedLoot.get(e) || 0) < now && dist(e, s.p) <= settings.loot.searchRadius);
-    const portalDue = progressing && point(portal) && (!settings.loot.backtrackForLoot || now - clearAt >= (treasure ? 20000 : settings.terror.postClearWaitSec * 1000));
+    // 通關後沒有要撿的東西就立刻走通關門，不等待。
+    const portalDue = progressing && point(portal) && (!settings.loot.backtrackForLoot || !wantedLoot(s, now).length || now - clearAt >= (treasure ? 20000 : settings.terror.postClearWaitSec * 1000));
     // 追目標優先：推進中且生命尚可時以目標前進，路上只閃飛彈，不因被怪包夾而越閃越遠。
     // 追目標只用於王／精英／任務／物品／通關門；一般小怪仍保持距離（實測一般怪也衝會被包圍而早死）。
-    const ratio = s.hp.now / s.hp.max, chase = m.enabled && settings.movement.chaseFirst && ratio > 0.35;
+    const ratio = s.hp.now / s.hp.max, chase = m.enabled && settings.movement.chaseFirst && ratio > (isMelee() ? 0.5 : 0.35);
     const free = chase || (!dodging && !closeEnemy);
     // 實測原版：盜賊是 thiefChase.e（帶金幣逃向傳送門的精英，被打會掉金幣，20 秒後逃走），出現就最優先追擊。
     const thief = live(g.thiefChase?.e) ? g.thiefChase.e : null;
-    let goal = thief && m.enabled && ratio > 0.25 ? { ...battleGoal(thief, s.p, "盜賊"), ...(isMelee() ? {} : (() => { const u = unit(s.p.x - thief.x, s.p.y - thief.y), d = Math.min(m.kiteDistance, m.attackRange * 0.6); return { x: thief.x + (u.x || 1) * d, y: thief.y + u.y * d }; })()) } : null;
+    let goal = thief && m.enabled && ratio > 0.25 ? { ...battleGoal(thief, s.p, "盜賊"), ...(fighter() ? {} : (() => { const u = unit(s.p.x - thief.x, s.p.y - thief.y), d = Math.min(m.kiteDistance, m.attackRange * 0.6); return { x: thief.x + (u.x || 1) * d, y: thief.y + u.y * d }; })()) } : null;
     if (!goal) goal = free && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
     if (!goal && questOn() && !portalDue) goal = questGoal(s);
     if (!goal && portalDue) goal = { x: portal.x, y: portal.y, kind: "通關傳送門" };
@@ -385,19 +483,28 @@
       // 此遊戲不需探圖，敵人會自己湧來；沒有敵人時原地等待，不越跑越遠。
     }
     // 近戰要貼身才打得到，一般怪也直接追；遠程對一般怪保持距離。
-    const chaseKind = goal && (isMelee() ? goal.kind !== "巡航" : !["戰鬥", "巡航"].includes(goal.kind)) && (goal.kind !== "kick" || !closeEnemy);
-    const pursue = chase && chaseKind && dist(goal, s.p) > 5;
+    const chaseKind = goal && (fighter() ? goal.kind !== "巡航" : !["戰鬥", "巡航"].includes(goal.kind)) && (goal.kind !== "kick" || !closeEnemy);
+    // 實測前期常朝被大群怪包著的精英衝而陣亡：目標周圍 250 內有 8 隻以上怪時不衝，改保持距離慢慢清（王與任務目標除外）。
+    const crowded = goal && ["精英", "戰鬥"].includes(goal.kind) && s.enemies.filter((e) => dist(e, goal) < 250).length >= 8;
+    const pursue = chase && chaseKind && !crowded && dist(goal, s.p) > 5;
     if (pursue) {
       const u = unit(goal.x - s.p.x, goal.y - s.p.y), d = dodging ? unit(danger.dodgeX, danger.dodgeY) : { x: 0, y: 0 };
-      x = u.x * 2 + d.x * 1.5; y = u.y * 2 + d.y * 1.5;
-    } else if (goal && !dodging && !closeEnemy && dist(goal, s.p) > 5) { const u = unit(goal.x - s.p.x, goal.y - s.p.y); x += u.x; y += u.y; }
-    let u = unit(x, y);
-    if (!u.x && !u.y) { release(); return; }
-    const mix = dodging ? 1 : m.smoothingFactor;
+      // 追目標時也要避開預判的包圍。
+      x = u.x * 2 + d.x * 1.5 + (pre ? pre.x * 0.6 : 0); y = u.y * 2 + d.y * 1.5 + (pre ? pre.y * 0.6 : 0);
+    } else if (goal && !crowded && !dodging && !closeEnemy && dist(goal, s.p) > 5) { const u = unit(goal.x - s.p.x, goal.y - s.p.y); x += u.x; y += u.y; }
+    // 有怪或飛彈時改用全圖規劃器；沒有任何威脅時走目標，連目標都沒有就慢速繞圈，保持移動。
+    // 追盜賊／王／任務等目標時加重目標吸引，仍會避開威脅與飛彈。
+    const plan = m.enabled && !through ? planMove(s, goal, st, now, pursue) : null;
+    let u = plan ? plan.dir : unit(x, y);
+    if (!u.x && !u.y) {
+      if (!m.enabled) { release(); return; }
+      const a = Math.atan2(planHeading.y, planHeading.x) + 0.35; u = { x: Math.cos(a), y: Math.sin(a) }; planHeading = u;
+    }
+    const mix = dodging || plan ? 1 : m.smoothingFactor;
     u = unit(smooth.x * (1 - mix) + u.x * mix, smooth.y * (1 - mix) + u.y * mix); smooth = u;
     // 使用原版 walkTarget -> walls.route/slide，不直接改座標或穿牆。
-    const direct = goal && !dodging && (pursue || !closeEnemy);
-    const target = direct ? { x: goal.x, y: goal.y } : { x: s.p.x + u.x * 100, y: s.p.y + u.y * 100 };
+    const direct = goal && !plan && !dodging && !pre && !crowded && (pursue || !closeEnemy);
+    const target = plan ? { ...plan.target } : direct ? { x: goal.x, y: goal.y } : { x: s.p.x + u.x * 100, y: s.p.y + u.y * 100 };
     if (typeof s.w.walls?.nearestOpen === "function") Object.assign(target, s.w.walls.nearestOpen(target.x, target.y));
     if (!point(target)) { release(); return; }
     if (ownReach && s.w.reaching === ownReach) s.w.reaching = null;
@@ -405,7 +512,7 @@
     if (ownReach) s.w.reaching = ownReach;
     ownWalk = target; g.walkTarget = target;
     const label = goal?.kind === "loot" ? "拾取物品" : goal?.kind === "kick" ? "踢罐子" : goal?.kind || "安全位置";
-    lastAction = through ? "被包圍無路可閃，穿過怪群遠離最強敵人" : pursue ? "朝目標前進：" + label + (dodging ? "（閃避飛彈）" : "") : dodging ? "閃避敵方飛彈" : closeEnemy ? "保持敵人距離" : "前往" + label;
+    lastAction = plan ? "全圖走位（威脅 " + plan.danger.toFixed(1) + "）" + (goal ? "：" + label : "") : through ? "被包圍無路可閃，穿過怪群遠離最強敵人" : pursue ? "朝目標前進：" + label + (dodging ? "（閃避飛彈）" : "") : dodging ? "閃避敵方飛彈" : closeEnemy ? "保持敵人距離" : "前往" + label;
     // 以遊戲內時間判斷卡住（畫面凍結不算）；為了完全自主運作，卡住只換方向繞路，不停機。
     const clock = finite(s.w.time) ? s.w.time * 1000 : now;
     if (!stuck || clock < stuck.at) stuck = { x: s.p.x, y: s.p.y, at: clock };
@@ -446,6 +553,16 @@
   // 全新存檔沒有恐怖層紀錄：在營地沿用原版傳送點流程（續玩存檔或開新局）。
   let campSince = 0;
   const failStreak = {};
+  // 中途「儲存並離開」會回主選單／選角畫面：有存著的進度就用原版 continueRun 繼續。
+  function menuResume(g, now) {
+    if (g.state !== "select" || !questOn() || !settings.quest.autoStart || !g.kit || g.swapping || transition || now - actionAt < 3000 || typeof g.continueRun !== "function") return false;
+    let saved = null;
+    try { saved = g.frontend?.actions?.saved?.(g.kit.id); } catch { saved = null; }
+    if (!saved) return false;
+    actionAt = now; lastAction = "中途離開，自動繼續上次進度";
+    void g.continueRun(g.kit, "hero");
+    return true;
+  }
   function campStart(g, now) {
     if (g.state !== "camp") { campSince = 0; return false; }
     if (!campSince) campSince = now;
@@ -466,7 +583,7 @@
     const fixed = opened.find((s) => s.difficulty === settings.quest.farmDifficulty);
     const fresh = fixed || (farm ? opened[1] : opened[0]);
     if (farm) failStreak[opened[0].difficulty] = 0;
-    if (resume && (settings.quest.farmDifficulty === "off" || resume.difficulty === settings.quest.farmDifficulty) && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; void g.continueRun(g.kit, "hero"); return true; }
+    if (resume && !farm && (settings.quest.farmDifficulty === "off" || resume.difficulty === settings.quest.farmDifficulty) && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; void g.continueRun(g.kit, "hero"); return true; }
     if (!fresh || typeof g.startRun !== "function") return false;
     lastAction = (fixed ? "重複刷難度：" : farm ? "最高難度打不上去，回低難度刷：" : "從營地開新局：") + fresh.difficulty; void g.startRun(g.kit, fresh.difficulty);
     return true;
@@ -479,7 +596,9 @@
     // 實測（2026-11-01）：減傷、施法速度為小數（0.5＝50％），抗性可為負（地獄 −40）；舊公式幾乎不算防禦而變成玻璃大砲。
     // 以「少承受 1％ 傷害 ≈ 多打 1％ 傷害」計分：生命權重高於傷害，減傷與四系抗性依實際減少承受量，負抗性扣分。
     const taken = (r) => -Math.log(1 - Math.min(75, r) / 100) * 100;
-    const res = ["Fire Resistance", "Cold Resistance", "Lightning Resistance", "Poison Resistance"].reduce((a, k) => a + taken(n[k] || 0) * 0.5, 0);
+    // 實測（死亡保護反覆觸發的存檔）：惡夢 58 級野蠻人火／冰抗 −32／−16，元素傷害放大而一直撐不住；
+    // 抗性權重由 0.5 提高到 1，負抗性每點再扣 1.5 分，換裝優先把負抗補回正數。
+    const res = ["Fire Resistance", "Cold Resistance", "Lightning Resistance", "Poison Resistance"].reduce((a, k) => { const r = n[k] || 0; return a + taken(r) + Math.min(0, r) * 1.5; }, 0);
     const reduced = Math.min(0.5, Math.max(0, n["Damage Reduced"] || 0));
     return Math.log1p(Math.max(0, n.Damage || 0)) * 100 + Math.log1p(Math.max(0, n.Life || 0)) * 130 - Math.log(1 - reduced) * 150 + res + Math.log1p(Math.max(0, n["Enhanced Defense"] || 0) / 100) * 20 + Math.min(1, n["Faster Cast Rate"] || 0) * 20 + (n["Replenish Life"] || 0) * 0.5 + (n["Magic Find"] || 0) * 0.02;
   }
@@ -594,8 +713,13 @@
     },
     potions(g) {
       if (!settings.town.buyPotions || !openTrade(g, "akara")) return true;
-      const i = trade.wares.findIndex((w) => w?.potion && /Healing/i.test(w.name || "")), w = trade.wares[i];
-      if (!w?.canBuy || (w.potion.bought ?? 0) >= settings.town.potionCount) return true;
+      // 藥水名稱可能被在地化，改以描述「Heals … Life」或第一個藥水欄判斷；買不起或腰帶滿時原版 canBuy 為 false。
+      const wares = trade.wares || [], heal = (w) => w?.potion && (/Heal|Life|生命|治療/i.test(String(w.describe || "") + (w.name || "")));
+      let i = wares.findIndex((w) => heal(w) && w.canBuy);
+      if (i < 0) i = wares.findIndex((w) => w?.potion && w.canBuy);
+      // 開啟就買到腰帶滿或金幣不足為止（原版 canBuy 會反映）。
+      const w = wares[i];
+      if (!w) return true;
       trade.acts.buy(i); lastAction = "整備：向阿卡拉買生命藥水";
       return false;
     },
@@ -629,9 +753,22 @@
       return false;
     },
   };
+  let townSince = 0;
   function campShop(g, now) {
     if (!settings.progressEnabled || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
-    if (g.state === "playing") { shop = null; return false; }
+    if (g.state === "playing") { shop = null; townSince = 0; return false; }
+    // 實測：死亡保護離場後原版停在營地的城鎮商店畫面（state=town），整備已完成就沒人離開而卡住；
+    // 營地裡停在商店 3 秒以上且不在整備中，就用原版離開回到營地，讓自動開局／繼續接手。
+    if (g.state === "town" && g.camp && (!shop || shop.done)) {
+      if (!townSince) townSince = now;
+      if (now - townSince > 3000) {
+        townSince = 0; lastAction = "離開營地商店，準備繼續";
+        // 實測：商店介面已關（g.trade 為空、#town 隱藏）但 state 仍是 town；比照重置技能流程直接回到 camp。
+        const panel = document.getElementById("town");
+        if (!g.trade && (!panel || panel.classList.contains("hidden"))) { g.state = "camp"; return true; }
+        if (!trade) hookTown(g) && g.showTown?.(); trade?.acts?.leave?.(); trade = null; return true;
+      }
+    } else townSince = 0;
     if (shop?.done) return false;
     // 實測：清場後碰到恰西會停在商店畫面不動；順便賣裝與升級，再離開回到戰鬥。
     if (!shop && g.state === "town" && g.trade?.smith && !g.camp && hookTown(g)) {
@@ -677,11 +814,59 @@
     restores.push(() => { delete hud.__d2autobotBuild; });
   }
   const ladderOf = (g) => settings.build.ladder ? LADDER.classes[g?.kit?.id || g?.world?.player?.cls] : null;
+  // 原版技能表（itemArt 模組匯出：技能含 maxLevel／evolution{passive,into}／synergies[{from}]；被動含 maxLevel）。
+  let SKILLS = null, PASSIVES = null;
+  async function loadSkillTables(gameUrl) {
+    try {
+      const urls = performance.getEntriesByType("resource").map((e) => e.name).filter((u) => /\/itemArt-[\w-]+\.js/.test(u));
+      for (const u of urls.length ? urls : [new URL("itemArt-Bh8qPZQJ.js", gameUrl).href]) {
+        const m = await import(u);
+        for (const v of Object.values(m)) {
+          if (!v || typeof v !== "object" || Array.isArray(v)) continue;
+          if (!SKILLS && v.doubleSwing?.name && v.magicArrow?.name) SKILLS = v;
+          if (!PASSIVES && v.innerSight?.name && v.criticalStrike?.name) PASSIVES = v;
+        }
+        if (SKILLS) break;
+      }
+    } catch { /* 讀不到就只用排行榜權重 */ }
+  }
+  const idByName = (table, name) => table && Object.keys(table).find((k) => String(table[k]?.name || "").toLowerCase() === name);
+  function ladderWeight(g, name) {
+    const l = ladderOf(g);
+    if (!l) return { skill: 0, passive: 0 };
+    const s = l.skills.find(([, n]) => n.toLowerCase() === name), p = l.passives.find(([, n]) => n.toLowerCase() === name);
+    return { skill: s ? s[2] : 0, passive: p ? p[2] : 0, skillId: s?.[0], passiveId: p?.[0] };
+  }
+  // 選卡（卡片隨機出現）：排行榜是 99 級配置，前期等級不夠，不能只照它選。
+  // 1. 進化就緒的卡最優先；2. 集中升級主力技能（目前等級最高的攻擊技能）；3. 主力技能的進化被動與協同技能；
+  // 4. 技能少於 2 個時學新技能；5. 其他已學技能升級、通用被動；排行榜權重只做同類比較。
   function ladderScore(g, title) {
-    const l = ladderOf(g), name = String(title || "").trim().toLowerCase();
-    if (!l || !name) return 0;
-    const skill = l.skills.find(([, n]) => n.toLowerCase() === name), passive = l.passives.find(([, n]) => n.toLowerCase() === name);
-    return skill ? skill[2] * 10 : passive ? passive[2] * 6 : 0;
+    const name = String(title || "").trim().toLowerCase();
+    if (!name) return 0;
+    const lw = ladderWeight(g, name), owned = g.build?.skills || [], passives = g.build?.passives || {};
+    const skillId = idByName(SKILLS, name) || lw.skillId, passiveId = !skillId ? (idByName(PASSIVES, name) || lw.passiveId) : null;
+    const attack = owned.filter((x) => (REACH[x.id] ?? 1) > 0);
+    const main = attack.reduce((a, x) => !a || (x.level || 1) > (a.level || 1) || ((x.level || 1) === (a.level || 1) && ladderWeight(g, String(SKILLS?.[x.id]?.name || "").toLowerCase()).skill > ladderWeight(g, String(SKILLS?.[a.id]?.name || "").toLowerCase()).skill) ? x : a, null);
+    const mainDef = main && SKILLS?.[main.id];
+    if (skillId) {
+      const mine = owned.find((x) => x.id === skillId), def = SKILLS?.[skillId];
+      if (mine) {
+        const max = def?.maxLevel || 99;
+        if ((mine.level || 1) >= max) return -5;
+        return (mine === main ? 60 : 30) + lw.skill * 3 - (mine.level || 1) * 0.5;
+      }
+      if (REACH[skillId] === 0) return 6 + lw.skill * 2;
+      const synergy = mainDef?.synergies?.some((x) => x.from === skillId) ? 25 : 0;
+      return (attack.length < 2 ? 45 : attack.length < 4 ? 12 : 2) + synergy + lw.skill * 4;
+    }
+    if (passiveId) {
+      const lvl = passives[passiveId] || 0, max = PASSIVES?.[passiveId]?.maxLevel || 99;
+      if (lvl >= max) return -5;
+      const evolveMain = mainDef?.evolution?.passive === passiveId ? 55 : 0;
+      const evolveAny = owned.some((x) => SKILLS?.[x.id]?.evolution?.passive === passiveId) ? 30 : 0;
+      return 10 + Math.max(evolveMain, evolveAny) + lw.passive * 4;
+    }
+    return 0;
   }
   function pickCard(g, buttons) {
     let best = 0, score = -Infinity;
@@ -711,12 +896,14 @@
     lastAction = "依排行榜比例分配屬性點 " + unspent + " 點";
   }
   // 目前技能投資與高手前 8 名技能重疊不到一半時，在營地向阿卡拉重置技能，再依排行榜重新選卡。
+  // 重置技能判斷（原版：保留等級與裝備、重新分配所有升級，卡片仍隨機）：
+  // 舊版以「是否符合排行榜 99 級配法」判斷，與依當下等級集中升級的選卡互相衝突、浪費金幣；
+  // 改為看配點是否太分散：攻擊技能合計 ≥ 8 級而主力技能占比 < 40％ 就重置，重新集中升級。
   function alignment(g) {
-    const l = ladderOf(g), skills = Array.isArray(g.build?.skills) ? g.build.skills : [];
-    const total = skills.reduce((a, s) => a + (s.level || 1), 0);
-    if (!l || total < 6) return 1;
-    const top = new Set(l.skills.slice(0, 8).map(([id]) => id));
-    return skills.reduce((a, s) => a + (top.has(s.id) ? s.level || 1 : 0), 0) / total;
+    const skills = (Array.isArray(g.build?.skills) ? g.build.skills : []).filter((x) => (REACH[x.id] ?? 1) > 0);
+    const total = skills.reduce((a, x) => a + (x.level || 1), 0);
+    if (total < 8) return 1;
+    return Math.max(...skills.map((x) => x.level || 1)) / total;
   }
   function campRedraft(g, now) {
     if (g.state !== "camp") { if (g.state === "playing") redraft = null; return false; }
@@ -724,7 +911,7 @@
     if (redraft?.done) return false;
     if (!redraft) {
       redraftVisits++;
-      if (redraftVisits % 3 !== 1 || alignment(g) >= 0.5) { redraft = { done: true }; return false; }
+      if (redraftVisits % 3 !== 1 || alignment(g) >= 0.4) { redraft = { done: true }; return false; }
       hookBuild(g); redraft = { phase: "open", at: 0 }; campMenu = null;
     }
     if (now - redraft.at < 300) return true;
@@ -735,13 +922,13 @@
     // 實測：重置在首次擊殺巴爾後才開放；關閉選單後原版停在 town，需比照原版自行回到 camp。
     if (!item) { g.hud?.hideNpcMenu?.(); if (g.state === "town" && g.camp) g.state = "camp"; if (redraft.phase === "choose") lastAction = "重置技能：目前無法重置（金幣不足或未開放）"; redraft = { done: true }; return false; }
     campMenu = null; item.run();
-    if (redraft.phase === "choose") { redraft.phase = "confirm"; lastAction = "重置技能：技能偏離排行榜高手配法，向阿卡拉重置"; return true; }
-    redraft = { done: true }; lastAction = "重置技能完成，依排行榜重新選卡";
+    if (redraft.phase === "choose") { redraft.phase = "confirm"; lastAction = "重置技能：配點太分散，向阿卡拉重置後集中升級主力技能"; return true; }
+    redraft = { done: true }; lastAction = "重置技能完成，重新集中升級";
     return true;
   }
   function progression(g, now) {
     if (campRedraft(g, now)) return true;
-    if (campShop(g, now) || campStart(g, now)) return true;
+    if (menuResume(g, now) || campShop(g, now) || campStart(g, now)) return true;
     if (terrorMode() === "off") return false;
     const record = g.save?.terror?.[g.kit?.id];
     if (["camp", "select"].includes(g.state) && !g.swapping && record && g.save?.heroes?.[g.kit?.id]?.kept && record.playing === undefined && !record.replay) {
@@ -765,8 +952,10 @@
     if (g && g.state !== "playing") {
       release();
       // 重複刷模式：打完巴爾不往下一難度，結束本局回營地再開同難度。
-      if (questOn() && settings.quest.farmDifficulty !== "off" && g.state === "dead" && g.afterBaal && typeof g.endAfterBaal === "function" && now - actionAt > 1500) {
-        g.endAfterBaal(); actionAt = now; lastAction = "重複刷：本輪通關，回營地再刷"; return;
+      // 地獄通關後沒有更高難度，一律當作重複刷地獄：結束本局回營地再開地獄。
+      if (questOn() && (settings.quest.farmDifficulty !== "off" || g.difficulty === "hell") && g.state === "dead" && g.afterBaal && typeof g.endAfterBaal === "function" && now - actionAt > 1500) {
+        if (g.difficulty === "hell") hellClears++;
+        g.endAfterBaal(); actionAt = now; lastAction = g.difficulty === "hell" ? "地獄通關（第 " + hellClears + " 次），回營地重複刷地獄" : "重複刷：本輪通關，回營地再刷"; return;
       }
       if (questOn() && g.state === "dead" && g.afterBaal?.next && typeof g.afterBaal.continue === "function" && now - actionAt > 1500) {
         g.afterBaal.continue(); actionAt = now; return;
@@ -824,6 +1013,7 @@
       if (!signatures.every((re) => re.test(source))) { for (const m of source.matchAll(/["'`]\.\/(Game-[\w-]+\.js)["'`]/g)) queue.push(new URL(m[1], url).href); continue; }
       // 精確沿用頁面模組 URL，讓瀏覽器回傳原模組實例；不加查詢字串、不執行修改版副本。
       const module = await import(url); if (!alive) return;
+      void loadSkillTables(url);
       const proto = module.Game?.prototype;
       if (typeof proto?.tick !== "function" || typeof proto.drinkFrom !== "function" || typeof proto.steer !== "function") continue;
       wrap(proto, "tick", (original) => function (...args) { if (alive) { game = this; guarded(this, performance.now()); } return Reflect.apply(original, this, args); });
@@ -837,6 +1027,10 @@
   launcher.type = stopButton.type = "button"; launcher.id = "d2autobot-launcher"; launcher.textContent = "輔助";
   launcher.style.cssText = "position:fixed;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));z-index:2147483645;display:none;padding:8px 14px;min-height:44px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.95);color:#d4a84a;font:bold 15px system-ui;cursor:pointer";
   stopButton.textContent = "停止輔助";
+  // 停止輔助按鈕下方顯示輔助器目前在做什麼。
+  const statusLine = document.createElement("div");
+  statusLine.id = "d2autobot-status";
+  statusLine.style.cssText = "position:fixed;top:calc(max(12px,env(safe-area-inset-top)) + 50px);left:50%;transform:translateX(-50%);z-index:2147483645;max-width:80vw;background:rgba(0,0,0,.7);color:#f0d9a0;border-radius:4px;padding:2px 8px;font:13px sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;display:none";
   stopButton.style.cssText = "position:fixed;top:max(12px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:2147483645;min-height:44px;background:#531b15;color:#fff;border:1px solid #d4a84a;border-radius:6px;padding:6px 12px;display:none";
   host.id = "d2autobot-panel"; host.style.cssText = "position:fixed;inset:0;z-index:2147483647;pointer-events:none";
   const root = host.attachShadow({ mode: "open" });
@@ -864,11 +1058,11 @@
     input.setAttribute("aria-labelledby", text.id); row.htmlFor = input.id;
     if (toggle) {
       input.type = "button"; input.className = "toggle"; input.setAttribute("role", "switch");
-      input.addEventListener("click", () => { put(path, !get(path)); release(); save(); });
+      input.addEventListener("click", () => { put(path, !get(path)); release(); save(true); });
     } else {
       if (choices) for (const [value, label] of choices) { const option = document.createElement("option"); option.value = value; option.textContent = label; input.append(option); }
       else { input.type = "number"; const [min, max] = bounds[path]; input.min = min; input.max = max; input.step = path.endsWith("Sec") || path.endsWith("Factor") ? "0.1" : "1"; }
-      input.addEventListener("change", () => { put(path, input.type === "number" ? Number(input.value) : input.value); release(); save(); });
+      input.addEventListener("change", () => { put(path, input.type === "number" ? Number(input.value) : input.value); release(); save(true); });
     }
     row.append(text, input); fields.append(row); controls.set(path, input);
   }
@@ -877,15 +1071,15 @@
   group("生命與藥水");
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["autoMp", "自動補魔力（消耗回復活力藥水）"], ["mpThreshold", "魔力門檻（％）"], ["mpCooldownMs", "魔力藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"], ["fallbackMpSlot", "降級模式魔力藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
-  for (const [path, label] of [["enabled", "自動走位（保持距離與閃避）"], ["combatStyle", "戰鬥方式"], ["chaseFirst", "推進時追目標優先（路上閃避，不越閃越遠）"], ["kiteDistance", "敵人安全距離"], ["ignoreDamagePercent", "忽略傷害門檻（單次低於目前生命％不閃）"], ["attackRange", "王與精英怪攻擊範圍（閃避時不超過此距離）"], ["dodgeProjectiles", "閃避敵方飛彈"], ["projectileSafetyRadius", "飛彈安全邊距"], ["smoothingFactor", "轉向平滑係數"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依職業）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
-  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）"); field("loot.onlyUpgrades", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）");
+  for (const [path, label] of [["enabled", "自動走位（預判包圍、保持距離、閃避）"], ["combatStyle", "戰鬥方式"], ["dodgeProjectiles", "閃避敵方飛彈"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依技能攻擊距離）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
+  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.vacuum", "全圖撿取（要撿的東西自動飛來、寶箱直接開啟；非原版行為）"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）"); field("loot.onlyUpgrades", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
   tab("progress"); group("總開關"); field("progressEnabled", "推層與任務總開關"); group("恐怖層數"); field("terror.progressEnabled", "自動推恐怖層數"); field("terror.farmEnabled", "固定層數重刷（與推層互斥）"); field("terror.targetFarmTier", "重刷層數（須已通關）"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
   group("任務進程"); field("quest.autoProgress", "自動推任務（追蹤目標與選擇升級卡）"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）"); field("quest.farmDifficulty", "重複刷難度", [["off", "關閉（自動往上推）"], ["normal", "普通"], ["nightmare", "惡夢"], ["hell", "地獄"]]);
   group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "技能偏離時向阿卡拉重置技能");
   group("裝備"); field("gear.autoEquip", "自動穿上較佳裝備"); field("gear.minGainPercent", "替換門檻（約等於傷害提升％）");
-  group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.potionCount", "每局最多預購藥水數"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
+  group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
   tab("assist"); group("死亡保護"); field("deathProtection.enabled", "死亡保護（緊急離開本局）"); field("deathProtection.emergencyHpPercent", "緊急生命門檻（％）"); field("deathProtection.disableAutomation", "觸發後關閉兩頁總開關");
   function refreshControls() {
     for (const [path, input] of controls) {
@@ -901,7 +1095,7 @@
     if (e.code === "Escape") { e.preventDefault(); closePanel(); }
     if (e.key === "Tab") { const list = [...panel.querySelectorAll("button,input,select")], first = list[0], last = list.at(-1); if (e.shiftKey && root.activeElement === first) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && root.activeElement === last) { e.preventDefault(); first.focus(); } }
   });
-  document.body.append(launcher, stopButton, host); save();
+  document.body.append(launcher, stopButton, statusLine, host); save();
   window.addEventListener("keydown", (e) => {
     manual(e);
   }, { capture: true, signal: abort.signal });
@@ -912,14 +1106,17 @@
     const editorOpen = !!window.__d2editIsOpen?.(), isPaused = paused();
     launcher.style.display = isPaused && !editorOpen && panel.hidden ? "block" : "none";
     stopButton.style.display = (settings.enabled || settings.progressEnabled) && !isPaused && !editorOpen && panel.hidden ? "block" : "none";
+    statusLine.style.display = stopButton.style.display;
+    if (statusLine.textContent !== lastAction) statusLine.textContent = lastAction;
     if (!isPaused || editorOpen) panel.hidden = true;
     if (!game) guarded(null, performance.now());
     const s = readState(game);
     status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／推層與任務：" + (settings.progressEnabled ? "啟用" : "關閉"), game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
   }, 200);
   const api = {
-    destroy() { if (!alive) return; alive = false; release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
-    diagnostics: () => ({ hookUrl, hookNote, connected: !!game, state: game?.state ?? null, lastAction, storageNote }),
+    destroy() { if (!alive) return; alive = false; release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
+    diagnostics: () => ({ hellClears, hookUrl, hookNote, connected: !!game, state: game?.state ?? null, lastAction, storageNote }),
+    get game() { return game; },
   };
   window.__d2autobot = api;
   connect().catch((err) => { if (alive) hookNote = "掛鉤無法載入，使用 HUD／按鍵降級：" + String(err.message || err); });
