@@ -309,9 +309,10 @@
 
 <datalist id="statList"></datalist>
 
-<script src="i18n.js?b=mvwg4l4m"></script>
-<script src="webapi.js?b=mvwg4l4m"></script>
-<script src="zh.js?b=mvwg4l4m"></script>
+<script>
+// 依診斷（iPhone 一直用快取的舊 webapi.js）：用本頁網址的 ?v=（書籤每次開啟修改器都帶新值）載入這三個腳本，避免手機快取舊版；document.write 保持載入順序。
+(() => { const v = new URLSearchParams(location.search).get("v") || String(Date.now()); for (const f of ["i18n.js", "webapi.js", "zh.js"]) document.write('<script src="' + f + "?v=" + encodeURIComponent(v) + '"><' + '/script>'); })();
+</script>
 <script>
 const LOCALE = window.LANG === "en" ? "en-US" : "zh-TW";
 const TESTED_GAME_BUILD = "20261101.1"; // 每次確認新版遊戲相容後更新此值
@@ -635,7 +636,7 @@ function applyUnlockUI() {
 }
 
 /* ---------- 診斷資訊 ---------- */
-const EDITOR_BUILD = "2026-10-31f";
+const EDITOR_BUILD = "2026-11-02a";
 function saveSummary(s) {
   if (!s) return null;
   const flat = (o) => Object.values(o ?? {}).flatMap(v => v ?? []);
