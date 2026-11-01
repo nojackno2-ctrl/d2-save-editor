@@ -358,11 +358,7 @@
     if (!goal && progressing && !portal) {
       const enemy = nearestElite(s) || s.enemies.reduce((best, e) => !best || dist(e, s.p) < dist(best, s.p) ? e : best, null);
       if (enemy) goal = battleGoal(enemy, s.p, isElite(enemy) ? "精英" : "戰鬥");
-      else {
-        // 讓原版導演持續生成敵人的巡航啟發式；不是完整迷霧探索器。
-        const angle = s.w.time / 5;
-        goal = { x: s.p.x + Math.cos(angle) * 160, y: s.p.y + Math.sin(angle) * 100, kind: "巡航" };
-      }
+      // 此遊戲不需探圖，敵人會自己湧來；沒有敵人時原地等待，不越跑越遠。
     }
     // 近戰要貼身才打得到，一般怪也直接追；遠程對一般怪保持距離。
     const chaseKind = goal && (isMelee() ? goal.kind !== "巡航" : !["戰鬥", "巡航"].includes(goal.kind)) && (goal.kind !== "kick" || !closeEnemy);
@@ -505,7 +501,7 @@
   }
   // 營地整備：沿用原版 openCampTrade 與商店介面回呼（hud.showTown 的參數），一次只做一個動作。
   // 實測（2026-11-01）：store＝恰西升級與裝備、akara＝藥水（1000 金，下一局放入藥帶）、stash＝倉庫／收藏庫（toStash、collectAll、可直接 equip）。
-  let shop = null, trade = null;
+  let shop = null, trade = null, smithAt = -Infinity;
   const RANKS = ["Vitality", "Damage Reduced", "Replenish Life", "Potion Healing", "Faster Cast Rate", "Energy", "Faster Run/Walk", "Strength", "Dexterity", "Fire Pierce", "Cold Pierce", "Lightning Pierce", "Poison Pierce", "Physical Pierce", "Experience", "Magic Find", "Gold Find", "Sell Price", "Reroll", "Banish", "Skip"];
   const keepType = (item) => ["quest", "rune", "gem", "jewel"].includes(item.type) || /charm|jewel|rune|gem|key|essence|token/i.test(String(item.type || "") + " " + String(item.base || ""));
   function hookTown(g) {
@@ -526,6 +522,8 @@
     trade = null; if (shop) shop.open = null;
   }
   function openTrade(g, kind) {
+    // 跑圖中碰到恰西（幕末清場後出現）已開著他的商店：只能用這一間，不切換。
+    if (shop.smith) { if (!trade && typeof g.showTown === "function") g.showTown(); return kind === "store" && g.state === "town" && !!trade; }
     if (shop.open === kind && g.state === "town" && trade) return true;
     leaveTrade(g);
     if (g.state !== "camp") return false;
@@ -603,6 +601,13 @@
     if (!settings.progressEnabled || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
     if (g.state === "playing") { shop = null; return false; }
     if (shop?.done) return false;
+    // 實測：清場後碰到恰西會停在商店畫面不動；順便賣裝與升級，再離開回到戰鬥。
+    if (!shop && g.state === "town" && g.trade?.smith && !g.camp && hookTown(g)) {
+      // 剛逛過就直接離開，避免反覆碰到恰西。
+      if (now - smithAt < 60000) { if (!trade) g.showTown?.(); trade?.acts?.leave?.(); trade = null; return true; }
+      smithAt = now;
+      shop = { steps: ["sell", "upgrades"], i: 0, at: 0, tried: new Set(), buys: 0, actions: 0, open: "store", collected: true, smith: true };
+    }
     if (!shop) {
       if (g.state !== "camp" || !g.camp || g.swapping || typeof g.openCampTrade !== "function" || !g.kit || !g.world?.player || !hookTown(g)) return false;
       charmTried = new WeakSet();
