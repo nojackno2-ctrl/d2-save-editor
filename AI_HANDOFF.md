@@ -1,5 +1,16 @@
 # 交接紀錄
 
+- 2026-11-01｜Antigravity：依需求限制「未解除限制製作裝備不准製作暗金、套裝、符文之語」：
+  1. 於 `web/editor.html` 與 `editor/index.html` 新增 `FORBIDDEN_CRAFT_RARITIES` 及 `updateCraftRarities()`。
+  2. 未解除限制時：`#cRar` 排除暗金、套裝、符文之語（選全部品質時列出可用底材），`#xRar` 排除三者並預設切為可用之第一品質（普通）；`#cList` 亦全面過濾排除此三種品質項目；若已有選取項目屬此三者則清空選取。
+  3. `#pMake`（`makePicked`）與 `#xMake`（`makeCustom`）執行前加入前置檢查，若為 unique/set/runeword 即拒絕並以既有 `status("未解除限制時不能製作暗金、套裝或符文之語", "bad")` 提示。
+  4. 解除限制後恢復全部品質選項：既有 `applyUnlockUI()` 掛鉤 `updateCraftRarities()`，切換時即時重繪製作選項、清單與屬性範圍。
+  5. `web/i18n.js` 與 `editor/i18n.js` 同步加入英譯對照 `"Without removing restrictions, unique, set and runeword items cannot be crafted"`。
+  6. 抽出兩 html 的 `<script>` 至系統 temp scratchpad 經 `node --check` 語法檢查通過，兩檔 i18n.js 亦通過；專案目錄無暫存檔殘留；未提交或推送。
+
+
+- 2026-11-01｜Codex：輔助器任務獎品透過原版角色畫面、chooseTree 回呼及 readTome 嘗試自動使用；營地透過 akaraSearch 嘗試交付伊尼弗斯卷軸，鑰匙觸發尚待確認。同步 web／editor 程式與設計文件；node --check web/autobot.js、git diff --check 通過，兩組檔案雜湊一致。未做遊戲實測，未提交或推送。
+
 - 2026-11-01｜Claude：輔助器大改（真實遊戲 35 存檔壓力測試中，尚無存檔通關地獄）：全圖走位規劃器（分析地圖所有怪物預測位置、飛彈、擁擠度，一直保持移動）；依技能攻擊距離決定近戰站位（REACH 表，見 AUTOBOT_DESIGN.md）；選卡集中升級主力技能＋進化被動／協同（讀原版技能表）；重置技能改看配點分散度；撿地上藥水（原本被過濾）、缺藥踢罐子（優先度低）；全圖撿取（magnet、寶箱移到身上，非原版行為，可關）；死亡保護預設開、只看致死預判、離場後自動繼續、觸發兩次回低難度刷；營地 town 卡住修正；中途離開自動繼續；地獄通關後重複刷地獄；買水買到滿；設定只存使用者選擇；停止輔助下方顯示狀態；裝備評分抗性加權。模擬測試 110 項通過（高負載下偶有計時失敗，重跑通過）。未驗證：地獄通關與重複刷的實際結果。
 - 2026-11-01｜Codex：帳號／強化的角色表新增各職業「金色光芒」勾選，讀寫遊戲 heroes.<職業>.glow，保留其他角色資料；同步 editor 與 web，補英文翻譯。依本機遊戲 keepSave-CoH_93A4.js 的 wh／tm 確認欄位。頁面指令碼語法與勾選、取消、缺少角色資料的 Node 模擬通過；首次測試因 VM 跨環境原型比較失敗，改用 JSON 結構比較通過。未用實際遊戲存檔驗證，未封裝或發布。
 

@@ -520,6 +520,7 @@ function applyUnlockUI() {
   $("#unlockMode").checked = unlocked();
   document.body.classList.toggle("unlocked", unlocked());
   if (typeof checkGold === "function" && $('[data-path="gold"]')) checkGold();
+  if (typeof updateCraftRarities === "function") updateCraftRarities();
 }
 
 /* ---------- 診斷資訊 ---------- */
@@ -572,6 +573,43 @@ async function ensureBases() {
     BASES = b;
   }
 }
+const FORBIDDEN_CRAFT_RARITIES = new Set(["unique", "set", "runeword"]);
+// 依解除限制狀態更新製作裝備的品質選項與清單
+function updateCraftRarities() {
+  // #cRar 選項（未解除限制時排除暗金、套裝、符文之語）
+  const cRar = $("#cRar");
+  if (cRar) {
+    const prevC = cRar.value;
+    const cOpts = unlocked()
+      ? [["all", "全部品質"], ["unique", "暗金"], ["set", "套裝"], ["runeword", "符文之語"], ["rare", "稀有（選底材）"], ["magic", "魔法（選底材）"]]
+      : [["all", "全部品質"], ["rare", "稀有（選底材）"], ["magic", "魔法（選底材）"]];
+    cRar.innerHTML = cOpts.map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+    if (cOpts.some(([k]) => k === prevC)) cRar.value = prevC;
+    else cRar.value = cOpts[0][0];
+  }
+  // #xRar 選項（未解除限制時排除暗金、套裝、符文之語，預設為可用的第一個品質）
+  const xRar = $("#xRar");
+  if (xRar) {
+    const prevX = xRar.value;
+    const xOpts = Object.entries(RARITY_ZH).filter(([k]) => unlocked() || !FORBIDDEN_CRAFT_RARITIES.has(k));
+    const defX = unlocked() ? "unique" : xOpts[0]?.[0];
+    const targetX = xOpts.some(([k]) => k === prevX) ? prevX : defX;
+    xRar.innerHTML = xOpts.map(([k, v]) => `<option value="${k}" ${k === targetX ? "selected" : ""}>${v}</option>`).join("");
+    if (targetX) xRar.value = targetX;
+  }
+  // 未解除限制時若已選取的目錄物品為暗金／套裝／符文之語，清除選取
+  if (!unlocked() && craftSel && FORBIDDEN_CRAFT_RARITIES.has(craftSel.rarity)) {
+    craftSel = null;
+    const cp = $("#cPick");
+    if (cp) cp.innerHTML = '<p class="dim">從左邊選一件物品。</p>';
+  }
+  // 底材與目錄資料已載入時重繪清單與相關介面
+  if (typeof BASES !== "undefined" && BASES) {
+    if (typeof CATALOG !== "undefined" && CATALOG && typeof renderCraftList === "function") renderCraftList();
+    if (page === "craft" && typeof updateCraftRanges === "function") updateCraftRanges();
+    if (page === "library" && craftSel && typeof renderCraftPick === "function") renderCraftPick();
+  }
+}
 async function renderLibrary() {
   try { await Promise.all([catalog(), ensureBases()]); }
   catch (e) { $("#cList").innerHTML = `<p class="bad">${esc(e.message)}</p>`; return; }
@@ -580,6 +618,7 @@ async function renderLibrary() {
     for (const id of ["#cRar", "#cType"]) $(id).onchange = renderCraftList;
     $("#cQ").oninput = renderCraftList;
   }
+  updateCraftRarities();
   renderCraftList();
   if (craftSel) await renderCraftPick();
 }
@@ -588,7 +627,6 @@ async function renderCraft() {
   catch (e) { status(e.message, "bad"); return; }
   if (!$("#xBase").options.length) {
     $("#xBase").innerHTML = baseOptions();
-    $("#xRar").innerHTML = Object.entries(RARITY_ZH).map(([k, v]) => `<option value="${k}" ${k === "unique" ? "selected" : ""}>${v}</option>`).join("");
     $("#xAdd").onclick = () => { $("#cmods tbody").insertAdjacentHTML("beforeend", craftModRow()); updateCraftRanges(); };
     $("#xBase").onchange = $("#xRar").onchange = updateCraftRanges;
     $("#cmods").onchange = $("#cmods").oninput = (e) => {
@@ -602,19 +640,30 @@ async function renderCraft() {
     $("#cmods").onclick = (e) => { if (e.target.classList.contains("rm")) e.target.closest("tr").remove(); };
     $("#xMake").onclick = makeCustom;
   }
+  updateCraftRarities();
   const dest = $("#xDest").value;
   $("#xDest").innerHTML = destOptions();
   if ([...$("#xDest").options].some(o => o.value === dest)) $("#xDest").value = dest;
 }
 function renderCraftList() {
   const r = $("#cRar").value, t = $("#cType").value, q = $("#cQ").value.toLowerCase();
-  // 魔法／稀有沒有固定物品：改列出底材，詞綴由遊戲隨機產生
-  const affix = r === "magic" || r === "rare";
-  const src = affix ? BASES.filter(b => b.type !== "quest").map(b => ({ rarity: r, name: b.name, base: b.name, type: b.type, lvl: b.level, affix: true })) : CATALOG;
-  const list = src.filter(x => !x.unavailable && (affix || r === "all" || x.rarity === r) && (t === "all" || (TYPE_ZH[x.type] ? x.type : "other") === t)
+  // 魔法／稀有沒有固定物品：改列出底材，詞綴由遊戲隨機產生；未解除限制且選全部品質時改列出所有可用底材
+  const affix = r === "magic" || r === "rare" || (!unlocked() && r === "all");
+  const src = affix
+    ? (r === "all"
+        ? BASES.filter(b => b.type !== "quest").flatMap(b => [
+            { rarity: "rare", name: b.name, base: b.name, type: b.type, lvl: b.level, affix: true },
+            { rarity: "magic", name: b.name, base: b.name, type: b.type, lvl: b.level, affix: true }
+          ])
+        : BASES.filter(b => b.type !== "quest").map(b => ({ rarity: r, name: b.name, base: b.name, type: b.type, lvl: b.level, affix: true })))
+    : CATALOG;
+  const list = src.filter(x => !x.unavailable
+    && (!unlocked() ? !FORBIDDEN_CRAFT_RARITIES.has(x.rarity) : true)
+    && (affix || r === "all" || x.rarity === r)
+    && (t === "all" || (TYPE_ZH[x.type] ? x.type : "other") === t)
     && (!q || (x.name + nameZh(x) + (x.base ?? "") + baseZh(x)).toLowerCase().includes(q)));
   const same = (x) => craftSel && craftSel.rarity === x.rarity && craftSel.name === x.name;
-  $("#cList").innerHTML = list.slice(0, 400).map((x, i) => `<div class="row ${same(x) ? "on" : ""}" data-i="${i}">${iconTag(x)}<span class="r-${x.rarity}">${affix ? esc(baseZh(x)) : zhName(x)}</span><span class="dim">${affix ? esc(TYPE_ZH[x.type] ?? TYPE_ZH.other) : esc(baseZh(x))}・需求 ${x.lvl ?? "?"}</span></div>`).join("")
+  $("#cList").innerHTML = list.slice(0, 400).map((x, i) => `<div class="row ${same(x) ? "on" : ""}" data-i="${i}">${iconTag(x)}<span class="r-${x.rarity}">${x.affix ? esc(baseZh(x)) : zhName(x)}</span><span class="dim">${x.affix ? esc(TYPE_ZH[x.type] ?? TYPE_ZH.other) : esc(baseZh(x))}・需求 ${x.lvl ?? "?"}</span></div>`).join("")
     + (list.length > 400 ? `<p class="dim">還有 ${list.length - 400} 件，請用搜尋縮小範圍。</p>` : "");
   for (const el of $("#cList").querySelectorAll("[data-i]")) el.onclick = () => { craftSel = list[el.dataset.i]; renderCraftList(); renderCraftPick(); };
 }
@@ -637,7 +686,13 @@ async function renderCraftPick() {
   $("#pMake").onclick = makePicked;
 }
 async function makePicked() {
-  const x = craftSel, n = Math.max(1, Math.min(unlocked() ? 999 : 40, Number($("#pN").value) || 1)), max = $("#pMax")?.value === "1";
+  const x = craftSel;
+  if (!x) return;
+  // 未解除限制時禁止製作暗金、套裝、符文之語
+  if (!unlocked() && FORBIDDEN_CRAFT_RARITIES.has(x.rarity)) {
+    return status("未解除限制時不能製作暗金、套裝或符文之語", "bad");
+  }
+  const n = Math.max(1, Math.min(unlocked() ? 999 : 40, Number($("#pN").value) || 1)), max = $("#pMax")?.value === "1";
   const mul = unlocked() ? Number($("#pMul")?.value) || 1 : 1;
   const base = x.affix ? x.base : $("#pBase")?.value, dest = $("#pDest").value;
   if (x.affix && !((await window.api.engine("affixOk")) === true)) return status("這個版本的遊戲找不到魔法／稀有物品的產生函式", "bad");
@@ -709,6 +764,11 @@ async function updateCraftRanges() {
   showRanges("#cmods", db);
 }
 async function makeCustom() {
+  const rarity = $("#xRar").value;
+  // 未解除限制時禁止製作暗金、套裝、符文之語
+  if (!unlocked() && FORBIDDEN_CRAFT_RARITIES.has(rarity)) {
+    return status("未解除限制時不能製作暗金、套裝或符文之語", "bad");
+  }
   const b = BASES.find(b => b.name === $("#xBase").value);
   const num = (v) => (v.trim() !== "" && !isNaN(v) ? Number(v) : v);
   const mods = [...document.querySelectorAll("#cmods tbody tr")].map(tr => {
@@ -716,7 +776,6 @@ async function makeCustom() {
     if (tr.querySelector(".imp").checked) m.implicit = true;
     return m;
   }).filter(m => m.stat);
-  const rarity = $("#xRar").value;
   // 魔法／稀有／普通不需名稱即可檢查，先檢查才能清楚說明哪裡不符原版規則
   if (!["unique", "set", "runeword"].includes(rarity)) try { await assertLegal([{ base: b.name, type: b.type, rarity, mods }]); } catch (e) { return fail(e); }
   let info, resolved;

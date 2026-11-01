@@ -5,12 +5,12 @@
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
   const defaults = {
-    version: 6, enabled: false, progressEnabled: false,
+    version: 7, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, fallbackHpSlot: 1 },
     movement: { enabled: true, combatStyle: "auto", ignoreDamagePercent: 3, chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
-    loot: { enabled: true, vacuum: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: true },
+    loot: { enabled: true, vacuum: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: false },
     terror: { mode: "off", targetFarmTier: 1, autoReviveOrRestart: false, postClearWaitSec: 3 },
-    quest: { autoProgress: false, prioritizeBoss: true, autoStart: true, farmDifficulty: "off" },
+    quest: { autoProgress: false, prioritizeBoss: true, autoStart: true, farmDifficulty: "off", fixedDifficulty: "hell" },
     gear: { autoEquip: true, minGainPercent: 2 },
     // 陣亡回營地後的整備：收藏、倉庫、賣裝、買藥、恰西升級，讓每一局都比上一局強。
     town: { enabled: true, collect: true, stash: true, sellJunk: true, buyPotions: true, charsiUpgrades: true, buyGear: true },
@@ -25,7 +25,7 @@
     return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, v && typeof v === "object" ? merge(v, value?.[k]) : typeof value?.[k] === typeof v ? value[k] : v]));
   }
   let settings = merge(defaults, {}), storageNote = "";
-  // 兩個分頁各有總開關：戰鬥輔助（enabled）、推層與任務（progressEnabled）。
+  // 兩個分頁各有總開關：戰鬥輔助（enabled）、自動戰鬥（progressEnabled）。
   const questOn = () => settings.progressEnabled && settings.quest.autoProgress;
   const terrorMode = () => settings.progressEnabled ? settings.terror.mode : "off";
   const assistOn = () => settings.enabled;
@@ -38,6 +38,8 @@
     if ((stored.version || 0) < 5) { settings.deathProtection.enabled = true; settings.deathProtection.disableAutomation = false; settings.version = 5; }
     // 版本 6：實測重置技能後原版立即清空技能，被收回的等級要到下一難度才還回，角色整個難度沒技能而卡死；自動重置改為預設關閉。
     if ((stored.version || 0) < 6) { settings.build.redraft = false; settings.version = 6; }
+    // 版本 7（依使用者要求）：全圖撿裝備就是全部撿回來，沒用的賣掉換金幣，有用的穿上或存倉庫；不再只撿比身上好的。
+    if ((stored.version || 0) < 7) { settings.loot.onlyUpgrades = false; settings.loot.vacuum = true; settings.version = 7; }
   }
   catch { storageNote = "設定無法讀取，使用預設值"; }
   // 走位只開放開關、戰鬥方式、閃避飛彈；距離與係數一律用內建值（依職業自動調整）。
@@ -50,8 +52,18 @@
     "loot.searchRadius": [50, 1200], "loot.minRuneTier": [1, 33], "terror.targetFarmTier": [1, 9999], "terror.postClearWaitSec": [1, 15], "gear.minGainPercent": [0, 50],
   };
   // 推層與重刷共用既有 mode，兩個開關互斥，舊設定無須人工轉換。
-  const get = (path) => path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
+  // 自動戰鬥的「自動模式」：推關（普通→惡夢→地獄往上打）、推層（恐怖層數往上推）、固定關卡（重複刷指定難度）、固定層數（重刷指定層）。
+  // 只是既有設定的組合（quest.autoProgress、terror.mode、quest.farmDifficulty），戰鬥邏輯與舊設定不必改。
+  const autoMode = () => settings.terror.mode === "progress" ? "terror" : settings.terror.mode === "farm" ? "fixedTier" : settings.quest.farmDifficulty !== "off" ? "fixedDifficulty" : "quest";
+  const get = (path) => path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
   function put(path, value) {
+    if (path === "autoMode") {
+      settings.terror.mode = value === "terror" ? "progress" : value === "fixedTier" ? "farm" : "off";
+      settings.quest.autoProgress = value === "quest" || value === "fixedDifficulty";
+      settings.quest.farmDifficulty = value === "fixedDifficulty" ? settings.quest.fixedDifficulty : "off";
+      return;
+    }
+    if (path === "quest.fixedDifficulty" && settings.quest.farmDifficulty !== "off") settings.quest.farmDifficulty = value;
     if (["terror.progressEnabled", "terror.farmEnabled"].includes(path)) {
       const mode = path === "terror.progressEnabled" ? "progress" : "farm";
       if (value) settings.terror.mode = mode;
@@ -68,6 +80,7 @@
     for (const path of ["loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot"]) put(path, Math.round(get(path)));
     if (!["off", "progress", "farm"].includes(settings.terror.mode)) settings.terror.mode = "off";
     if (!["off", "normal", "nightmare", "hell"].includes(settings.quest.farmDifficulty)) settings.quest.farmDifficulty = "off";
+    if (!["normal", "nightmare", "hell"].includes(settings.quest.fixedDifficulty)) settings.quest.fixedDifficulty = settings.quest.farmDifficulty !== "off" ? settings.quest.farmDifficulty : "hell";
     if (!["auto", "melee", "ranged"].includes(settings.movement.combatStyle)) settings.movement.combatStyle = "auto";
     settings.version = defaults.version;
   }
@@ -223,7 +236,10 @@
     if (["camp", "town", "select"].includes(g.state)) {
       lastAction = g.state === "select" ? "死亡保護：已離開本局至角色選單（此模式未進入村莊）" : "死亡保護：已離開戰鬥回到村莊";
       retreat = null;
-    } else if (now >= retreat.deadline) retreatFailed("原版未在 8 秒內回到安全畫面，已停止自動化");
+    } else if (g.state === "loading" && now < (retreat.hardDeadline ??= now + 22000)) {
+      // 實測全新存檔首次載入營地常超過 8 秒；載入中不算逾時（總上限約 30 秒）。
+      retreat.deadline = Math.max(retreat.deadline, now + 1000);
+    } else if (now >= retreat.deadline) retreatFailed("原版未在時限內回到安全畫面，已停止自動化");
   }
   async function returnToSafety(g, s, reason, now) {
     if (retreat || !alive) return;
@@ -297,7 +313,11 @@
     const lootOn = assistOn() && settings.loot.enabled;
     if (!lootOn && !questOn()) return null;
     if (lootTarget && !lootTarget.dead && now - lootSince > 3500) { blockedLoot.set(lootTarget, now + 15000); lootTarget = null; }
-    const candidates = wantedLoot(s, now, lootOn);
+    // 實測（陣亡紀錄）：惡夢亞馬遜滿血撿東西時讓頭目 Corpsefire 從 101 貼到 1，一擊 900 血陣亡（威脅只估 1.7）。
+    // 遠程職業在頭目／精英 180 內不撿東西（交給走位拉開），也不撿頭目／精英 180 內的掉落物。
+    const elites = isMelee() ? [] : s.enemies.filter((e) => ["actBoss", "boss", "champion"].includes(e.rank));
+    if (elites.some((e) => dist(e, s.p) < 180)) { lootTarget = null; return null; }
+    const candidates = wantedLoot(s, now, lootOn).filter((c) => !elites.some((e) => dist(e, c) < 180));
     const lowHp = s.hp.now / s.hp.max < 0.7;
     const weight = (e) => e.kind === "potion" ? (lowHp ? 2500 : 600) : e.item?.type === "quest" ? 2000 : e.kind === "chest" ? 1500 : ["unique", "set", "runeword"].includes(e.item?.rarity) ? 1000 : e.item ? 500 : 50;
     candidates.sort((a, b) => weight(b) - weight(a) || dist(a, s.p) - dist(b, s.p));
@@ -309,7 +329,8 @@
     const beltEmpty = Array.isArray(s.w.belt?.columns) && s.w.belt.columns.every((c) => !(c?.length));
     const needPotion = beltEmpty && s.hp.now / s.hp.max < 0.7;
     // 依使用者要求踢罐子優先度不要太高：缺藥時排在藥水／寶箱／裝備之後，不缺藥時附近 1.5 倍距離內有怪就不踢。
-    const calm = !s.enemies.some((e) => dist(e, s.p) < settings.movement.kiteDistance * (needPotion ? 0.5 : 1.5));
+    // 實測（陣亡紀錄）：惡夢聖騎士 49％ 血、藥帶全空，為踢罐子走進 115 外的毒魔群，一擊 404 陣亡；缺藥時也至少保持 220。
+    const calm = !s.enemies.some((e) => e.rank !== "breakable" && dist(e, s.p) < Math.max(220, settings.movement.kiteDistance * (needPotion ? 1 : 1.5)));
     if (lootOn && settings.loot.kickJars && beltRoom && calm && (needPotion || (!game?.clearing && !point(game?.clearing?.portal)))) {
       const jars = s.jars.filter((e) => (blockedLoot.get(e) || 0) < now && dist(e, s.p) <= settings.loot.searchRadius).sort((a, b) => dist(a, s.p) - dist(b, s.p)).slice(0, 1);
       candidates.push(...jars);
@@ -382,7 +403,8 @@
     }
     return best;
   }
-  const isElite = (e) => ["actBoss", "boss", "champion"].includes(e.rank) || !!e.name;
+  // 實測（陣亡紀錄）：一般怪的 name 是怪物設定物件，舊判斷 !!e.name 讓所有小怪都算精英（威脅 ×3、追「精英」其實追小怪）。
+  const isElite = (e) => ["actBoss", "boss", "champion"].includes(e.rank) || typeof e.name === "string";
   const power = (e) => Math.max(1, e.damage || 1) * Math.max(1, e.maxLife || e.life || 1) * (isElite(e) ? 3 : 1);
   function nearestElite(s) { return s.enemies.filter((e) => isElite(e) && dist(e, s.p) < 900).reduce((a, e) => !a || dist(e, s.p) < dist(a, s.p) ? e : a, null); }
   // 全圖走位規劃（依使用者要求：一直保持移動，並分析地圖上所有怪物，而不只是閃開貼近的怪）：
@@ -455,17 +477,32 @@
     planHeading = best.dir;
     return { dir: best.dir, target: best.pt, danger };
   }
+  // 原版角色傷害（heroNumbers 的 Damage），每 3 秒更新一次，用來判斷小怪能否秒殺。
+  let heroDmg = 0, heroDmgAt = -Infinity;
+  function heroDamage(g, now) {
+    if (now - heroDmgAt < 3000) return heroDmg;
+    heroDmgAt = now;
+    try { const p = g.world.player, worn = g.equippedOf(p.cls); heroDmg = (g.heroNumbers(g.makePlayer(p.sprite, p.cls, worn), g.build, worn, false)?.stats || []).find((x) => x.label === "Damage")?.num || 0; } catch { heroDmg = 0; }
+    return finite(heroDmg) ? heroDmg : 0;
+  }
   function navigate(s, danger, now) {
     vacuum(s, now);
     const st = style(), g = game, m = { ...settings.movement, kiteDistance: st.kite, attackRange: st.range, enabled: assistOn() && settings.movement.enabled }, progressing = questOn() || terrorMode() !== "off", portal = g.clearing?.portal;
     if (point(portal) && clearWorld !== s.w) { clearWorld = s.w; clearAt = now; }
     let closeEnemy = false, x = 0, y = 0;
     const taken = Math.max(1, finite(s.p.damageTaken) ? s.p.damageTaken : 1);
+    // 依使用者要求：閃不閃小怪看牠們合起來能不能造成威脅，不是兩三隻小怪靠近就閃。
+    // 走位距離內一般怪的單次傷害加總 < 目前生命 25％，且沒有任何一隻單次 ≥ 10％，就完全不閃（照打、照撿）。
+    // 依使用者要求：一兩下就能打死的小怪（生命 ≤ 原版角色傷害的一半）也不算威脅。
+    const myDmg = heroDamage(g, now), killable = (e) => myDmg > 0 && (e.life ?? e.maxLife ?? Infinity) <= myDmg * 0.5;
+    const hitOf = (e) => killable(e) ? 0 : Math.max(0, e.damage || 0) * taken;
+    const nearMinions = s.enemies.filter((e) => !isElite(e) && dist(s.p, e) < m.kiteDistance + (e.radius || 0));
+    const minionsHarmless = nearMinions.reduce((a, e) => a + hitOf(e), 0) < s.hp.now * 0.25 && !nearMinions.some((e) => hitOf(e) >= s.hp.now * 0.1);
     if (m.enabled) for (const e of s.enemies) {
       const d = dist(s.p, e), range = m.kiteDistance + (e.radius || 0);
       if (d >= range) continue;
       // 打不痛的一般怪不必拉開距離（王與精英仍依攻擊範圍處理）。
-      if (!isElite(e) && Math.max(0, e.damage || 0) * taken < s.hp.now * m.ignoreDamagePercent / 100) continue;
+      if (!isElite(e) && (minionsHarmless || hitOf(e) < s.hp.now * m.ignoreDamagePercent / 100)) continue;
       closeEnemy = true;
       const u = unit(s.p.x - e.x, s.p.y - e.y), force = Math.min(8, (range - d) / Math.max(15, d));
       x += (u.x || (d < 1 ? 1 : 0)) * force; y += u.y * force;
@@ -485,7 +522,8 @@
     let pre = null;
     if (m.enabled && !through) {
       const R = Math.max(450, settings.movement.kiteDistance * 2.5), taken2 = taken;
-      const threats = s.enemies.filter((e) => dist(e, s.p) < R && (isElite(e) || Math.max(0, e.damage || 0) * taken2 >= s.hp.now * m.ignoreDamagePercent / 100));
+      const far = s.enemies.filter((e) => dist(e, s.p) < R && !isElite(e)), farHarmless = far.reduce((a, e) => a + hitOf(e), 0) < s.hp.now * 0.25 && !far.some((e) => hitOf(e) >= s.hp.now * 0.1);
+      const threats = s.enemies.filter((e) => dist(e, s.p) < R && (isElite(e) || !farHarmless && Math.max(0, e.damage || 0) * taken2 >= s.hp.now * m.ignoreDamagePercent / 100));
       if (threats.length >= (fighter() ? 5 : 3)) {
         const ahead = threats.map((e) => { const d = dist(e, s.p), u = unit(s.p.x - e.x, s.p.y - e.y), sp = Math.min(d, Math.max(40, e.speed || e.moveSpeed || 90) * 0.8); return { x: e.x + u.x * sp, y: e.y + u.y * sp, radius: e.radius }; });
         const angles = ahead.map((e) => Math.atan2(e.y - s.p.y, e.x - s.p.x)).sort((a, b) => a - b);
@@ -508,13 +546,17 @@
     const portalDue = progressing && point(portal) && (!settings.loot.backtrackForLoot || !wantedLoot(s, now).length || now - clearAt >= (treasure ? 20000 : settings.terror.postClearWaitSec * 1000));
     // 追目標優先：推進中且生命尚可時以目標前進，路上只閃飛彈，不因被怪包夾而越閃越遠。
     // 追目標只用於王／精英／任務／物品／通關門；一般小怪仍保持距離（實測一般怪也衝會被包圍而早死）。
-    const ratio = s.hp.now / s.hp.max, chase = m.enabled && settings.movement.chaseFirst && ratio > (isMelee() ? 0.5 : 0.35);
+    const ratio = s.hp.now / s.hp.max, chase = m.enabled && settings.movement.chaseFirst && ratio > (isMelee() ? 0.35 : 0.25);
     const free = chase || (!dodging && !closeEnemy);
     // 實測原版：盜賊是 thiefChase.e（帶金幣逃向傳送門的精英，被打會掉金幣，20 秒後逃走），出現就最優先追擊。
     const thief = live(g.thiefChase?.e) ? g.thiefChase.e : null;
     let goal = thief && m.enabled && ratio > 0.25 ? { ...battleGoal(thief, s.p, "盜賊"), ...(fighter() ? {} : (() => { const u = unit(s.p.x - thief.x, s.p.y - thief.y), d = Math.min(m.kiteDistance, m.attackRange * 0.6); return { x: thief.x + (u.x || 1) * d, y: thief.y + u.y * d }; })()) } : null;
-    if (!goal) goal = free && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
+    // 依使用者要求：精英怪與王才會掉裝備與寶箱，生命過半時先追 900 內的精英／王，打倒後再撿掉落物。
+    // 依使用者要求：配合劇情推進，任務目標（石陣、牢籠、任務頭目、任務物品）最優先；其次精英／王，最後撿物。
     if (!goal && questOn() && !portalDue) goal = questGoal(s);
+    const hunt = !goal && m.enabled && progressing && !portalDue && ratio > 0.35 ? nearestElite(s) : null;
+    if (hunt) goal = battleGoal(hunt, s.p, "精英");
+    if (!goal) goal = free && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
     if (!goal && portalDue) goal = { x: portal.x, y: portal.y, kind: "通關傳送門" };
     if (!goal && progressing && !portal) {
       const enemy = nearestElite(s) || s.enemies.reduce((best, e) => !best || dist(e, s.p) < dist(best, s.p) ? e : best, null);
@@ -524,7 +566,7 @@
     // 近戰要貼身才打得到，一般怪也直接追；遠程對一般怪保持距離。
     const chaseKind = goal && (fighter() ? goal.kind !== "巡航" : !["戰鬥", "巡航"].includes(goal.kind)) && (goal.kind !== "kick" || !closeEnemy);
     // 實測前期常朝被大群怪包著的精英衝而陣亡：目標周圍 250 內有 8 隻以上怪時不衝，改保持距離慢慢清（王與任務目標除外）。
-    const crowded = goal && ["精英", "戰鬥"].includes(goal.kind) && s.enemies.filter((e) => dist(e, goal) < 250).length >= 8;
+    const crowded = goal && ["精英", "戰鬥"].includes(goal.kind) && s.enemies.filter((e) => dist(e, goal) < 250 && !killable(e)).length >= 12;
     const pursue = chase && chaseKind && !crowded && dist(goal, s.p) > 5;
     if (pursue) {
       const u = unit(goal.x - s.p.x, goal.y - s.p.y), d = dodging ? unit(danger.dodgeX, danger.dodgeY) : { x: 0, y: 0 };
@@ -602,8 +644,36 @@
     void g.continueRun(g.kit, "hero");
     return true;
   }
+  // 依使用者要求：某難度完整打完五章（擊敗巴爾）等級都沒升，就記住「此職業在此等級以上刷這難度沒用」，之後不再回去刷。
+  // 存在 localStorage，重新整理仍有效；等級、裝備陣亡也保留，刷不到經驗的難度只是浪費時間。
+  const NOXP_KEY = "d2autobot:noXp";
+  // 依使用者要求：75 級以上不再回普通刷（經驗與掉寶都太低）；正在普通的 75 級以上角色若惡夢已開，離開本局回營地改開最高難度。
+  const NORMAL_MAX_LV = 75;
+  let leftNormalAt = -Infinity, lastRunDiff = null;
+  function leaveLowNormal(g, now) {
+    // 原版「繼續」選項沒有難度欄位（只有 kind: continue）；自己記住正在打的難度，回營地判斷要不要續玩。
+    if (g.state === "playing" && g.difficulty && !g.world?.terror) lastRunDiff = g.difficulty;
+    if (!questOn() || settings.quest.farmDifficulty !== "off" || g.state !== "playing" || g.difficulty !== "normal" || g.world?.terror || now - leftNormalAt < 15000) return false;
+    const lv = g.world?.player?.level ?? 0, opened = g.save?.unlocked?.[g.kit?.id];
+    if (lv < NORMAL_MAX_LV || !opened || opened === "normal" || typeof g.pause !== "function" || typeof g.leaveRun !== "function") return false;
+    leftNormalAt = now; runStart = null; lastAction = "75 級以上不刷普通：離開本局，回營地開最高難度";
+    g.pause(); if (g.state === "paused") void g.leaveRun();
+    return true;
+  }
+  let runStart = null, noXp = {};
+  try { noXp = JSON.parse(localStorage.getItem(NOXP_KEY) || "{}") || {}; } catch { noXp = {}; }
+  const noXpAt = (cls, diff, lv) => finite(noXp[cls]?.[diff]) && lv >= noXp[cls][diff];
+  function noteRunEnd(g, now) {
+    const lv = g.world?.player?.level ?? g.save?.heroes?.[g.kit?.id]?.level;
+    if (runStart?.complete && finite(lv) && lv <= runStart.lv && g.kit?.id) {
+      (noXp[g.kit.id] ||= {})[runStart.diff] = Math.min(noXp[g.kit.id][runStart.diff] ?? Infinity, runStart.lv);
+      try { localStorage.setItem(NOXP_KEY, JSON.stringify(noXp)); } catch { /* 本次仍生效。 */ }
+    }
+    runStart = null;
+  }
   function campStart(g, now) {
     if (g.state !== "camp") { campSince = 0; return false; }
+    if (runStart) noteRunEnd(g, now);
     if (!campSince) campSince = now;
     // 實測：回營地的非同步載入偶爾停在 state=camp 但營地未生成；逾 15 秒仍可直接走原版開局。
     if (!questOn() || !settings.quest.autoStart || (!g.camp && now - campSince < 15000) || !g.kit || g.swapping || transition || now - actionAt < 2000) return false;
@@ -617,14 +687,18 @@
     const resume = starts.find((s) => s.kind === "continue" && (s.whose ?? "hero") === "hero");
     const opened = starts.filter((s) => s.kind === "new" && order.includes(s.difficulty)).sort((a, b) => order.indexOf(b.difficulty) - order.indexOf(a.difficulty));
     // 最高難度連續陣亡 2 次就回低一級難度刷一局（賺金幣與裝備），之後再挑戰。
-    const farm = opened.length > 1 && (failStreak[opened[0].difficulty] || 0) >= 2;
+    // 實測（35 存檔）：惡夢死亡保護離場 2 次就回普通重打 5 幕，79 級角色在普通拿不到好經驗與裝備（等級、裝備陣亡也保留）；門檻改 3 次。
+    const farm = opened.length > 1 && (failStreak[opened[0].difficulty] || 0) >= 3 && !noXpAt(g.kit.id, opened[1].difficulty, g.world?.player?.level ?? 0) && !(opened[1].difficulty === "normal" && (g.world?.player?.level ?? 0) >= NORMAL_MAX_LV);
     // 固定重複刷：使用者指定的難度已開放就一直開那個難度。
     const fixed = opened.find((s) => s.difficulty === settings.quest.farmDifficulty);
     const fresh = fixed || (farm ? opened[1] : opened[0]);
     if (farm) failStreak[opened[0].difficulty] = 0;
-    if (resume && !farm && (settings.quest.farmDifficulty === "off" || resume.difficulty === settings.quest.farmDifficulty) && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; void g.continueRun(g.kit, "hero"); return true; }
+    // 上次進度是較低難度的局（回刷中離場）時不再續玩，直接開最高難度。
+    const resumeDiff = resume ? resume.difficulty ?? lastRunDiff : null;
+    const lowerResume = resume && opened[0] && resumeDiff && order.indexOf(resumeDiff) < order.indexOf(opened[0].difficulty) && settings.quest.farmDifficulty === "off";
+    if (resume && !farm && !lowerResume && (settings.quest.farmDifficulty === "off" || resume.difficulty === settings.quest.farmDifficulty) && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; runStart = { diff: resumeDiff, lv: g.world?.player?.level, at: now }; void g.continueRun(g.kit, "hero"); return true; }
     if (!fresh || typeof g.startRun !== "function") return false;
-    lastAction = (fixed ? "重複刷難度：" : farm ? "最高難度打不上去，回低難度刷：" : "從營地開新局：") + fresh.difficulty; void g.startRun(g.kit, fresh.difficulty);
+    lastAction = (fixed ? "重複刷難度：" : farm ? "最高難度打不上去，回低難度刷：" : "從營地開新局：") + fresh.difficulty; runStart = { diff: fresh.difficulty, lv: g.world?.player?.level, at: now }; void g.startRun(g.kit, fresh.difficulty);
     return true;
   }
   // 以原版角色數值（傷害、生命、減傷、抗性）比較背包裝備，再走原版穿戴流程。
@@ -639,7 +713,10 @@
     // 抗性權重由 0.5 提高到 1，負抗性每點再扣 1.5 分，換裝優先把負抗補回正數。
     const res = ["Fire Resistance", "Cold Resistance", "Lightning Resistance", "Poison Resistance"].reduce((a, k) => { const r = n[k] || 0; return a + taken(r) + Math.min(0, r) * 1.5; }, 0);
     const reduced = Math.min(0.5, Math.max(0, n["Damage Reduced"] || 0));
-    return Math.log1p(Math.max(0, n.Damage || 0)) * 100 + Math.log1p(Math.max(0, n.Life || 0)) * 130 - Math.log(1 - reduced) * 150 + res + Math.log1p(Math.max(0, n["Enhanced Defense"] || 0) / 100) * 20 + Math.min(1, n["Faster Cast Rate"] || 0) * 20 + (n["Replenish Life"] || 0) * 0.5 + (n["Magic Find"] || 0) * 0.02;
+    // 實測（35 存檔裝備異動紀錄）：雙手武器與盾牌互擠，被擠掉的欄位不扣分，之後撿不到單手武器就一直空著（聖騎士、死靈常空武器欄）。
+    // 盾牌以外每空一欄扣 15 分（約少 15％ 傷害），只有提升夠大才犧牲欄位，空欄也會優先補上。
+    const emptyPenalty = ["weapon", "head", "body", "gloves", "belt", "boots", "amulet", "ring1", "ring2"].filter((k) => !worn[k]).length * 15;
+    return -emptyPenalty + Math.log1p(Math.max(0, n.Damage || 0)) * 100 + Math.log1p(Math.max(0, n.Life || 0)) * 130 - Math.log(1 - reduced) * 150 + res + Math.log1p(Math.max(0, n["Enhanced Defense"] || 0) / 100) * 20 + Math.min(1, n["Faster Cast Rate"] || 0) * 20 + (n["Replenish Life"] || 0) * 0.5 + (n["Magic Find"] || 0) * 0.02;
   }
   // 回傳候選中提升最多且達門檻者；候選可來自背包、倉庫、收藏庫或商店，只比較不寫入。
   function bestGear(g, items) {
@@ -664,7 +741,7 @@
   let charmTried = new WeakSet();
   const isCharm = (item) => !!item?.base && /charm/i.test(String(item.type || "") + " " + String(item.base));
   function autoEquip(g, now) {
-    // 依使用者要求：任一總開關（戰鬥輔助或推層與任務）開著就自動換裝、賣用不到的裝備。
+    // 依使用者要求：任一總開關（戰鬥輔助或自動戰鬥）開著就自動換裝、賣用不到的裝備。
     if ((!settings.enabled && !settings.progressEnabled) || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
     if (!["playing", "camp"].includes(g.state) || typeof g.gearActions !== "function" || typeof g.heroNumbers !== "function" || typeof g.makePlayer !== "function") return;
     gearAt = now;
@@ -798,6 +875,11 @@
     // 依使用者要求：任一總開關開著，回營地就買水、賣裝、存倉、升級（不必開推層）。
     if ((!settings.enabled && !settings.progressEnabled) || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
     if (g.state === "playing") { shop = null; townSince = 0; return false; }
+    // 依原版對話流程：阿卡拉對話先呼叫 akaraSearch，嘗試翻譯卷軸。
+    if (g.state === "camp" && !g.trade && !g.swapping && !g.save?.cursor && g.kit && typeof g.akaraSearch === "function") {
+      const cls = g.kit.id, scroll = [...(g.inventoryOf?.(cls) || []), ...(g.save?.stashTabs?.[cls] || [])].find((x) => x?.base === "bks" && now - (questTried.get(x) ?? -Infinity) > 300000);
+      if (scroll) { questTried.set(scroll, now); g.akaraSearch(); lastAction = "嘗試向阿卡拉交付伊尼弗斯卷軸"; return true; }
+    }
     // 實測：死亡保護離場後原版停在營地的城鎮商店畫面（state=town），整備已完成就沒人離開而卡住；
     // 營地裡停在商店 3 秒以上且不在整備中，就用原版離開回到營地，讓自動開局／繼續接手。
     if (g.state === "town" && g.camp && (!shop || shop.done)) {
@@ -922,6 +1004,57 @@
     return best;
   }
   // 屬性點依高手比例分配；原版 spendStatPoints(屬性, 點數)。
+  // 依使用者要求：撿到赫拉迪克法典（hcx，+1 技能變體點數，上限 10）就讀，並把點數花在技能變體上。
+  // 實測原版：game.useQuest(職業, 物品, 完成回呼) 會轉給 readCodex；變體介面為 hud.d2.mods { points() → {total, used, free}, options(技能), active(技能), set(技能, 變體) }。
+  // 選法：已學技能中尚未套用變體者，優先排行榜高手常用變體（LADDER.mods），其次技能等級高者的第一個變體。
+  let codexAt = 0; const questTried = new WeakMap();
+  function useCodex(g, now) {
+    if (!settings.progressEnabled || now - codexAt < 3000 || !["playing", "camp"].includes(g.state) || g.trade || g.swapping || g.save?.cursor || !g.kit) return;
+    codexAt = now;
+    const mods = g.hud?.d2?.mods, cls = g.kit.id;
+    if (!mods || typeof mods.points !== "function" || typeof mods.set !== "function") return;
+    const pts = mods.points() || {};
+    const book = (g.inventoryOf?.(cls) || []).find((x) => x?.base === "hcx");
+    if (book && (pts.total ?? 0) < 10 && typeof g.useQuest === "function") { g.useQuest(cls, book, () => {}); lastAction = "讀取赫拉迪克法典（+1 技能變體點數）"; return; }
+    // 依使用者要求：任務獎品要會使用。原版 useQuest 依種類分流：可直接使用的（+1 全技能卷軸等）當場生效；
+    // 依使用者要求：交付物品走原版任務流程；其他獎品在角色畫面使用，失敗五分鐘內不重試。
+    const quest = (g.inventoryOf?.(cls) || []).find((x) => x?.type === "quest" && !["hcx", "bks", "bkd"].includes(x.base) && now - (questTried.get(x) ?? -Infinity) > 300000);
+    if (quest && typeof g.useQuest === "function" && typeof g.openCharacter === "function" && g.world?.player?.cls === cls) {
+      const hud = g.hud, previous = g.state, original = hud?.chooseTree, own = Object.prototype.hasOwnProperty.call(hud || {}, "chooseTree");
+      if (!hud || typeof hud.closeCharacter !== "function" || typeof original !== "function") return;
+      questTried.set(quest, now);
+      try {
+        // 依原版選樹流程：技能樹編號為 1～3，依排行榜權重選尚未取得的樹。
+        hud.chooseTree = function (kit, taken, pick) {
+          hud.d2?.useTreeKit?.(kit); const slots = hud.d2?.treeSlots, weights = [0, 0, 0, 0];
+          for (const [id, , weight] of LADDER.classes[cls]?.skills || []) { const page = slots?.get?.(id)?.page; if (page >= 1 && page <= 3) weights[page] += weight; }
+          const choices = [1, 2, 3].filter((i) => !taken?.includes(i)); choices.sort((a, b) => weights[b] - weights[a]); if (choices.length) pick(choices[0]);
+        };
+        g.openCharacter(previous, cls);
+        if (g.readsHere?.(cls, "tree") || g.readsHere?.(cls, "attribute")) {
+          g.useQuest(cls, quest, () => {});
+          if (g.tomeRead?.item === quest && typeof g.readTome === "function") { const attr = Object.entries(LADDER.classes[cls]?.attributes || {}).sort((a, b) => b[1] - a[1])[0]?.[0]; if (attr) g.readTome(attr); }
+        }
+        if (!(g.inventoryOf(cls) || []).includes(quest)) lastAction = "使用任務獎品：" + (quest.name || quest.base);
+      } finally { if (own) hud.chooseTree = original; else delete hud.chooseTree; if (g.state === "character") { hud.closeCharacter(); if (g.state === "character") g.state = previous; } }
+      return;
+    }
+    if (!((pts.free ?? 0) > 0)) return;
+    const ladder = LADDER.classes[cls]?.mods || {};
+    const skills = [...(g.build?.skills || [])].sort((a, b) => (b.level || 0) - (a.level || 0));
+    let pick = null;
+    for (const sk of skills) {
+      if (mods.active(sk.id)) continue;
+      const opts = mods.options(sk.id) || [];
+      if (!opts.length) continue;
+      const want = opts.find((o) => o.id === ladder[sk.id]);
+      if (want) { pick = [sk.id, want]; break; }
+      if (!pick) pick = [sk.id, opts[0]];
+    }
+    if (!pick) return;
+    mods.set(pick[0], pick[1].id);
+    if (mods.active(pick[0])) lastAction = "技能變體：" + pick[0] + " → " + (pick[1].name || pick[1].id);
+  }
   function autoStats(g, now) {
     if (!settings.progressEnabled || !settings.build.autoStats || now - statsAt < 1000 || typeof g.spendStatPoints !== "function") return;
     statsAt = now;
@@ -988,22 +1121,30 @@
   function step(g, now) {
     checkRetreat(now);
     if (retreat || blocked()) { release(); return; }
-    if (g) { hookBuild(g); autoEquip(g, now); if (g.state === "playing") autoStats(g, now); }
+    if (g) { hookBuild(g); autoEquip(g, now); useCodex(g, now); leaveLowNormal(g, now); if (g.state === "playing") autoStats(g, now); }
     if (g && progression(g, now)) { release(); return; }
     if (g && g.state !== "playing") {
       release();
       // 重複刷模式：打完巴爾不往下一難度，結束本局回營地再開同難度。
       // 地獄通關後沒有更高難度，一律當作重複刷地獄：結束本局回營地再開地獄。
-      if (questOn() && (settings.quest.farmDifficulty !== "off" || g.difficulty === "hell") && g.state === "dead" && g.afterBaal && typeof g.endAfterBaal === "function" && now - actionAt > 1500) {
+      // 依使用者要求：任何難度打完巴爾都先回營地整備（賣裝、補藥水、恰西升級），再由 campStart 開最高難度。
+      // 只限一般難度推進；恐懼層數（world.terror）維持原本流程，之後另外測試。
+      if (questOn() && g.state === "dead" && g.afterBaal && !g.world?.terror && typeof g.endAfterBaal === "function" && now - actionAt > 1500) {
         if (g.difficulty === "hell") hellClears++;
-        g.endAfterBaal(); actionAt = now; lastAction = g.difficulty === "hell" ? "地獄通關（第 " + hellClears + " 次），回營地重複刷地獄" : "重複刷：本輪通關，回營地再刷"; return;
+        if (runStart) { runStart.complete = true; noteRunEnd(g, now); }
+        g.endAfterBaal(); actionAt = now; lastAction = g.difficulty === "hell" ? "地獄通關（第 " + hellClears + " 次），回營地重複刷地獄" : "擊敗巴爾（" + g.difficulty + "），回營地整備"; return;
       }
       if (questOn() && g.state === "dead" && g.afterBaal?.next && typeof g.afterBaal.continue === "function" && now - actionAt > 1500) {
+        // 原版打倒巴爾後直接接下一難度（不回營地）：當下判定本難度，再為下一難度記錄開局等級。
+        if (runStart) { runStart.complete = true; noteRunEnd(g, now); }
+        const nextDiff = { normal: "nightmare", nightmare: "hell" }[g.difficulty];
+        if (nextDiff) runStart = { diff: nextDiff, lv: g.world?.player?.level, at: now };
         g.afterBaal.continue(); actionAt = now; return;
       }
       // 一般難度陣亡或結束：沿用原版結算畫面的「回主選單」（營地模式下回營地），再由 campStart 續玩。
       if (questOn() && settings.quest.autoStart && g.state === "dead" && g.runOver && !g.world?.terror && !g.afterBaal?.next && typeof g.toMenu === "function" && (g.deathTime ?? 3) >= 3 && now - actionAt > 1500) {
         const died = !(g.world?.player?.life > 0) && !g.won;
+        if (runStart && g.won) { runStart.complete = true; noteRunEnd(g, now); }
         failStreak[g.difficulty] = died ? (failStreak[g.difficulty] || 0) + 1 : 0;
         actionAt = now; lastAction = died ? "陣亡，返回營地整備" : "本局通關，返回營地"; void g.toMenu(); return;
       }
@@ -1084,7 +1225,7 @@
     button,input,select{font:inherit;min-height:44px}button,select,input[type=number]{background:#2a231a;color:#fff0cb;border:1px solid #9c7e41;border-radius:5px;padding:5px 10px}
     .toggle{min-width:112px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:10px}.toggle::before{content:"";width:16px;height:16px;border-radius:50%;background:#b0a49c}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:110px}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px}
     @media(max-width:600px){.backdrop{padding:0}.box{width:100%;max-height:100dvh;height:100dvh;border-radius:0;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}}
-  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">推層與任務</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點上方「停止輔助」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button></section></div>`;
+  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">自動戰鬥</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點上方「停止輔助」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button></section></div>`;
   const panel = root.querySelector(".backdrop"), status = root.querySelector(".status"), controls = new Map();
   const panes = Object.fromEntries([...root.querySelectorAll("[data-pane]")].map((el) => [el.dataset.pane, el]));
   let fields = panes.assist;
@@ -1116,8 +1257,10 @@
   group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.vacuum", "全圖撿取（要撿的東西自動飛來、寶箱直接開啟；非原版行為）"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）"); field("loot.onlyUpgrades", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
-  tab("progress"); group("總開關"); field("progressEnabled", "推層與任務總開關"); group("恐怖層數"); field("terror.progressEnabled", "自動推恐怖層數"); field("terror.farmEnabled", "固定層數重刷（與推層互斥）"); field("terror.targetFarmTier", "重刷層數（須已通關）"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
-  group("任務進程"); field("quest.autoProgress", "自動推任務（追蹤目標與選擇升級卡）"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）"); field("quest.farmDifficulty", "重複刷難度", [["off", "關閉（自動往上推）"], ["normal", "普通"], ["nightmare", "惡夢"], ["hell", "地獄"]]);
+  tab("progress"); field("progressEnabled", "自動戰鬥開關"); field("autoMode", "自動模式", [["quest", "推關模式（普通→惡夢→地獄往上打）"], ["terror", "推層模式（恐怖層數往上推）"], ["fixedDifficulty", "固定關卡模式（重複刷指定難度）"], ["fixedTier", "固定層數模式（重刷指定層，須已通關）"]]);
+  field("quest.fixedDifficulty", "固定關卡難度", [["normal", "普通"], ["nightmare", "惡夢"], ["hell", "地獄"]]); field("terror.targetFarmTier", "固定層數");
+  group("恐怖層數"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
+  group("關卡進程"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）");
   group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "配點太分散時向阿卡拉重置技能（原版重置後技能清空，要到下一難度才還回等級，慎用）");
   group("裝備"); field("gear.autoEquip", "自動穿上較佳裝備"); field("gear.minGainPercent", "替換門檻（約等於傷害提升％）");
   group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
@@ -1152,7 +1295,7 @@
     if (!isPaused || editorOpen) panel.hidden = true;
     if (!game) guarded(null, performance.now());
     const s = readState(game);
-    status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／推層與任務：" + (settings.progressEnabled ? "啟用" : "關閉"), game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
+    status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用" : "關閉"), game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
   }, 200);
   const api = {
     destroy() { if (!alive) return; alive = false; release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
