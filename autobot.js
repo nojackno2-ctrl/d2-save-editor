@@ -1084,7 +1084,10 @@
             // 實測卡名是 .lines 的第一個元素：單一 canvas（如 Faster Cast Rate），或 .d2-parts 內多個 canvas 以「-」接副標題（如 Ice|Bolt|-|New skill）。
       const head = button.querySelector(".lines")?.firstElementChild, parts = head ? [...(head.tagName === "CANVAS" ? [head] : head.querySelectorAll("canvas"))].map((c) => c.textContent.trim()) : [], cut = parts.indexOf("-");
       const title = card?.title ?? (parts.length ? parts.slice(0, cut < 0 ? parts.length : cut).join(" ") : button.querySelector("strong")?.textContent);
-      const value = (evolve ? 100 : 0) + ladderScore(g, title) - i * 0.01;
+      // 依使用者要求：技能進化後，基礎技能可再次學習（卡片寫「再次習得」／again，與進化技能並存）→ 額外加 20 分。
+      const again = /再次習得|再次學習|again/i.test(button.textContent || "") || [...button.querySelectorAll("canvas")].some((c) => /again|再次/i.test(c.textContent || ""));
+      let base = 0; try { base = g ? ladderScore(g, title) : 0; } catch { base = 0; }
+      const value = (evolve ? 100 : 0) + (again ? 20 : 0) + base - i * 0.01;
       if (value > score) { best = i; score = value; }
     });
     return best;
@@ -1217,6 +1220,12 @@
   function blocked() { return (!settings.enabled && !settings.progressEnabled) || document.hidden || !panel.hidden || window.__d2editIsOpen?.() || performance.now() < manualUntil || paused(); }
   function step(g, now) {
     checkRetreat(now);
+    // 依使用者要求：每次升級一定要選卡。只要任一總開關開著、升級畫面出現就選（不受手動讓位、模式影響；設定面板開著時除外），
+    // 實測手機上曾因手動讓位或只開戰鬥輔助而停在升級畫面不選。
+    if ((settings.enabled || settings.progressEnabled) && panel.hidden && visible(document.getElementById("level-up")) && now - actionAt > 800) {
+      const cards = [...document.querySelectorAll("#choices button")].filter(visible);
+      if (cards.length) { const i = pickCard(g, cards); keyPulse("Digit" + (i + 1), String(i + 1)); lastAction = "已選擇升級卡 " + (i + 1); actionAt = now; release(); return; }
+    }
     if (retreat || blocked()) { release(); return; }
     if (g) { hookBuild(g); autoEquip(g, now); useCodex(g, now); leaveLowNormal(g, now); if (g.state === "playing") autoStats(g, now); }
     if (g && progression(g, now)) { release(); return; }
