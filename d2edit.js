@@ -170,8 +170,12 @@ const backend = {
   async i18n() {
     const game = await fetch(at("gamedata.json")).then((r) => r.json());
     let dict;
-    try { const response = await fetch(at("zh-TW.json")); if (!response.ok) throw new Error("字典讀取失敗"); dict = await response.json(); }
-    catch { dict = {}; }
+    // 實測：手機在網站部署期間或網路不穩時字典偶爾抓不到，整頁底材、物品都退回英文；失敗時重試 3 次。
+    dict = {};
+    for (let i = 0; i < 3 && !Object.keys(dict).length; i++) {
+      try { const response = await fetch(at("zh-TW.json"), i ? { cache: "reload" } : undefined); if (!response.ok) throw new Error("字典讀取失敗"); dict = await response.json(); }
+      catch { dict = {}; if (i < 2) await new Promise((r) => setTimeout(r, 800 * (i + 1))); }
+    }
     const I = window.D2I18N;
     if (!I || I.language !== "zh-Hant") return { dict, game, missing: !Object.keys(dict).length };
     const put = (en) => { if (en && !(en in dict)) { const zh = I.translate(en); if (zh && zh !== en) dict[en] = zh; } };

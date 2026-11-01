@@ -520,7 +520,8 @@ function applyUnlockUI() {
   $("#unlockMode").checked = unlocked();
   document.body.classList.toggle("unlocked", unlocked());
   if (typeof checkGold === "function" && $('[data-path="gold"]')) checkGold();
-  if (typeof updateCraftRarities === "function") updateCraftRarities();
+  // 頁面初始化時製作頁相關變數（craftSel 等）尚未宣告，直接呼叫會拋錯中斷整個載入（實測卡在「讀取中…」）；只在製作頁已開過時更新。
+  try { if (typeof BASES !== "undefined" && BASES) updateCraftRarities(); } catch { /* 製作頁尚未初始化，開頁時會再更新。 */ }
 }
 
 /* ---------- 診斷資訊 ---------- */
@@ -1225,20 +1226,22 @@ function renderAll() {
   if (!cur || !contById(cur)) cur = "st:shared1";
   showPage(page);
 }
+let zhMissing = false;
 async function load() {
   status("讀取中…");
   if (!A) {
     A = await window.api.assets();
     const zh = await window.api.i18n();
     zhInit(zh);
-    if (zh.missing) setTimeout(() => status("繁體中文字典載入失敗，部分內容可能顯示英文。", "bad"), 1500);
+    zhMissing = !!zh.missing;
   }
   const r = await window.api.load($("#mode").value);
   if (r.error) return status(r.error, "bad");
   save = r.save; lastSeal = r.seal; sel = null; BASELINE = new Set(allItems(save).map(itemKey)); renderAll();
   const SOURCE_ZH = { localStorage: "瀏覽器存放區", "save.json": "備份存檔檔案" };
   const seal = { sealed: "簽章正確", broken: "簽章已損壞（寫入時會修復）", none: "無簽章" }[r.seal];
-  status(`已讀取（來源：${SOURCE_ZH[r.source] ?? r.source}，${seal}）`, r.seal === "sealed" ? "ok" : "bad");
+  // 字典失敗的提示接在讀取結果後面（舊版用計時器顯示，會被讀取結果蓋掉）。
+  status(`已讀取（來源：${SOURCE_ZH[r.source] ?? r.source}，${seal}）` + (zhMissing ? "；繁體中文字典載入失敗，部分內容顯示英文，請重新整理" : ""), r.seal === "sealed" && !zhMissing ? "ok" : "bad");
 }
 async function write() {
   if (!save) return;
