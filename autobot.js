@@ -1048,7 +1048,10 @@
     const l = ladderOf(g);
     if (!l) return { skill: 0, passive: 0 };
     const s = l.skills.find(([, n]) => n.toLowerCase() === name), p = l.passives.find(([, n]) => n.toLowerCase() === name);
-    return { skill: s ? s[2] : 0, passive: p ? p[2] : 0, skillId: s?.[0], passiveId: p?.[0] };
+    // 依使用者要求：排行榜沒出現的技能／被動（反編譯整理出 26 項，例如 Bash、Battle Orders、Werebear）也要能選，給保守預設權重 0.5（上榜約 0.1～2）。
+    const known = (table) => table && Object.entries(table).find(([, d]) => String(d?.name || "").toLowerCase() === name)?.[0];
+    const sk = s ? null : known(SKILLS), pk = p ? null : known(PASSIVES);
+    return { skill: s ? s[2] : sk ? 0.5 : 0, passive: p ? p[2] : pk ? 0.5 : 0, skillId: s?.[0] ?? sk ?? undefined, passiveId: p?.[0] ?? pk ?? undefined };
   }
   // 選卡（卡片隨機出現）：排行榜是 99 級配置，前期等級不夠，不能只照它選。
   // 1. 進化就緒的卡最優先；2. 集中升級主力技能（目前等級最高的攻擊技能）；3. 主力技能的進化被動與協同技能；
