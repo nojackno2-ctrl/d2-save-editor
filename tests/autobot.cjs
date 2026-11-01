@@ -43,7 +43,7 @@ let server, win;
    const enabledInput=[...shadow.querySelectorAll('label')].find(e=>e.textContent.includes('戰鬥輔助總開關')).querySelector('[role=switch]');enabledInput.click();
    check('設定寫入獨立儲存鍵',JSON.parse(localStorage.getItem('d2autobot:settings')).enabled===true);
    const storage=()=>JSON.parse(localStorage.getItem('d2autobot:settings'));
-   const switches=['enabled','progressEnabled','potion.autoHp','potion.lethalProtection','potion.autoMp','movement.enabled','loot.enabled','terror.progressEnabled','terror.farmEnabled','quest.autoProgress','deathProtection.enabled'];
+   const switches=['enabled','progressEnabled','potion.autoHp','potion.lethalProtection','movement.enabled','loot.enabled','terror.progressEnabled','terror.farmEnabled','quest.autoProgress','deathProtection.enabled'];
    for(const setting of switches){
      const button=shadow.querySelector('[data-setting="'+setting+'"]');
      check('明顯開關與可及性 '+setting,button?.getAttribute('role')==='switch'&&['開啟','關閉'].includes(button.textContent));
@@ -66,8 +66,7 @@ let server, win;
    reset();await install(enabled);game.state='playing';game.world.player.life=90;game.world.hostiles=[{x:-30,y:0,vx:200,vy:0,radius:5,damage:100,life:2}];tick();check('高於門檻仍預警致命傷害',game.calls.some(x=>x[0]==='drink'));
    reset();await install(enabled);game.state='playing';game.world.player.life=90;game.world.projectiles=[{x:-30,y:0,vx:200,vy:0,radius:5,damage:1000}];tick();check('玩家飛彈不觸發致命預警',game.calls.length===0);
    reset();await install(enabled);game.state='playing';game.world.player.life=10;game.world.terror={tier:1,affixes:['nobelt']};tick();check('遵守恐怖禁止藥帶詞綴',game.calls.length===0);
-   reset();await install({...enabled,potion:{autoMp:true}});game.state='playing';game.world.mana.mana=10;tick();check('魔力不足使用回復活力藥水',game.calls[0]?.[1]===1 && game.world.mana.mana===100);
-   game.world.player.life=10;tick();check('回復活力共用雙池冷卻',game.calls.length===1);
+   reset();await install({...enabled});game.state='playing';game.world.mana.mana=10;tick();check('遊戲沒有魔力藥水：魔力低時不喝水',!game.calls.length);
    reset();await install({enabled:true,loot:{enabled:false}});game.state='playing';game.world.hostiles=[{x:-30,y:0,vx:200,vy:0,radius:5,damage:10,life:2}];tick();check('飛彈正面來襲側向閃避',Math.abs(game.walkTarget?.y)>0);
    reset();await install({enabled:true,loot:{enabled:false}});game.state='playing';game.world.hostiles=[{x:-30,y:0,vx:200,vy:0,radius:5,damage:1,life:2}];tick();check('不痛不癢的飛彈不特別閃，但仍保持移動',!!game.walkTarget&&__d2autobot.diagnostics().lastAction.indexOf('閃避')<0);
    reset();await install({enabled:true,loot:{enabled:false}});game.state='playing';game.world.hostiles=[{x:-30,y:0,vx:200,vy:0,radius:5,damage:10,life:2}];tick();

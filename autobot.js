@@ -6,7 +6,7 @@
   const KEY = "d2autobot:settings";
   const defaults = {
     version: 5, enabled: false, progressEnabled: false,
-    potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, autoMp: false, mpThreshold: 30, mpCooldownMs: 2000, fallbackHpSlot: 1, fallbackMpSlot: 2 },
+    potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, fallbackHpSlot: 1 },
     movement: { enabled: true, combatStyle: "auto", ignoreDamagePercent: 3, chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
     loot: { enabled: true, vacuum: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: true },
     terror: { mode: "off", targetFarmTier: 1, autoReviveOrRestart: false, postClearWaitSec: 3 },
@@ -42,8 +42,8 @@
   for (const k of ["chaseFirst", "kiteDistance", "ignoreDamagePercent", "attackRange", "projectileSafetyRadius", "smoothingFactor"]) settings.movement[k] = defaults.movement[k];
   const bounds = {
     "deathProtection.emergencyHpPercent": [1, 90],
-    "potion.hpThreshold": [10, 90], "potion.mpThreshold": [10, 80], "potion.lethalLookaheadSec": [0.1, 1],
-    "potion.hpCooldownMs": [500, 5000], "potion.mpCooldownMs": [1000, 5000], "potion.fallbackHpSlot": [1, 4], "potion.fallbackMpSlot": [1, 4],
+    "potion.hpThreshold": [10, 90], "potion.lethalLookaheadSec": [0.1, 1],
+    "potion.hpCooldownMs": [500, 5000], "potion.fallbackHpSlot": [1, 4],
     "movement.kiteDistance": [40, 500], "movement.ignoreDamagePercent": [0, 50], "movement.attackRange": [100, 800], "movement.projectileSafetyRadius": [20, 100], "movement.smoothingFactor": [0.1, 1],
     "loot.searchRadius": [50, 1200], "loot.minRuneTier": [1, 33], "terror.targetFarmTier": [1, 9999], "terror.postClearWaitSec": [1, 15], "gear.minGainPercent": [0, 50],
   };
@@ -63,7 +63,7 @@
       const n = get(path), fallback = path.split(".").reduce((o, k) => o[k], defaults);
       put(path, Math.min(max, Math.max(min, Number.isFinite(n) ? n : fallback)));
     }
-    for (const path of ["loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot", "potion.fallbackMpSlot"]) put(path, Math.round(get(path)));
+    for (const path of ["loot.minRuneTier", "terror.targetFarmTier", "potion.fallbackHpSlot"]) put(path, Math.round(get(path)));
     if (!["off", "progress", "farm"].includes(settings.terror.mode)) settings.terror.mode = "off";
     if (!["off", "normal", "nightmare", "hell"].includes(settings.quest.farmDifficulty)) settings.quest.farmDifficulty = "off";
     if (!["auto", "melee", "ranged"].includes(settings.movement.combatStyle)) settings.movement.combatStyle = "auto";
@@ -71,7 +71,7 @@
   }
   normalize();
   const abort = new AbortController(), restores = [], blockedLoot = new WeakMap();
-  let alive = true, game = null, lastStep = -Infinity, lastHp = -Infinity, lastMp = -Infinity;
+  let alive = true, game = null, lastStep = -Infinity, lastHp = -Infinity;
   let manualUntil = 0, lootTarget = null, lootSince = 0, ownWalk = null, ownReach = null;
   let smooth = { x: 0, y: 0 }, stuck = null, stuckCount = 0, clearAt = 0, clearWorld = null, transition = false;
   let errors = 0, lastAction = "待命", hookNote = "正在定位遊戲模組", hookUrl = "", actionAt = 0;
@@ -166,35 +166,33 @@
     for (const e of s.enemies) if (dist(e, p) <= (e.radius || 12) + (p.radius || 12) + 45) damage += Math.max(0, e.damage || 0) * taken;
     return { damage, dodgeX, dodgeY };
   }
-  function drink(s, mp, now, lethal = false) {
+  function drink(s, now, lethal = false) {
     const columns = s.w?.belt?.columns;
     if (s.w?.terror?.affixes?.includes("nobelt")) { lastAction = "本層禁止使用藥帶"; return false; }
     if (Array.isArray(columns) && typeof game?.drinkFrom === "function") {
-      // 此版沒有獨立藍水；回復活力藥水會同時補生命與魔力。
-      const kinds = mp ? ["rejuvenation"] : lethal ? ["rejuvenation", "healing", "potion"] : ["healing", "potion", "rejuvenation"];
+      // 遊戲沒有魔力藥水；腰帶全放生命藥水（原版欄位內容為 potion）。
+      const kinds = lethal ? ["rejuvenation", "healing", "potion"] : ["healing", "potion", "rejuvenation"];
       let slot = -1;
       for (const kind of kinds) { slot = columns.findIndex((c) => c?.[0] === kind); if (slot >= 0) break; }
-      if (slot < 0) { lastAction = mp ? "藥帶沒有回復活力藥水可補魔力" : "藥帶沒有生命藥水"; return false; }
+      if (slot < 0) { lastAction = "藥帶沒有生命藥水"; return false; }
       const count = columns[slot].length, kind = columns[slot][0];
       game.drinkFrom(slot);
       if (columns[slot].length >= count) return false;
-      if (kind === "rejuvenation") { lastHp = now; lastMp = now; }
     } else {
-      const slot = mp ? settings.potion.fallbackMpSlot : settings.potion.fallbackHpSlot;
+      const slot = settings.potion.fallbackHpSlot;
       keyPulse("Digit" + slot, String(slot));
     }
-    if (mp) lastMp = now; else lastHp = now;
-    lastAction = mp ? "已使用補魔力藥水" : lethal ? "預估致命傷害，已喝水" : "已喝生命藥水";
+    lastHp = now;
+    lastAction = lethal ? "預估致命傷害，已喝水" : "已喝生命藥水";
     return true;
   }
   function potions(s, danger, now) {
     let healingFailed = false;
     const p = settings.potion, lethal = p.lethalProtection && danger.damage >= s.hp?.now && danger.damage > 0;
     if (s.hp?.now > 0 && s.hp.now < s.hp.max && now - lastHp >= p.hpCooldownMs && (p.autoHp && s.hp.now / s.hp.max * 100 <= p.hpThreshold || lethal)) {
-      if (drink(s, false, now, lethal)) return false;
+      if (drink(s, now, lethal)) return false;
       healingFailed = true;
     }
-    if (p.autoMp && s.mp?.now < s.mp?.max && s.mp.now / s.mp.max * 100 <= p.mpThreshold && now - lastMp >= p.mpCooldownMs) drink(s, true, now);
     return healingFailed;
   }
   function healingAvailable(s, now) {
@@ -399,9 +397,16 @@
     const shots = (s.shots || []).filter((sh) => Math.max(0, sh.damage || 0) * taken >= hpNow * settings.movement.ignoreDamagePercent / 100);
     const near = foes.filter((f) => dist(f, p) < 900);
     if (!near.length && !shots.length) return null;
-    const ranged = !fighter(), want = ranged ? Math.max(st.kite, Math.min(st.range * 0.8, myReach() * 0.7)) : Math.max(20, Math.min(myReach(), 150) * 0.6);
-    const scale = ranged ? Math.max(120, want) : 90;
-    const focus = (goal && goal.kind !== "loot" && goal.kind !== "kick" && nearestElite(s)) || near.reduce((a, f) => !a || dist(f, p) < dist(a, p) ? f : a, null)?.e;
+    // 安全距離＝不會被近戰打到：原版怪物近戰命中為中心距 ≤ 角色半徑＋怪物半徑＋45。
+    // 遠程站在近戰範圍外再多 15（不超出自己攻擊距離）；近戰技能只有 46～58，站在自己攻擊距離邊緣。
+    const pr = p.radius || 12, melee = 45, ranged = !fighter(), reach = Math.min(myReach(), 450);
+    const wantFor = (e) => ranged ? Math.min(Math.max(reach - 10, 40), (e?.radius || 12) + pr + melee + 15) : (e?.radius || 12) + pr + Math.max(10, Math.min(reach, 150) - 4);
+    const scale = ranged ? 120 : 90;
+    // 依使用者要求優先攻擊精英與王：900 內有幕末王＞頭目＞精英就鎖定，保持在安全的攻擊距離；王活著時少分心去撿東西。
+    const rankOrder = { actBoss: 3, boss: 2, champion: 1 };
+    const boss = s.enemies.filter((e) => isElite(e) && dist(e, p) < 900).reduce((a, e) => !a || (rankOrder[e.rank] || 0) > (rankOrder[a.rank] || 0) || ((rankOrder[e.rank] || 0) === (rankOrder[a.rank] || 0) && dist(e, p) < dist(a, p)) ? e : a, null);
+    const focus = boss || near.reduce((a, f) => !a || dist(f, p) < dist(a, p) ? f : a, null)?.e;
+    const looting = goal && (goal.kind === "loot" || goal.kind === "kick");
     const threat = (pt) => near.reduce((a, f) => { const d = Math.max(0, dist(pt, f) - f.r); return a + f.w / (1 + (d / scale) ** 2); }, 0);
     const shotHit = (pt) => shots.reduce((a, sh) => {
       const vx = sh.vx || 0, vy = sh.vy || 0, rr = (sh.radius || 5) + (p.radius || 12) + settings.movement.projectileSafetyRadius;
@@ -422,8 +427,10 @@
         if (moved < step * 0.4) continue;
         const pt = { x, y };
         let score = -threat(pt) * 4 - shotHit(pt) * 6 - near.filter((f) => dist(f, pt) < 110).length * 0.4;
-        if (focus) score -= Math.abs(dist(pt, focus) - want) / want * 1.5;
-        if (goal && dist(goal, p) > 5) score += (dist(p, goal) - dist(pt, goal)) / step * (pursue ? 5 : danger < 0.6 ? 2.5 : 0.8);
+        // 落在任何怪（目前或預測位置）的近戰範圍內就重扣，精英／王扣更多。
+        for (const f of near) { const zone = f.r + pr + melee; if (dist(pt, f.e) < zone || dist(pt, f) < zone) score -= isElite(f.e) ? 6 : 2.5; }
+        if (focus) { const want = wantFor(focus); score -= Math.abs(dist(pt, focus) - want) / want * (boss ? 3 : 1.5); }
+        if (goal && dist(goal, p) > 5) score += (dist(p, goal) - dist(pt, goal)) / step * (boss && looting ? 0.3 : pursue ? 5 : danger < 0.6 ? 2.5 : 0.8);
         score += (dir.x * planHeading.x + dir.y * planHeading.y) * 0.5;
         if (!best || score > best.score) best = { score, dir, pt };
       }
@@ -1085,7 +1092,7 @@
   function group(label) { const h = document.createElement("h3"); h.textContent = label; fields.append(h); }
   group("一般與安全"); field("enabled", "戰鬥輔助總開關");;
   group("生命與藥水");
-  for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["autoMp", "自動補魔力（消耗回復活力藥水）"], ["mpThreshold", "魔力門檻（％）"], ["mpCooldownMs", "魔力藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"], ["fallbackMpSlot", "降級模式魔力藥帶欄（1～4）"]]) field("potion." + path, label);
+  for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
   for (const [path, label] of [["enabled", "自動走位（預判包圍、保持距離、閃避）"], ["combatStyle", "戰鬥方式"], ["dodgeProjectiles", "閃避敵方飛彈"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依技能攻擊距離）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
   group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.vacuum", "全圖撿取（要撿的東西自動飛來、寶箱直接開啟；非原版行為）"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）"); field("loot.onlyUpgrades", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）");
