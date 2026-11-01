@@ -489,7 +489,13 @@
     restores.push(() => { if (own) hud.showTown = original; else delete hud.showTown; delete hud.__d2autobotTown; });
     return true;
   }
-  function leaveTrade(g) { if (g.state === "town") trade?.acts?.leave?.(); trade = null; if (shop) shop.open = null; }
+  // 實測：倉庫（only=stash）以角色畫面顯示，leave 後畫面仍留著，需再用原版 closeCharacter 關閉。
+  function leaveTrade(g) {
+    if (g.state === "town") trade?.acts?.leave?.();
+    const sheet = document.getElementById("character");
+    if (shop?.open && sheet && !sheet.classList.contains("hidden")) g.hud?.closeCharacter?.();
+    trade = null; if (shop) shop.open = null;
+  }
   function openTrade(g, kind) {
     if (shop.open === kind && g.state === "town" && trade) return true;
     leaveTrade(g);
