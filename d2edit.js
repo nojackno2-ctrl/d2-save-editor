@@ -73,20 +73,21 @@ async function startEngine() {
     .concat(performance.getEntriesByType("resource").map((e) => e.name))
     .filter((u) => u.startsWith(base) && u.endsWith(".js")).map((u) => u.slice(base.length));
   // 目前頁面不一定載入了物品程式（例如停在設定頁），所以也從遊戲主頁的程式清單開始找
-  for (const page of ["/play/", "/"]) {
-    const html = await fetch(new URL(page, location.origin), { cache: "no-store" }).then((r) => (r.ok ? r.text() : "")).catch(() => "");
-    for (const m of html.matchAll(/\/assets\/([\w.-]+\.js)/g)) queue.push(m[1]);
+  // 依使用者回報（物品引擎載入很久）：主頁清單與各程式區塊改為並行抓取（舊版逐一等待 45 個檔案），每一波抓完再找下一波參照。
+  const t0 = performance.now(), mark = (k) => { (engineInfo.ms ??= {})[k] = Math.round(performance.now() - t0); };
+  const pages = await Promise.all(["/play/", "/"].map((page) => fetch(new URL(page, location.origin), { cache: "no-store" }).then((r) => (r.ok ? r.text() : "")).catch(() => "")));
+  for (const html of pages) for (const m of html.matchAll(/\/assets\/([\w.-]+\.js)/g)) queue.push(m[1]);
+  let wave = [...new Set(queue)];
+  while (wave.length) {
+    const todo = wave.filter((f) => !seen.has(f)); for (const f of todo) seen.add(f);
+    const srcs = await Promise.all(todo.map((f) => fetch(base + f).then((r) => (r.ok ? r.text() : null)).catch(() => null)));
+    const next = new Set();
+    todo.forEach((f, i) => { const src = srcs[i]; if (src == null) return; files[f] = src; for (const m of src.matchAll(/["'`]\.\/([\w.-]+\.js)["'`]/g)) if (!seen.has(m[1])) next.add(m[1]); });
+    wave = [...next];
   }
-  while (queue.length) {
-    const f = queue.shift();
-    if (seen.has(f)) continue;
-    seen.add(f);
-    const src = await fetch(base + f).then((r) => (r.ok ? r.text() : null)).catch(() => null);
-    if (src == null) continue;
-    files[f] = src;
-    for (const m of src.matchAll(/["'`]\.\/([\w.-]+\.js)["'`]/g)) queue.push(m[1]);
-  }
+  mark("抓取程式");
   const { patched, missing, found } = patch(files, signatures);
+  mark("比對特徵碼");
   Object.assign(engineInfo, { step: "比對遊戲程式", chunks: Object.keys(files).length, found, missing });
   if (missing.length) throw new Error("遊戲版本不相容：找不到 " + missing.join("、"));
   // 加了 export 的區塊用 blob 載入（相對參照改成絕對網址）；再用 import map 讓所有區塊對它的參照都指向這份，
@@ -98,6 +99,7 @@ async function startEngine() {
   }
   const statsUrl = window.__D2EDIT_ITEMSTATS || (await d2url("itemstats.json"));
   engineInfo.step = "讀取物品資料";
+  mark("建立模組");
   const itemstats = await fetch(statsUrl).then((r) => { engineInfo.itemstats = r.status; if (!r.ok) throw new Error("讀不到遊戲物品資料（請先進入過遊戲一次）。"); return r.text(); });
   engineInfo.step = "載入產生器";
   // 遊戲本身已經載入同一批程式，再載一次會重複註冊；所以放進隱藏的同源 iframe，用它自己的模組環境執行
@@ -108,14 +110,16 @@ async function startEngine() {
   const w = box.contentWindow;
   w.__entries = Object.keys(map);
   w.__itemstats = itemstats;
+  mark("讀取物品資料");
   return w.eval(`(async () => {
     const mods = await Promise.all(__entries.map((u) => import(u)));
     const { boot } = await import(${JSON.stringify(at("engine-page.js"))});
     return boot(Object.assign({}, ...mods), __itemstats);
   })()`);
 }
-const engine = () => (enginePromise ??= startEngine()
-  .then((e) => { engineInfo.step = "已啟動"; return e; })
+let engineStartedAt = 0;
+const engine = () => (enginePromise ??= (engineStartedAt = performance.now(), startEngine())
+  .then((e) => { engineInfo.step = "已啟動"; if (engineInfo.ms) engineInfo.ms.完成 = Math.round(performance.now() - engineStartedAt); return e; })
   .catch((e) => { engineInfo.error = String(e?.message ?? e); enginePromise = null; throw e; }));
 
 /* ---------- 診斷 ---------- */
