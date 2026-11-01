@@ -592,8 +592,9 @@
     let best = 0, score = -Infinity;
     buttons.forEach((button, i) => {
       const card = levelCards?.[i], evolve = button.classList.contains("evolves") || !!button.querySelector(".evolves.ready");
-      // 實測卡名畫在 .d2-parts 內第一個 canvas（textContent 為名稱），舊版為 strong。
-      const title = card?.title ?? button.querySelector(".d2-parts canvas, strong")?.textContent;
+            // 實測卡名是 .lines 的第一個元素：單一 canvas（如 Faster Cast Rate），或 .d2-parts 內多個 canvas 以「-」接副標題（如 Ice|Bolt|-|New skill）。
+      const head = button.querySelector(".lines")?.firstElementChild, parts = head ? [...(head.tagName === "CANVAS" ? [head] : head.querySelectorAll("canvas"))].map((c) => c.textContent.trim()) : [], cut = parts.indexOf("-");
+      const title = card?.title ?? (parts.length ? parts.slice(0, cut < 0 ? parts.length : cut).join(" ") : button.querySelector("strong")?.textContent);
       const value = (evolve ? 100 : 0) + ladderScore(g, title) - i * 0.01;
       if (value > score) { best = i; score = value; }
     });
