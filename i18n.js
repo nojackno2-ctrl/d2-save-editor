@@ -98,7 +98,7 @@
     // 帳號
     "基本": "Basics", "金幣": "Gold", "光之碎片": "Light shards", "可聘傭兵欄": "Mercenary slots",
     "金幣原版上限為 10,000,000,000；超過時遊戲會把存檔標記為「被外部修改」（排行榜不計分），未解除限制時無法超過。": "The original gold cap is 10,000,000,000. Above it the game marks the save as externally modified (no leaderboard score); it cannot be exceeded while restrictions are on.",
-    "永久強化等級": "Permanent upgrades", "額外強化": "Extra upgrades", "全部設為": "Set all to", "角色": "Characters", "職業": "Class", "解鎖難度": "Unlocked difficulty",
+    "永久強化等級": "Permanent upgrades", "額外強化": "Extra upgrades", "全部設為": "Set all to", "角色": "Characters", "職業": "Class", "解鎖難度": "Unlocked difficulty", "金色光芒": "Golden glow",
     "技能改造點數": "Skill mod points", "已付費重置次數": "Paid resets", "恐怖等級（開放）": "Terror level (open)", "技能修改": "Skill modifiers",
     "照遊戲規則：每個職業最多 10 點，每點可以讓一個技能選一種修改；選項只列出該職業有的技能。": "Per the game rules: up to 10 points per class, each point lets one skill take one modifier; only that class's skills are listed.",
     "（上限 ": " (max ", "強化等級升滿才能加額外強化": "Max the upgrade level first to add extra upgrades",

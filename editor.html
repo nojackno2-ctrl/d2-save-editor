@@ -262,7 +262,7 @@
   </section>
   <section>
     <h2>角色</h2>
-    <table><thead><tr><th>職業</th><th>解鎖難度</th><th>技能改造點數</th><th>已付費重置次數</th><th>恐怖等級（開放）</th></tr></thead><tbody id="classes"></tbody></table>
+    <table><thead><tr><th>職業</th><th>解鎖難度</th><th>金色光芒</th><th>技能改造點數</th><th>已付費重置次數</th><th>恐怖等級（開放）</th></tr></thead><tbody id="classes"></tbody></table>
   </section>
   <section>
     <h2>技能修改</h2>
@@ -971,14 +971,21 @@ async function renderHero() {
   const freeMods = !SKILL_MODS || unlocked();
   $("#classes").innerHTML = CLASSES.map(c => `<tr><td>${CLASS_ZH[c]}</td>
     <td><select data-path="unlocked.${c}">${DIFFS.map(d => `<option value="${d}">${DIFF_ZH[d]}</option>`).join("")}</select></td>
+    <td><input type="checkbox" data-glow="${c}" aria-label="${CLASS_ZH[c]}金色光芒"></td>
     <td>${freeMods ? `<input type="number" min="0" data-path="skillMods.${c}.points">` : '<span class="dim">見下方「技能修改」</span>'}</td>
     <td><input type="number" min="0" data-path="paidResets.${c}"></td>
     <td><input type="number" min="0" data-path="terror.${c}.open"></td></tr>`).join("");
   for (const el of document.querySelectorAll("[data-path]")) el.value = getP(save, el.dataset.path) ?? (el.dataset.num !== undefined ? "0" : "");
+  for (const el of document.querySelectorAll("[data-glow]")) el.checked = save.heroes?.[el.dataset.glow]?.glow === true;
   syncExtra(); syncSkillMods();
   checkGold();
 }
 function collectHero() {
+  for (const el of document.querySelectorAll("[data-glow]")) {
+    const hero = save.heroes?.[el.dataset.glow];
+    if (el.checked) { if (!save.heroes) save.heroes = {}; if (!hero) save.heroes[el.dataset.glow] = {}; save.heroes[el.dataset.glow].glow = true; }
+    else if (hero?.glow === true) delete hero.glow;
+  }
   for (const el of document.querySelectorAll("[data-path]")) {
     const p = el.dataset.path, old = getP(save, p);
     if (el.value === "") {
