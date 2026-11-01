@@ -58,6 +58,8 @@
   // 只是既有設定的組合（quest.autoProgress、terror.mode、quest.farmDifficulty），戰鬥邏輯與舊設定不必改。
   const autoMode = () => settings.terror.mode === "progress" ? "terror" : settings.terror.mode === "farm" ? "fixedTier" : settings.quest.farmDifficulty !== "off" ? "fixedDifficulty" : "quest";
   // 依使用者要求：自動模式分「任務模式」（完成所有任務並練到 99 級）與「天梯模式」（推關＝恐怖層往上推、固定關卡＝重複刷指定難度、固定層數＝重刷指定層）。
+  const DIFF_ZH = { normal: "普通", nightmare: "惡夢", hell: "地獄" };
+  const modeLabel = () => ({ quest: "任務模式", terror: "天梯・推關", fixedDifficulty: "天梯・固定關卡 " + (DIFF_ZH[settings.quest.fixedDifficulty] || ""), fixedTier: "天梯・固定層數 " + settings.terror.targetFarmTier + " 層" })[autoMode()];
   const autoKind = () => autoMode() === "quest" ? "quest" : "ladder";
   const get = (path) => path === "autoKind" ? autoKind() : path === "ladderMode" ? (autoMode() === "quest" ? "terror" : autoMode()) : path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
   function put(path, value) {
@@ -1478,11 +1480,13 @@
     launcher.style.display = isPaused && !editorOpen && panel.hidden ? "block" : "none";
     stopButton.style.display = (settings.enabled || settings.progressEnabled) && !isPaused && !editorOpen && panel.hidden ? "block" : "none";
     statusLine.style.display = stopButton.style.display;
-    if (statusLine.textContent !== lastAction) statusLine.textContent = lastAction;
+    // 依使用者要求：狀態列顯示目前自動戰鬥模式。
+    const line = (settings.progressEnabled ? "【" + modeLabel() + "】" : "") + lastAction;
+    if (statusLine.textContent !== line) statusLine.textContent = line;
     if (!isPaused || editorOpen) panel.hidden = true;
     if (!game) guarded(null, performance.now());
     const s = readState(game);
-    status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用" : "關閉"), game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
+    status.textContent = ["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用（" + modeLabel() + "）" : "關閉"), game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n");
   }, 200);
   const api = {
     destroy() { if (!alive) return; alive = false; release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
