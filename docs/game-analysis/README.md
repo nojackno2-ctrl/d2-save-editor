@@ -16,6 +16,7 @@
 | [systems/items.md](systems/items.md) | 掉落觸發、品質判定、MF 遞減、詞綴等級、底材、收藏、符文之語與新版差異 |
 | [systems/progression.md](systems/progression.md) | 經驗與等級、難度、任務與任務物品、恐懼層獎勵、Charsi 升級價格、天梯驗證 |
 | [systems/ui-hooks.md](systems/ui-hooks.md) | HUD 與介面回呼（技能變體 `hud.d2.mods`、城鎮交易、技能樹、傳送點、選角） |
+| [quests.md](quests.md) | 任務：存檔狀態值（o 待領、g 已領）、24 項任務條件與獎勵、尋找凱恩完整流程（卷軸、阿卡拉翻譯、鑰匙、石塊陣、傳送門、牢籠、戒指）、向誰交任務 |
 | [drop-rules.md](drop-rules.md) | 裝備掉落規則（誰掉什麼、物品等級、品質與 MF 公式、詞綴、法典、經驗懲罰） |
 | [skills.md](skills.md)／[skills.json](skills.json) | 全職業 154 技能、66 被動；與排行榜（LADDER）、攻擊距離表（REACH）比對 |
 | [modules.md](modules.md) | 45 個程式模組的大小、用途與匯出對照 |
