@@ -408,12 +408,12 @@
     const g = game, search = g.search, cage = search?.gibbetSpot;
     // 由原版碰觸機制完成石陣、牢籠與對話；不呼叫 complete() 或更改任務紀錄。
     if (point(cage)) return { ...cage, kind: "任務牢籠" };
-    const stones = search?.stones?.logic;
-    if (Array.isArray(stones?.spots) && !stones.done) {
-      const i = Array.isArray(stones.lit) ? stones.lit.findIndex((x) => !x) : -1;
     // 依使用者要求：掉落的任務物品（伊尼弗斯卷軸等）要撿；列為任務目標，優先於精英與通關傳送門，不受一般撿取的安全條件限制。
     const questDrop = s.pickups.filter((e) => !e.dead && e.item?.type === "quest" && accepts(e) && point(e)).sort((a, b) => dist(a, s.p) - dist(b, s.p))[0];
     if (questDrop) return { x: questDrop.x, y: questDrop.y, kind: "loot", target: questDrop, quest: true };
+    const stones = search?.stones?.logic;
+    if (Array.isArray(stones?.spots) && !stones.done) {
+      const i = Array.isArray(stones.lit) ? stones.lit.findIndex((x) => !x) : -1;
       if (i >= 0 && point(stones.spots[i])) return { ...stones.spots[i], kind: "任務石陣" };
     }
     if (point(search?.portalSpot)) return { x: search.portalSpot.x, y: search.portalSpot.y, kind: "任務傳送門" };
@@ -621,7 +621,11 @@
     } else if (goal && !crowded && !dodging && !closeEnemy && dist(goal, s.p) > 5) { const u = unit(goal.x - s.p.x, goal.y - s.p.y); x += u.x; y += u.y; }
     // 有怪或飛彈時改用全圖規劃器；沒有任何威脅時走目標，連目標都沒有就慢速繞圈，保持移動。
     // 追盜賊／王／任務等目標時加重目標吸引，仍會避開威脅與飛彈。
-    const plan = m.enabled && !through ? planMove(s, goal, st, now, pursue) : null;
+    // 依使用者回報（截圖）：自動閃避讓角色在任務傳送門旁一直被推開進不去；任務傳送門／牢籠／石陣近在 300 內且生命 > 30％ 時不閃避，直線走進去並站住（傳送門要站 1.5 秒）。
+    const commit = goal && /任務傳送門|任務牢籠|任務石陣/.test(goal.kind) && ratio > 0.3 && dist(goal, s.p) < 300;
+    if (commit && dist(goal, s.p) <= 5) { lastAction = "站在" + goal.kind + "上"; release(); return; }
+    if (commit) { const g2 = unit(goal.x - s.p.x, goal.y - s.p.y); x = g2.x; y = g2.y; }
+    const plan = m.enabled && !through && !commit ? planMove(s, goal, st, now, pursue) : null;
     let u = plan ? plan.dir : unit(x, y);
     if (!u.x && !u.y) {
       if (!m.enabled) { release(); return; }
