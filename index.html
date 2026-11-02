@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>D2 倖存者 存檔修改器</title>
+<title>D2倖存者工具包</title>
 <style>
   :root { --bg:#14110d; --panel:#1f1a14; --line:#3a3026; --text:#e8dcc4; --dim:#9c8f78; --gold:#d4a84a; }
   * { box-sizing:border-box; }
@@ -22,14 +22,14 @@
 </head>
 <body>
 <main data-lang="zh">
-  <h1>D2 倖存者 存檔修改器（網頁版）</h1>
+  <h1>D2倖存者工具包（網頁版）</h1>
   <p class="dim">給在瀏覽器（電腦或手機）玩 d2survivors.lol 的玩家。用書籤在遊戲頁面上開啟修改器，直接讀寫瀏覽器裡的存檔，不經過遊戲的匯入功能，不會留下匯入紀錄。 <a href="#" data-switch="en" style="color:var(--gold)">English</a></p>
 
   <section>
     <h2>1. 複製書籤程式碼</h2>
-    <textarea class="code" readonly>javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())</textarea>
+    <textarea class="code" readonly>javascript:import('https://nojackno2-ctrl.github.io/d2-survivors-toolkit/d2edit.js?v='+Date.now())</textarea>
     <p><button class="copy">📋 複製書籤程式碼</button> <span class="copied ok"></span></p>
-    <p class="dim">電腦：也可以直接把這個按鈕拖到書籤列 → <a class="drag" href="javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())">D2 修改器</a></p>
+    <p class="dim">電腦：也可以直接把這個按鈕拖到書籤列 → <a class="drag" href="javascript:import('https://nojackno2-ctrl.github.io/d2-survivors-toolkit/d2edit.js?v='+Date.now())">D2 修改器</a></p>
   </section>
 
   <section>
@@ -64,14 +64,14 @@
   </section>
 </main>
 <main data-lang="en" hidden>
-  <h1>D2 Survivors Save Editor (web)</h1>
+  <h1>D2 Survivors Toolkit (web)</h1>
   <p class="dim">For players of d2survivors.lol in a browser (desktop or mobile). A bookmark opens the editor on top of the game page and reads/writes the save stored in your browser directly — no in-game import, so no import record is left. <a href="#" data-switch="zh" style="color:var(--gold)">繁體中文</a></p>
 
   <section>
     <h2>1. Copy the bookmarklet</h2>
-    <textarea class="code" readonly>javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())</textarea>
+    <textarea class="code" readonly>javascript:import('https://nojackno2-ctrl.github.io/d2-survivors-toolkit/d2edit.js?v='+Date.now())</textarea>
     <p><button class="copy">📋 Copy bookmarklet</button> <span class="copied ok"></span></p>
-    <p class="dim">Desktop: you can also drag this button to the bookmarks bar → <a class="drag" href="javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())">D2 Editor</a></p>
+    <p class="dim">Desktop: you can also drag this button to the bookmarks bar → <a class="drag" href="javascript:import('https://nojackno2-ctrl.github.io/d2-survivors-toolkit/d2edit.js?v='+Date.now())">D2 Editor</a></p>
   </section>
 
   <section>
@@ -106,7 +106,7 @@
   </section>
 </main>
 <script>
-  const show = (l) => { document.documentElement.lang = l === "zh" ? "zh-Hant" : "en"; document.title = l === "zh" ? "D2 倖存者 存檔修改器" : "D2 Survivors Save Editor";
+  const show = (l) => { document.documentElement.lang = l === "zh" ? "zh-Hant" : "en"; document.title = l === "zh" ? "D2倖存者工具包" : "D2 Survivors Toolkit";
     for (const m of document.querySelectorAll("main")) m.hidden = m.dataset.lang !== l; };
   const sys = String((navigator.languages && navigator.languages[0]) || navigator.language || "en").toLowerCase();
   show(sys.startsWith("zh") ? "zh" : "en");

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>D2 倖存者 存檔修改器</title>
+<title>D2倖存者工具包</title>
 <style>
   :root { --bg:#14110d; --panel:#1f1a14; --line:#3a3026; --text:#e8dcc4; --dim:#9c8f78; --gold:#d4a84a; --bad:#e06050; --ok:#7fbf6a;
           --unique:#c7b377; --set:#1ec31e; --rare:#ffff64; --magic:#6969ff; --runeword:#c7b377; --normal:#e8dcc4; --cell:28px; }
@@ -123,7 +123,7 @@
 </head>
 <body>
 <header>
-  <h1>D2 倖存者 存檔修改器</h1>
+  <h1>D2倖存者工具包</h1>
   <select id="mode"><option value="softcore">一般模式</option><option value="hardcore">硬核模式</option></select>
   <button id="reload">重新讀取</button>
   <button id="write" class="primary">寫入存檔</button>
@@ -672,7 +672,7 @@ async function makeDiag() {
   const lw = host?.lastWrite, now = host?.savesNow?.[$("#mode").value];
   if (lw && now) lines.寫入比對 = lw.summary?.uniques === now.uniques && lw.summary?.gearHash === now.gearHash
     ? "遊戲裡的存檔與上次寫入的一致" : `不一致：上次寫入收藏 ${lw.summary?.uniques} 件，現在遊戲裡 ${now.uniques} 件（遊戲可能沒有採用修改）`;
-  $("#diagText").value = "D2 倖存者存檔修改器 診斷資訊\n" + JSON.stringify(lines, null, 1);
+  $("#diagText").value = "D2倖存者工具包 診斷資訊\n" + JSON.stringify(lines, null, 1);
   $("#diagMsg").textContent = "完成";
 }
 

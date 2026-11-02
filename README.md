@@ -1,9 +1,9 @@
-# D2 倖存者 存檔修改器
+# D2倖存者工具包
 
 《D2 Survivors》（d2survivors.lol）的非官方存檔修改器，介面支援繁體中文與英文（依系統語言自動切換）。物品直接使用遊戲本身的產生器製作，數值範圍與遊戲一致。
 
-- **網頁版（電腦／手機）**：<https://nojackno2-ctrl.github.io/d2-save-editor/>
-- **Windows 桌面版**：到 [Releases](https://github.com/nojackno2-ctrl/d2-save-editor/releases) 下載 `D2.exe`（可攜版，免安裝）
+- **網頁版（電腦／手機）**：<https://nojackno2-ctrl.github.io/d2-survivors-toolkit/>
+- **Windows 桌面版**：到 [Releases](https://github.com/nojackno2-ctrl/d2-survivors-toolkit/releases) 下載 `D2.exe`（可攜版，免安裝）
 
 > ⚠️ 修改前請先備份存檔。本工具與遊戲官方無關，使用風險自負。
 
@@ -56,10 +56,10 @@
 
 ### 步驟 1：取得書籤程式碼
 
-打開[安裝頁](https://nojackno2-ctrl.github.io/d2-save-editor/)，按「📋 複製書籤程式碼」。程式碼長這樣（以安裝頁複製的為準）：
+打開[安裝頁](https://nojackno2-ctrl.github.io/d2-survivors-toolkit/)，按「📋 複製書籤程式碼」。程式碼長這樣（以安裝頁複製的為準）：
 
 ```text
-javascript:import('https://nojackno2-ctrl.github.io/d2-save-editor/d2edit.js?v='+Date.now())
+javascript:import('https://nojackno2-ctrl.github.io/d2-survivors-toolkit/d2edit.js?v='+Date.now())
 ```
 
 ### 步驟 2：加入書籤
@@ -122,7 +122,7 @@ cd editor
 npm install
 npm start          # 執行桌面版
 npm run dist       # 封裝 Windows 可攜版
-node build-web.js https://nojackno2-ctrl.github.io/d2-save-editor/   # 產生網頁版到 ../web
+node build-web.js https://nojackno2-ctrl.github.io/d2-survivors-toolkit/   # 產生網頁版到 ../web
 ```
 
 | 位置 | 內容 |
