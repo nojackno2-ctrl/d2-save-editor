@@ -408,8 +408,7 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
 
   return {
     capabilities(gameScript = gameIdentity.gameScript) {
-      const supported = gameIdentity.source === "desktop" ? gameIdentity.build === "20261102.1" : gameScript === "Game-Ba9RuE4G.js" && gameIdentity.items === "itemArt-CUOhw0kt.js" && gameIdentity.save === "saveTransfer-C-ucl_ha.js";
-      return { supported, gameScript: gameScript || null, weaponSets: supported && typeof G.__weaponSetActive === "function" };
+      return { supported: true, gameScript: gameScript || null, weaponSets: typeof G.__weaponSetActive === "function" };
     },
     // 依原版規則檢查物品（未解除限制時使用）；回傳每件物品的問題清單
     // 屬性下拉選單用：modsList 每一組是「其他列的屬性」，回傳每組還能加入的屬性

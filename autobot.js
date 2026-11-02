@@ -1727,9 +1727,6 @@
       const response = await fetch(url, { signal: abort.signal }); if (!response.ok) continue;
       const source = await response.text();
       if (!signatures.every((re) => re.test(source))) { for (const m of source.matchAll(/["'`]\.\/(Game-[\w-]+\.js)["'`]/g)) queue.push(new URL(m[1], url).href); continue; }
-      if (!/\/Game-Ba9RuE4G\.js(?:\?.*)?$/.test(url) || !/["'`]\.\/itemArt-CUOhw0kt\.js["'`]/.test(source) || !/["'`]\.\/saveTransfer-C-ucl_ha\.js["'`]/.test(source)) {
-        hookUrl = url; hookNote = "目前遊戲版本不相容，已封鎖輔助與遊戲修改；請更新遊戲與工具包"; void checkGameVersion(url); return;
-      }
       // 精確沿用頁面模組 URL，讓瀏覽器回傳原模組實例；不加查詢字串、不執行修改版副本。
       const module = await import(url); if (!alive) return;
       void loadSkillTables(url);
@@ -1740,7 +1737,7 @@
       wrap(proto, "steer", (original) => function (...args) { const result = Reflect.apply(original, this, args); if (alive && this === game && ownReach && this.world?.reaching === ownReach) ownWalk = this.walkTarget; return result; });
       gameplayCompatible = true; hookUrl = url; hookNote = "已掛接原版 Game，等待下一幀"; void checkGameVersion(url); return;
     }
-    hookNote = "無法確認遊戲版本，已封鎖輔助與遊戲修改；請更新遊戲並重新開啟";
+    hookNote = "找不到可掛接的遊戲程式，請重新開啟遊戲";
     void checkGameVersion("");
   }
   let versionNotice = "", versionDismissed = false, checkedGameBuild = false;
@@ -1947,5 +1944,5 @@
     get game() { return game; },
   };
   window.__d2autobot = api;
-  connect().catch((err) => { if (alive) hookNote = "無法確認遊戲版本，已封鎖輔助與遊戲修改：" + String(err.message || err); void checkGameVersion(""); });
+  connect().catch((err) => { if (alive) hookNote = "無法掛接遊戲程式：" + String(err.message || err); void checkGameVersion(""); });
 })();

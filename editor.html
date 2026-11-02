@@ -365,7 +365,7 @@
 const LOCALE = window.LANG === "en" ? "en-US" : "zh-TW";
 const TESTED_GAME_BUILD = "20261101.1"; // 每次確認新版遊戲相容後更新此值
 const BUILD_KEY = "d2edit:gameBuild";
-const TOOLKIT_VERSION = "1.0.2"; // 與 package.json 的 version 一致；發布前由 build-web.js 檢查
+const TOOLKIT_VERSION = "1.0.3"; // 與 package.json 的 version 一致；發布前由 build-web.js 檢查
 const TOOLKIT_SITE = "https://nojackno2-ctrl.github.io/d2-survivors-toolkit/";
 const TOOLKIT_RELEASES = "https://github.com/nojackno2-ctrl/d2-survivors-toolkit/releases/latest";
 const CLASSES = ["amazon","sorceress","necromancer","paladin","barbarian","druid","assassin"];
@@ -1647,14 +1647,14 @@ async function load() {
   versionDismissed = false; refreshVersionNotice(); void checkGameVersion(); startToolkitCheck();
   supportsWeaponSets = null;
   gameSupported = null;
-  compatibilityNotice = "正在確認目前遊戲版本；確認前暫停寫入和物品引擎。"; refreshVersionNotice();
+  compatibilityNotice = ""; refreshVersionNotice();
   void Promise.resolve().then(() => window.api.engine("capabilities")).then((r) => {
     if (typeof r?.weaponSets === "boolean") supportsWeaponSets = r.weaponSets;
     gameSupported = r?.supported === true;
-    compatibilityNotice = gameSupported ? "" : "目前遊戲版本不相容或無法確認，已封鎖寫入和物品引擎；請更新遊戲與工具包。";
+    compatibilityNotice = "";
     refreshVersionNotice();
     if (save) { renderTree(); renderView(); renderEditor(); }
-  }).catch(() => { gameSupported = false; compatibilityNotice = "無法確認目前遊戲版本，已封鎖寫入和物品引擎；請確認遊戲已更新並重新開啟。"; refreshVersionNotice(); });
+  }).catch(() => { gameSupported = false; refreshVersionNotice(); });
   status("讀取中…");
   if (!A) {
     A = await window.api.assets();
@@ -1672,7 +1672,6 @@ async function load() {
 }
 async function write() {
   if (!save) return;
-  if (gameSupported !== true) return fail(new Error("目前遊戲版本不相容或無法確認，已拒絕寫入以保護存檔。請更新遊戲與工具包。"));
   if (page === "hero") collectHero();
   if (!unlocked()) {
     const invalidPoints = attributeChecks(save).filter(x => x.ok === false);

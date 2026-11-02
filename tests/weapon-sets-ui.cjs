@@ -44,7 +44,7 @@ app.whenReady().then(async () => {
     supportsWeaponSets=null; gameSupported=null; document.querySelector('#write').click(); await new Promise(r=>setTimeout(r,100));
     return {oldHasButton,oldHasAlt,oldWrites,blocked,unknownBlocked:window.__writes.length===writesBefore,message};
   })()`);
-  assert.equal(old.oldHasButton,false); assert.equal(old.oldHasAlt,false); assert.equal(old.oldWrites,0);
-  assert.equal(old.blocked,true); assert.equal(old.unknownBlocked,true); assert.match(old.message,/拒絕寫入/);
+  assert.equal(old.oldHasButton,false); assert.equal(old.oldHasAlt,false); assert.equal(old.oldWrites,1);
+  assert.equal(old.blocked,false); assert.equal(old.unknownBlocked,false);
   console.log('雙武器組實際介面切換與假後端寫入測試通過'); clearTimeout(watchdog); app.exit(0);
 }).catch(err => { console.error(err.stack || err); clearTimeout(watchdog); app.exit(1); });

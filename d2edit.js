@@ -164,7 +164,6 @@ const backend = {
   },
   async save(m, save) {
     if (typeof save !== "object" || !save || typeof save.version !== "number") throw new Error("存檔格式不正確。");
-    if (!(await (await engine()).capabilities(activeGameScript())).supported) throw new Error("目前遊戲版本不相容，已封鎖寫入；請更新遊戲與工具包。");
     const text = await sealText(save);
     realSetItem.call(localStorage, mode(m).key, text);
     lockSaves();
@@ -233,7 +232,6 @@ const backend = {
     const e = await engine();
     const capability = e.capabilities(activeGameScript());
     if (fn === "capabilities") return JSON.parse(JSON.stringify(capability));
-    if (!capability.supported) throw new Error("目前遊戲版本不相容，已封鎖物品引擎；請更新遊戲與工具包。");
     // 結果來自另一個 iframe，複製一份成這邊的物件
     return JSON.parse(JSON.stringify(await e[fn](...args) ?? null));
   },

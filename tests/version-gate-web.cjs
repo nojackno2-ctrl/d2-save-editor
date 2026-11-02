@@ -20,8 +20,8 @@ app.whenReady().then(async()=>{
     fs.createReadStream(file).on('error',()=>res.writeHead(404).end()).pipe(res);
   }).listen(0,'127.0.0.1');
   await new Promise(r=>server.once('listening',r));
-  const cases=[[latest,'Game-Ba9RuE4G.js',true],[old,'Game-CP0n0PpN.js',false]];
-  if(older)cases.push([older,'Game-C88Jt16A.js',false]);
+  const cases=[[latest,'Game-Ba9RuE4G.js',true],[old,'Game-CP0n0PpN.js',true]];
+  if(older)cases.push([older,'Game-C88Jt16A.js',true]);
   for (const [dir,game,supported] of cases) {
     selected={dir,game}; const partition='d2-gate-'+Math.random();
     const win=new BrowserWindow({show:false,webPreferences:{session:session.fromPartition(partition)}});
@@ -48,7 +48,7 @@ app.whenReady().then(async()=>{
     assert.equal(result.capabilities?.supported,supported,JSON.stringify(result));
     if(supported){assert.equal(result.saveResult?.ok,true);assert.notEqual(result.before,result.after);assert.equal(result.engineError,'')}
     else {assert.match(result.error,/不相容/);assert.match(result.engineError,/不相容/);assert.equal(result.before,result.after)}
-    for(const x of result.negative){assert.match(x.reason,/不相容/);assert.equal(x.unchanged,true)}
+    for(const x of result.negative){assert.equal(x.reason,'')}
     await win.webContents.executeJavaScript('window.__d2editLauncher.click()');
     let editorReady=false;
     for(let i=0;i<150;i++){
@@ -64,7 +64,7 @@ app.whenReady().then(async()=>{
     assert.equal(ui.supported,supported,JSON.stringify(ui));
     if(supported){assert.notEqual(ui.before,ui.after);assert.equal(JSON.parse(ui.after).gold,77)}
     else {assert.equal(ui.before,ui.after);assert.match(ui.message,/拒絕寫入/)}
-    console.log(game+'：'+(supported?'允許最新版':'封鎖舊版')+'，網頁後端與隔離存檔驗證通過');win.destroy();
+    console.log(game+'：'+'允許使用'+'，網頁後端與隔離存檔驗證通過');win.destroy();
   }
   server.close();clearTimeout(watchdog);app.exit(0);
 }).catch(e=>{console.error(e.stack||e);server?.close();clearTimeout(watchdog);app.exit(1)});
