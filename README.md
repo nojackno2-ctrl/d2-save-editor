@@ -4,6 +4,7 @@
 
 - **網頁版（電腦／手機）**：<https://nojackno2-ctrl.github.io/d2-survivors-toolkit/>
 - **Windows 桌面版**：到 [Releases](https://github.com/nojackno2-ctrl/d2-survivors-toolkit/releases) 下載 `D2.exe`（可攜版，免安裝）
+- **介紹網頁**：<https://d2-survivors-toolkit.nojackno2.workers.dev>
 
 > ⚠️ 修改前請先備份存檔。本工具與遊戲官方無關，使用風險自負。
 
