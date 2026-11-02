@@ -295,6 +295,21 @@
     return { protos: [...protos], caches: [...caches] };
   }
   let textCaches = [];
+  const liveCanvases = new Set();
+  // 用記下的原文與參數，以目前語言重畫遊戲建立的文字畫布
+  function redrawLiveCanvases() {
+    for (const c of [...liveCanvases]) {
+      if (!c.isConnected) { liveCanvases.delete(c); continue; }
+      const src = c.__d2langSrc; if (!src) continue;
+      try {
+        const next = src.font.canvas(src.text, ...src.rest);
+        if (next instanceof HTMLCanvasElement && next !== c) {
+          next.className = c.className; if (c.style.cssText) next.style.cssText = c.style.cssText;
+          c.replaceWith(next); liveCanvases.delete(c);
+        }
+      } catch {}
+    }
+  }
   // 記下遊戲最後一次建立升級畫面的參數：即時換語言時請遊戲用同樣參數重建，整張卡片以新語言重畫
   // （卡片的「進化為…」是分段畫的，逐段重畫只能逐字翻）
   let lastLevelUp = null;
@@ -369,6 +384,8 @@
         next.className = canvas.className;
         next.style.cssText = canvas.style.cssText;
         if (next.width > canvas.width) next.style.maxWidth = `${canvas.width}px`;
+        // 重畫時傳入的是譯文，原文要記成英文，切回 English 才畫得回來
+        if (next.__d2langSrc) next.__d2langSrc.text = text;
         canvas.replaceWith(next); replacedCanvases.set(next, canvas);
       }
     } catch (e) { console.warn("[d2lang] 畫布重畫失敗", e); }
@@ -417,7 +434,10 @@
       if (typeof orig !== "function") continue;
       P[name] = function (text, ...rest) {
         if (typeof text === "string" && forcedKo && text.includes("한국어")) text = text.replace("한국어", registry.get(currentLang)?.name || currentLang);
-        return orig.call(this, typeof text === "string" && currentLang !== "en" ? translateString(text) : text, ...rest);
+        const raw = text, out = orig.call(this, typeof text === "string" && currentLang !== "en" ? translateString(text) : text, ...rest);
+        // 記下原文與繪製參數，換語言（含切回 English）時可原地以新語言重畫，不必重新整理
+        if (name === "canvas" && typeof raw === "string" && out instanceof HTMLCanvasElement) { out.__d2langSrc = { font: this, text: raw, rest }; liveCanvases.add(out); }
+        return out;
       };
     }
     // 原版換行只在空白處斷行（英文、韓文有空白），中文整句沒有空白會變成一行而超出版面：
@@ -697,6 +717,7 @@
       }
       clearTextCaches();
       rebuildScreens();
+      redrawLiveCanvases();
       redrawStaticCanvases();
       updateButtonText();
     },
@@ -801,7 +822,8 @@
           // 從翻譯換成其他語言（含回到 English）：遊戲很多文字在建立時就已翻好、沒有原文可還原，
           // 跟遊戲原生的語言切換一樣重新整理；桌面版重新整理後會自動再載入本模組，網頁版重新整理後就是原版英文
           try { localStorage.setItem(STORAGE_KEY, loc.code); } catch {}
-          if (loc.code !== "en" && currentLang === "en") { api.set(loc.code); return; }
+          // 遊戲的文字畫布都記下了原文，任何方向都即時切換；只有接不上遊戲（例如遊戲改版）時才重新整理
+          if (fontPatched || loc.code !== "en") { api.set(loc.code); return; }
           location.reload();
         };
         for (const ev of ["pointerdown", "mousedown", "touchstart", "keydown"]) {
