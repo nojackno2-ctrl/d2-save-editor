@@ -1,5 +1,7 @@
 # 交接紀錄
 
+- 2026-11-02｜Codex：語言入口文字固定為「語言」，沿用左上角直排；同步 web 與 editor 的 lang.js。兩處 node --check 與 web 的 node tests/test_lang.cjs 通過；尚未手機實測、未發布。
+
 - 2026-11-02｜Codex：此次介面更新僅暫存本次相關差異，於暫存版本獨立執行 Electron tests/autobot.cjs，116 項通過、0 項失敗；保留其他未提交工作。
 
 - 2026-11-02｜Codex：主選單及其選項等前端畫面以 frontend-open 顯示輔助、語言、修改器入口；輔助設定允許在前端開啟，戰鬥暫停判定維持獨立。同步 web 與 editor；node --check、node tests/test_lang.cjs 通過，Electron tests/autobot.cjs 119 項通過、0 項失敗（首次測試使用舊面板參照失敗，修正測試後重跑通過）。尚未實機驗證、未發布。

@@ -801,14 +801,14 @@
     return !!p && !p.classList.contains("hidden") && getComputedStyle(p).display !== "none";
   };
 
-  // 建立畫面「中間上方」的語言按鈕與下拉選單
+  // 建立左上角的語言按鈕與下拉選單
   let btn = null;
   let menu = null;
 
   function updateButtonText() {
     if (!btn) return;
-    const current = registry.get(currentLang);
-    btn.textContent = "🌐 " + (current?.name || currentLang);
+    btn.textContent = "語言";
+    btn.setAttribute("aria-label", "語言");
   }
 
   function createUI() {
