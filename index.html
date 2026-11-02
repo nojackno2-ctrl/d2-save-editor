@@ -2,22 +2,23 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>D2倖存者工具包</title>
 <style>
   :root { --bg:#14110d; --panel:#1f1a14; --line:#3a3026; --text:#e8dcc4; --dim:#9c8f78; --gold:#d4a84a; }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.7 "Microsoft JhengHei", system-ui, sans-serif; }
-  main { max-width:760px; margin:0 auto; padding:20px 16px 48px; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.7 "Microsoft JhengHei", system-ui, sans-serif; -webkit-text-size-adjust:100%; }
+  main { max-width:760px; margin:0 auto; padding:max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(48px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
   h1 { color:var(--gold); font-size:22px; margin:0 0 4px; }
   h2 { color:var(--gold); font-size:17px; margin:0 0 8px; }
   section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin-top:14px; }
   .dim { color:var(--dim); }
   ol { padding-left:22px; margin:6px 0; }
   li { margin:4px 0; }
-  textarea { width:100%; height:84px; background:#0e0c09; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; font:12px Consolas, monospace; }
-  button, .drag { display:inline-block; background:var(--gold); color:#1a1408; border:0; border-radius:6px; padding:9px 16px; font:inherit; font-weight:bold; cursor:pointer; text-decoration:none; }
+  textarea { width:100%; height:84px; background:#0e0c09; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; font:13px Consolas, monospace; word-break:break-all; }
+  button, .drag { display:inline-flex; align-items:center; justify-content:center; min-height:44px; background:var(--gold); color:#1a1408; border:0; border-radius:6px; padding:9px 16px; font:inherit; font-weight:bold; cursor:pointer; text-decoration:none; touch-action:manipulation; }
   .ok { color:#7fbf6a; }
+  @media (max-width: 520px) { h1 { font-size:19px; } section { padding:12px 14px; } button { width:100%; } }
 </style>
 </head>
 <body>

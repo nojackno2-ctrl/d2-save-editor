@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>D2倖存者工具包 (D2 Survivors Toolkit) - 存檔修改器與全自動戰鬥輔助器</title>
   <meta name="description" content="專為《D2 Survivors》(d2survivors.lol) 打造的強大非官方存檔修改器與遊戲輔助工具。支援合法詞綴製作、裝備庫、排行榜合規檢查，以及全自動走位喝水、任務升級與天梯推關。">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -944,11 +944,40 @@
         grid-template-columns: 1fr;
         gap: 16px;
       }
+      .nav-inner {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
       .nav-links {
+        display: flex;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 8px;
+        padding-bottom: 4px;
+      }
+      .nav-links::-webkit-scrollbar {
         display: none;
       }
-      .gallery-grid {
+      .nav-links a {
+        white-space: nowrap;
+        font-size: 0.8rem;
+        padding: 4px 10px;
+        background: var(--bg-inner);
+        border: 1px solid var(--border-dim);
+      }
+      .gallery-grid, .modes-container, .steps-grid {
         grid-template-columns: 1fr;
+      }
+      .hero {
+        padding: 36px 0 24px;
+      }
+      .compliance-box, .step-box, .mode-card {
+        padding: 16px;
+      }
+      .container {
+        padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
       }
     }
   </style>

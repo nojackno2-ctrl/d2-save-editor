@@ -1,5 +1,24 @@
 # 交接紀錄
 
+- 2026-11-02｜Antigravity：專案整體最佳化與手機解析度最佳化（同步 `web/` 與 `editor/`）：
+  1. **手機解析度與行動裝置體驗最佳化**：
+     - `editor.html` / `editor/index.html`、`index.html` / `editor/web-install.html`、`site/index.html` 全面加入 `viewport-fit=cover`、`-webkit-text-size-adjust: 100%` 與 `env(safe-area-inset-*)` 四向安全區域邊距。
+     - `editor.html`：新增 `@media (max-width: 390px)` 窄螢幕自適應（格子 `--cell: 25px` 讓 10×10 倉庫不溢出 360px 螢幕、表單改單欄）與 `@media (max-height: 500px)` 手機橫向壓縮頁首；`#hero`、`#guard`、`#saves` 表格支援觸控水平捲動；`#cQ`、`#fQ`、`#snapName` 改為彈性寬度，清單限高 `48dvh` 避免捲動過長。
+     - `autobot.js`：面板標題列設為 `position: sticky; top: 0`（手機長清單捲動時隨時可按關閉），窄螢幕與橫向模式自適應，下拉選單在窄螢幕自動滿版換行，狀態列寬度提升至 `92vw`。
+     - `lang.js` / `d2edit.js`：語言下拉選單限制在畫面可視範圍內（`min(..., calc(100vw - 210px))`、`max-height: calc(100dvh - 64px)`），按鈕統一 `min-height: 44px` 與 `touch-action: manipulation`。
+     - `site/index.html`：手機版保留可橫向滑動的導覽列膠囊按鈕。
+  2. **載入速度與執行效能最佳化**：
+     - `d2edit.js`：書籤預載 6 個步驟改為 `Promise.all` 並行載入並即時更新進度條；快取共用 `window.__d2zhPromise` 與 `window.__d2gamedataPromise`，避免 `d2edit.js`、`autobot.js`、`lang.js`、`backend.i18n()` 重複抓取與解析 891KB 字典。
+     - `autobot.js`：預先計算 16／24 方向單位向量（`DIRS_16`、`DIRS_24`）與 `LADDER`／`SKILLS`／`PASSIVES` 小寫名稱 `Map` 索引；`planMove` 移除每幀 48 次 `.filter()` 陣列配置；`step()` 在未喝水時重用當幀 `state` 與 `danger`，省下每幀重複過濾實體與威脅計算。
+     - `lang.js`：快取 `redrawStaticCanvases` 掃描到的遊戲點陣字型實例，避免每次重畫都對 `game` 做 6 層 BFS；`numPatterns` 逾千個正規式改為僅在無 `GameTranslator` 備援模式時延遲建構（`ensurePatternIndex`）。
+     - `i18n.js`：標點替換合併為單一預編譯正規式 `PUNCT_RE`。
+  3. **專案結構清理與 `web`/`editor` 同步**：
+     - 修正 `editor/main.js` 缺少 `"affixSlots"` IPC 白名單與 `editor/webapi.js` 缺少 `"gameBuild"`；同步 `web/editor.html` 與 `editor/index.html`（含更新日誌頁、`TOOLKIT_VERSION` 檢查與賭博商店合規排除）；更新 `editor/build-web.js` 與 `editor/tests/build-web.cjs`。
+     - 移除不明追蹤檔 `web/tests/dbg.cjs`，並將根目錄散落的舊暫存檔與 `.bak-*` 統一整理至 `backups/archive/`。
+  4. **驗證**：全部 JS `node --check` 通過、`node tests/test_lang.cjs`（6/6 通過）、`node ../editor/tests/build-web.cjs` 通過、Electron `tests/autobot.cjs` **119 項通過、0 項失敗**。未執行 commit/push。
+
+- 2026-11-02｜Codex：使用既有測試設定檔複本、Electron 390×844 與真實 d2survivors.lol，透過 GitHub Pages 載入工具；前端畫面實測輔助／語言／修改器顯示在 x=12、y=12／62／112，文字正確且三者點擊分別開啟輔助設定、語言清單與修改器 iframe。截圖為 %TEMP%\d2-ui-live-test\main.png（第二輪為修改器畫面）；未驗證選項子頁、戰鬥下方狀態列與實體手機。全新設定檔先導向素材設定，改用隔離複本。
+
 - 2026-11-02｜Codex：語言入口文字固定為「語言」，沿用左上角直排；同步 web 與 editor 的 lang.js。兩處 node --check 與 web 的 node tests/test_lang.cjs 通過；尚未手機實測、未發布。
 
 - 2026-11-02｜Codex：此次介面更新僅暫存本次相關差異，於暫存版本獨立執行 Electron tests/autobot.cjs，116 項通過、0 項失敗；保留其他未提交工作。
@@ -7,6 +26,9 @@
 - 2026-11-02｜Codex：主選單及其選項等前端畫面以 frontend-open 顯示輔助、語言、修改器入口；輔助設定允許在前端開啟，戰鬥暫停判定維持獨立。同步 web 與 editor；node --check、node tests/test_lang.cjs 通過，Electron tests/autobot.cjs 119 項通過、0 項失敗（首次測試使用舊面板參照失敗，修正測試後重跑通過）。尚未實機驗證、未發布。
 
 - 2026-11-02｜Codex：遊戲中「停止輔助」與狀態列移至下方中央；暫停選單的輔助、語言、修改器改為左上角直排，語言清單向右展開。同步 web 與 editor；兩處 JS 的 node --check 通過，web 的 node tests/test_lang.cjs 通過，Electron tests/autobot.cjs 117 項通過、0 項失敗。尚未實機確認畫面，未發布。
+
+
+- 2026-11-02｜Codex：全圖撿裝拆為關閉、全部撿取、只撿更好的裝備；沿用既有 vacuum／onlyUpgrades 設定，全部模式忽略裝備品質過濾，升級模式用既有換裝評分，無法評估時不撿。已同步 web 與 editor，護符和其他物品沿用原規則；web 執行 `..\editor\node_modules\.bin\electron.cmd tests\autobot.cjs`：117 項通過、0 項失敗；`node --check autobot.js`、`node --check i18n.js` 通過。實際遊戲未驗證，未發布。
 
 
 - 2026-11-02／Codex：接續桌面翻譯普查；lang.js 對後建 d2-text 畫布排程重畫，開放翻譯輸入框 placeholder、保留輸入值，locales/zh-TW.json 補存檔代碼提示。node --check lang.js 與 node tests/test_lang.cjs 通過；tools/desktop-lang.mjs 以原版重建 %TEMP%\d2lang-baseline.asar 與 d2lang-updated.asar 成功。新的隔離桌面測試程序未開啟預期 CDP 9444，尚未驗證畫布重畫、上一輪 22 筆、各畫面與 hover，需排查啟動參數後補截圖；9333 舊程序截圖 %TEMP%\d2lang-current-1.png 非新版驗證。未修改字型、未 commit/push。

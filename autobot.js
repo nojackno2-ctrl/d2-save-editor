@@ -65,8 +65,9 @@
   const modeLabel = () => ({ quest: "任務模式", terror: "天梯・推關", fixedDifficulty: "固定關卡 " + (DIFF_ZH[settings.quest.fixedDifficulty] || ""), fixedTier: "天梯・固定層數 " + settings.terror.targetFarmTier + " 層" })[autoMode()];
   // 依使用者要求：固定關卡模式是獨立的自動模式（不在天梯模式裡）；天梯模式只有推關與固定層數。
   const autoKind = () => ["quest", "fixedDifficulty"].includes(autoMode()) ? autoMode() : "ladder";
-  const get = (path) => path === "autoKind" ? autoKind() : path === "ladderMode" ? (["terror", "fixedTier"].includes(autoMode()) ? autoMode() : "terror") : path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
+  const get = (path) => path === "loot.vacuumMode" ? (!settings.loot.vacuum ? "off" : settings.loot.onlyUpgrades ? "upgrades" : "all") : path === "autoKind" ? autoKind() : path === "ladderMode" ? (["terror", "fixedTier"].includes(autoMode()) ? autoMode() : "terror") : path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
   function put(path, value) {
+    if (path === "loot.vacuumMode") { settings.loot.vacuum = value !== "off"; if (value !== "off") settings.loot.onlyUpgrades = value === "upgrades"; return; }
     if (path === "autoKind") { if (value !== autoKind()) put("autoMode", value === "ladder" ? "terror" : value); return; }
     if (path === "ladderMode") { put("autoMode", value); return; }
     if (path === "autoMode") {
@@ -140,7 +141,7 @@
   let zhDict = null;
   const isEn = () => (window.__d2lang ? window.__d2lang.get() === "en" : window.LANG === "en");
   const trAuto = (s) => (isEn() && typeof window.tr === "function" ? window.tr(s) : s);
-  if (!isEn() && window.__d2zhUrl) fetch(window.__d2zhUrl).then((r) => r.ok ? r.json() : null).then((d) => { zhDict = d; }).catch(() => {});
+  if (!isEn() && (window.__d2zhPromise || window.__d2zhUrl)) (window.__d2zhPromise ??= fetch(window.__d2zhUrl).then((r) => r.ok ? r.json() : null).catch(() => null)).then((d) => { zhDict = d; });
   const zt = (en) => (isEn() ? en : zhDict?.[en] || en);
   function itemZh(item) {
     if (!item) return "";
@@ -323,17 +324,18 @@
     if (!item) return drop.kind === "gold" && settings.loot.pickupGold;
     if (item.type === "quest") return questOn();
     if (item.type === "rune") { const n = String(item.base).match(/^r(\d{2})$/); return !!n && +n[1] >= settings.loot.minRuneTier; }
-    if (!settings.loot.qualityThreshold[item.rarity]) return false;
-    // 撿起前就能讀到完整屬性：普通／魔法／稀有只追會讓角色變強的；暗金、套裝、符文之語、護符一律撿（收藏與倉庫）。
-    if (!["normal", "magic", "rare"].includes(item.rarity) || isCharm(item) || !settings.loot.onlyUpgrades || !game?.world?.player || typeof game.heroNumbers !== "function") return true;
+    if (!settings.loot.qualityThreshold[item.rarity] && !(settings.loot.vacuum && !settings.loot.onlyUpgrades)) return false;
+    // 護符與非裝備沿用原有規則；裝備依目前角色的換裝評分判斷。
+    if (isCharm(item) || !settings.loot.onlyUpgrades) return true;
+    if (!game?.world?.player || typeof game.heroNumbers !== "function") return false;
     return worth(item);
   }
   const worthCache = new WeakMap();
   function worth(item) {
     const now = performance.now(), hit = worthCache.get(item);
     if (hit && now - hit.at < 10000) return hit.ok;
-    let ok = true;
-    try { ok = !!bestGear(game, [item]); } catch { ok = true; }
+    let ok = false;
+    try { ok = !!bestGear(game, [item]); } catch { ok = false; }
     worthCache.set(item, { ok, at: now });
     return ok;
   }
@@ -435,11 +437,13 @@
     return null;
   }
   // 實測：多敵貼近時排斥力互相抵銷，角色原地被圍死；改沿牆面滑動取樣 16 方向，選路徑上離敵最遠者。
+  const DIRS_16 = Array.from({ length: 16 }, (_, i) => { const a = i * Math.PI / 8; return { x: Math.cos(a), y: Math.sin(a) }; });
+  const DIRS_24 = Array.from({ length: 24 }, (_, i) => { const a = i * Math.PI / 12; return { x: Math.cos(a), y: Math.sin(a) }; });
   function escapeDirection(s, list = null) {
     const p = s.p, near = list || s.enemies.filter((e) => dist(e, p) < settings.movement.kiteDistance * 1.5);
     let best = null;
     for (let i = 0; i < 16; i++) {
-      const a = i * Math.PI / 8, dx = Math.cos(a) * 15, dy = Math.sin(a) * 15;
+      const dir = DIRS_16[i], dx = dir.x * 15, dy = dir.y * 15;
       let x = p.x, y = p.y, worst = Infinity, moved = 0;
       for (let j = 0; j < 8; j++) {
         const next = typeof s.w.walls?.slide === "function" ? s.w.walls.slide(x, y, dx, dy) : { x: x + dx, y: y + dy };
@@ -448,7 +452,7 @@
         for (const e of near) worst = Math.min(worst, dist({ x, y }, e) - (e.radius || 12));
       }
       const score = (worst === Infinity ? 999 : worst) + moved * 0.25;
-      if (!best || score > best.score) best = { score, worst, x: Math.cos(a), y: Math.sin(a) };
+      if (!best || score > best.score) best = { score, worst, x: dir.x, y: dir.y };
     }
     return best;
   }
@@ -489,16 +493,19 @@
     const looting = goal && (goal.kind === "loot" || goal.kind === "kick");
     // 實測（女巫面對精英越跑越遠）：鎖定的王／精英不計入往外推的威脅場，只由近戰範圍＋移動緩衝的禁區處理；
     // 其他怪照常計入。
-    const threat = (pt) => near.reduce((a, f) => { if (boss && f.e === boss) return a; const d = Math.max(0, dist(pt, f) - f.r); return a + f.w / (1 + (d / scale) ** 2); }, 0);
-    const shotHit = (pt) => shots.reduce((a, sh) => {
-      const vx = sh.vx || 0, vy = sh.vy || 0, rr = (sh.radius || 5) + (p.radius || 12) + settings.movement.projectileSafetyRadius;
-      for (let t = 0; t <= 0.6; t += 0.1) if (Math.hypot(sh.x + vx * t - pt.x, sh.y + vy * t - pt.y) < rr) return a + Math.max(0.5, Math.max(0, sh.damage || 0) * taken / hpNow * 10);
+    const threat = (pt) => { let a = 0; for (const f of near) { if (boss && f.e === boss) continue; const d = Math.max(0, dist(pt, f) - f.r); a += f.w / (1 + (d / scale) ** 2); } return a; };
+    const shotHit = (pt) => {
+      let a = 0;
+      for (const sh of shots) {
+        const vx = sh.vx || 0, vy = sh.vy || 0, rr = (sh.radius || 5) + pr + settings.movement.projectileSafetyRadius;
+        for (let t = 0; t <= 0.6; t += 0.1) if (Math.hypot(sh.x + vx * t - pt.x, sh.y + vy * t - pt.y) < rr) { a += Math.max(0.5, Math.max(0, sh.damage || 0) * taken / hpNow * 10); break; }
+      }
       return a;
-    }, 0);
+    };
     const danger = threat(p);
     let best = null;
     for (let i = 0; i < 24; i++) {
-      const a = i * Math.PI / 12, dir = { x: Math.cos(a), y: Math.sin(a) };
+      const dir = DIRS_24[i];
       for (const step of [70, 150]) {
         let x = p.x, y = p.y;
         for (let j = 0; j < 5; j++) {
@@ -508,7 +515,8 @@
         const moved = Math.hypot(x - p.x, y - p.y);
         if (moved < step * 0.4) continue;
         const pt = { x, y };
-        let score = -threat(pt) * 2 - shotHit(pt) * 6 - near.filter((f) => dist(f, pt) < 110).length * 0.4;
+        let crowd = 0; for (const f of near) if (dist(f, pt) < 110) crowd++;
+        let score = -threat(pt) * 2 - shotHit(pt) * 6 - crowd * 0.4;
         // 落在任何怪（目前或預測位置）的近戰範圍內就重扣，精英／王扣更多。
         for (const f of near) { const gap = meleeGap(f.e); if (gap === -Infinity) continue; const zone = f.r + pr + gap + (ranged ? lead(f.e) : 0); if (dist(pt, f.e) < zone || dist(pt, f) < zone) score -= isElite(f.e) ? 6 : 2.5; }
         if (focus) {
@@ -1056,8 +1064,12 @@
     restores.push(() => { delete hud.__d2autobotBuild; });
   }
   const ladderOf = (g) => settings.build.ladder ? LADDER.classes[g?.kit?.id || g?.world?.player?.cls] : null;
+  for (const c of Object.values(LADDER.classes)) {
+    c._skillMap = new Map(c.skills.map((x) => [x[1].toLowerCase(), x]));
+    c._passiveMap = new Map(c.passives.map((x) => [x[1].toLowerCase(), x]));
+  }
   // 原版技能表（itemArt 模組匯出：技能含 maxLevel／evolution{passive,into}／synergies[{from}]；被動含 maxLevel）。
-  let SKILLS = null, PASSIVES = null;
+  let SKILLS = null, PASSIVES = null, SKILL_BY_NAME = null, PASSIVE_BY_NAME = null;
   async function loadSkillTables(gameUrl) {
     try {
       const urls = performance.getEntriesByType("resource").map((e) => e.name).filter((u) => /\/itemArt-[\w-]+\.js/.test(u));
@@ -1065,21 +1077,21 @@
         const m = await import(u);
         for (const v of Object.values(m)) {
           if (!v || typeof v !== "object" || Array.isArray(v)) continue;
-          if (!SKILLS && v.doubleSwing?.name && v.magicArrow?.name) SKILLS = v;
-          if (!PASSIVES && v.innerSight?.name && v.criticalStrike?.name) PASSIVES = v;
+          if (!SKILLS && v.doubleSwing?.name && v.magicArrow?.name) { SKILLS = v; SKILL_BY_NAME = new Map(Object.entries(v).map(([k, d]) => [String(d?.name || "").toLowerCase(), k])); }
+          if (!PASSIVES && v.innerSight?.name && v.criticalStrike?.name) { PASSIVES = v; PASSIVE_BY_NAME = new Map(Object.entries(v).map(([k, d]) => [String(d?.name || "").toLowerCase(), k])); }
         }
         if (SKILLS) break;
       }
     } catch { /* 讀不到就只用排行榜權重 */ }
   }
-  const idByName = (table, name) => table && Object.keys(table).find((k) => String(table[k]?.name || "").toLowerCase() === name);
+  const idByName = (table, name) => table === SKILLS && SKILL_BY_NAME ? SKILL_BY_NAME.get(name) : table === PASSIVES && PASSIVE_BY_NAME ? PASSIVE_BY_NAME.get(name) : table && Object.keys(table).find((k) => String(table[k]?.name || "").toLowerCase() === name);
   function ladderWeight(g, name) {
     const l = ladderOf(g);
     if (!l) return { skill: 0, passive: 0 };
-    const s = l.skills.find(([, n]) => n.toLowerCase() === name), p = l.passives.find(([, n]) => n.toLowerCase() === name);
+    const s = l._skillMap ? l._skillMap.get(name) : l.skills.find(([, n]) => n.toLowerCase() === name);
+    const p = l._passiveMap ? l._passiveMap.get(name) : l.passives.find(([, n]) => n.toLowerCase() === name);
     // 依使用者要求：排行榜沒出現的技能／被動（反編譯整理出 26 項，例如 Bash、Battle Orders、Werebear）也要能選，給保守預設權重 0.5（上榜約 0.1～2）。
-    const known = (table) => table && Object.entries(table).find(([, d]) => String(d?.name || "").toLowerCase() === name)?.[0];
-    const sk = s ? null : known(SKILLS), pk = p ? null : known(PASSIVES);
+    const sk = s ? null : idByName(SKILLS, name), pk = p ? null : idByName(PASSIVES, name);
     return { skill: s ? s[2] : sk ? 0.5 : 0, passive: p ? p[2] : pk ? 0.5 : 0, skillId: s?.[0] ?? sk ?? undefined, passiveId: p?.[0] ?? pk ?? undefined };
   }
   // 選卡（卡片隨機出現）：排行榜是 99 級配置，前期等級不夠，不能只照它選。
@@ -1357,12 +1369,16 @@
     let danger = threats(state);
     let reason = g && deathReason(state, danger, now);
     if (reason) { void returnToSafety(g, state, reason, now); return; }
+    const prevHp = state.hp.now;
     const healingFailed = assistOn() ? potions(state, danger, now) : false;
-    // 喝水後重新讀取生命，避免使用舊血量判斷離場。
-    const after = readState(g);
-    danger = threats(after);
-    reason = g && deathReason(after, danger, now, healingFailed);
-    if (reason) { void returnToSafety(g, after, reason, now); return; }
+    // 只有喝水成功（血量變動）或喝水失敗時才需重新讀取生命與威脅，省下一般幀重複過濾實體與計算。
+    const drank = (g?.world?.player ? g.world.player.life : state.hp.now) !== prevHp;
+    const after = drank || healingFailed ? readState(g) : state;
+    if (drank) danger = threats(after);
+    if (drank || healingFailed) {
+      reason = g && deathReason(after, danger, now, healingFailed);
+      if (reason) { void returnToSafety(g, after, reason, now); return; }
+    }
     if (g && state.p) { if (g.hud?.skillsOpen || g.hud?.questLogOpen) release(); else navigate(after, danger, now); }
   }
   function guarded(g, now) {
@@ -1463,24 +1479,27 @@
   }
   const launcher = document.createElement("button"), stopButton = document.createElement("button"), host = document.createElement("div");
   launcher.type = stopButton.type = "button"; launcher.id = "d2autobot-launcher"; launcher.textContent = "輔助";
-  launcher.style.cssText = "position:fixed;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));z-index:2147483645;display:none;padding:8px 14px;min-height:44px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.95);color:#d4a84a;font:bold 15px system-ui;cursor:pointer";
+  launcher.style.cssText = "position:fixed;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));z-index:2147483645;display:none;padding:8px 14px;min-height:44px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.95);color:#d4a84a;font:bold 15px system-ui;cursor:pointer;touch-action:manipulation";
   stopButton.textContent = "停止輔助";
   // 停止輔助按鈕下方顯示輔助器目前在做什麼。
   const statusLine = document.createElement("div");
   statusLine.id = "d2autobot-status";
-  statusLine.style.cssText = "position:fixed;bottom:max(12px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:2147483645;max-width:80vw;background:rgba(0,0,0,.7);color:#f0d9a0;border-radius:4px;padding:2px 8px;font:13px sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;display:none";
-  stopButton.style.cssText = "position:fixed;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 26px);left:50%;transform:translateX(-50%);z-index:2147483645;min-height:44px;background:#531b15;color:#fff;border:1px solid #d4a84a;border-radius:6px;padding:6px 12px;display:none";
+  statusLine.style.cssText = "position:fixed;bottom:max(12px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:2147483645;max-width:min(92vw,calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 16px));background:rgba(0,0,0,.75);color:#f0d9a0;border-radius:4px;padding:3px 10px;font:13px sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;display:none";
+  stopButton.style.cssText = "position:fixed;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 28px);left:50%;transform:translateX(-50%);z-index:2147483645;min-height:44px;background:#531b15;color:#fff;border:1px solid #d4a84a;border-radius:6px;padding:6px 14px;display:none;touch-action:manipulation";
   host.id = "d2autobot-panel"; host.style.cssText = "position:fixed;inset:0;z-index:2147483647;pointer-events:none";
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `<style>
-    :host{font:15px/1.5 'Microsoft JhengHei',system-ui,sans-serif;color:#f2e5c6}*{box-sizing:border-box}[hidden]{display:none!important}
-    .backdrop{position:fixed;inset:0;background:#000a;display:grid;place-items:center;pointer-events:auto;padding:12px}
-    .box{width:min(760px,100%);max-height:88dvh;overflow:auto;background:#18140f;border:1px solid #d4a84a;border-radius:10px;padding:20px;color:#f2e5c6}
-    h2{margin:0;color:#d4a84a}h3{color:#d4a84a;margin:20px 0 8px}p{margin:8px 0}.head{display:flex;justify-content:space-between;align-items:center;gap:12px}
-    label{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;border-bottom:1px solid #fff1;padding:5px 0}
-    button,input,select{font:inherit;min-height:44px}button,select,input[type=number]{background:#2a231a;color:#fff0cb;border:1px solid #9c7e41;border-radius:5px;padding:5px 10px}
-    .toggle{min-width:112px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:10px}.toggle::before{content:"";width:16px;height:16px;border-radius:50%;background:#b0a49c}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:110px}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px}.version-warn[hidden]{display:none!important}.version-warn{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#451a14;border:1px solid #d45d48;color:#ffded7;border-radius:6px;padding:8px 12px;margin:10px 0 4px;font-size:13px;font-weight:bold}.version-warn button{min-height:28px;padding:2px 8px;background:transparent;border:none;color:#ffded7;font-size:18px;cursor:pointer;line-height:1}.version-warn button:hover{color:#fff}
-    @media(max-width:600px){.backdrop{padding:0}.box{width:100%;max-height:100dvh;height:100dvh;border-radius:0;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}}
+    :host{font:15px/1.5 'Microsoft JhengHei',system-ui,sans-serif;color:#f2e5c6;-webkit-text-size-adjust:100%}*{box-sizing:border-box}[hidden]{display:none!important}
+    .backdrop{position:fixed;inset:0;background:#000a;display:grid;place-items:center;pointer-events:auto;padding:12px;overscroll-behavior:contain}
+    .box{width:min(760px,100%);max-height:88vh;max-height:88dvh;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#18140f;border:1px solid #d4a84a;border-radius:10px;padding:20px;color:#f2e5c6}
+    h2{margin:0;color:#d4a84a;font-size:18px}h3{color:#d4a84a;margin:18px 0 6px;font-size:15px}p{margin:8px 0}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;position:sticky;top:0;z-index:2;background:#18140f;padding-bottom:8px;border-bottom:1px solid #fff1}
+    label{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;border-bottom:1px solid #fff1;padding:6px 0}
+    label>span{flex:1;min-width:0;overflow-wrap:anywhere}
+    button,input,select{font:inherit;min-height:44px;touch-action:manipulation}button,select,input[type=number]{background:#2a231a;color:#fff0cb;border:1px solid #9c7e41;border-radius:5px;padding:5px 10px;max-width:100%}
+    select{max-width:58%}
+    .toggle{min-width:104px;flex-shrink:0;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:8px}.toggle::before{content:"";width:14px;height:14px;border-radius:50%;background:#b0a49c;flex-shrink:0}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:104px;flex-shrink:0}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{flex:1;border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px;font-size:13px;overflow-wrap:anywhere}.version-warn[hidden]{display:none!important}.version-warn{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#451a14;border:1px solid #d45d48;color:#ffded7;border-radius:6px;padding:8px 12px;margin:10px 0 4px;font-size:13px;font-weight:bold}.version-warn button{min-height:28px;padding:2px 8px;background:transparent;border:none;color:#ffded7;font-size:18px;cursor:pointer;line-height:1}.version-warn button:hover{color:#fff}
+    @media(max-width:600px){.backdrop{padding:0}.box{width:100%;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;border-radius:0;border:0;padding:12px;padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}input,select{font-size:16px}label{flex-wrap:wrap}select{max-width:100%;width:100%}}
+    @media(max-height:500px){.backdrop{padding:0}.box{width:100%;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;border-radius:0;border:0;padding:10px max(14px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}h3{margin:12px 0 4px}label{min-height:38px;padding:4px 0}}
   </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><div id="version-warn" class="version-warn" hidden><span class="version-msg"></span><button type="button" class="version-dismiss" aria-label="關閉提示">×</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">自動戰鬥</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點下方「停止輔助」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button></section></div>`;
   const panel = root.querySelector(".backdrop"), status = root.querySelector(".status"), controls = new Map();
   const versionWarn = root.querySelector("#version-warn"), versionMsg = root.querySelector(".version-msg"), versionDismiss = root.querySelector(".version-dismiss");
@@ -1518,7 +1537,7 @@
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
   for (const [path, label] of [["enabled", "自動走位（預判包圍、保持距離、閃避）"], ["combatStyle", "戰鬥方式"], ["dodgeProjectiles", "閃避敵方飛彈"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依技能攻擊距離）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
-  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.vacuumXp", "全圖吸經驗（地上經驗寶石自動飛來；非原版行為）"); field("loot.vacuum", "全圖撿取（要撿的東西自動飛來、寶箱直接開啟；非原版行為）"); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）"); field("loot.onlyUpgrades", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）");
+  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.vacuumXp", "全圖吸經驗（地上經驗寶石自動飛來；非原版行為）"); field("loot.vacuumMode", "全圖撿裝模式", [["off", "關閉全圖撿裝"], ["all", "全部撿取"], ["upgrades", "只撿更好的裝備"]]); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
   for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
   field("loot.backtrackForLoot", "通關後等待撿裝");
   tab("progress"); field("progressEnabled", "自動戰鬥開關"); field("autoKind", "自動模式", [["quest", "任務模式（完成所有任務並練到 99 級，達成後自動改刷地獄）"], ["fixedDifficulty", "固定關卡模式（重複刷指定難度）"], ["ladder", "天梯模式"]]);

@@ -177,10 +177,13 @@ const backend = {
   },
   // 中文：內建繁體字典，若遊戲頁面另有翻譯器，再補充其翻譯。
   async i18n() {
-    const game = await fetch(at("gamedata.json")).then((r) => r.json());
-    let dict;
+    const game = structuredClone(await (window.__d2gamedataPromise || fetch(at("gamedata.json")).then((r) => r.json())));
+    let dict = {};
+    if (window.__d2zhPromise) {
+      const shared = await window.__d2zhPromise;
+      if (shared && typeof shared === "object") dict = { ...shared };
+    }
     // 實測：手機在網站部署期間或網路不穩時字典偶爾抓不到，整頁底材、物品都退回英文；失敗時重試 3 次。
-    dict = {};
     for (let i = 0; i < 3 && !Object.keys(dict).length; i++) {
       try { const response = await fetch(at("zh-TW.json"), i ? { cache: "reload" } : undefined); if (!response.ok) throw new Error("字典讀取失敗"); dict = await response.json(); }
       catch { dict = {}; if (i < 2) await new Promise((r) => setTimeout(r, 800 * (i + 1))); }
@@ -287,7 +290,7 @@ function openEditor() {
   if (frame) return;
   frame = document.createElement("iframe");
   frame.src = at("editor.html") + "&origin=" + encodeURIComponent(location.origin) + "&mode=" + (localStorage.getItem("d2-survivors/mode/v1") === "hardcore" ? "hardcore" : "softcore");
-  frame.style.cssText = "position:fixed;inset:0;width:100vw;height:100dvh;border:0;z-index:2147483647;background:#14110d";
+  frame.style.cssText = "position:fixed;inset:0;width:100vw;width:100dvw;height:100vh;height:100dvh;border:0;z-index:2147483647;background:#14110d";
   window.addEventListener("message", onMessage);
   document.body.appendChild(frame);
 }
@@ -298,7 +301,7 @@ launcher.type = "button";
 launcher.textContent = zhUI ? "修改器" : "Editor";
 launcher.title = zhUI ? "開啟 D2 倖存者存檔修改器" : "Open the D2 Survivors save editor";
 launcher.style.cssText = "position:fixed;top:calc(max(12px, env(safe-area-inset-top)) + 100px);left:max(12px, env(safe-area-inset-left));z-index:2147483646;display:none;"
-  + "padding:8px 14px;min-height:40px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.92);color:#d4a84a;font:bold 15px 'Microsoft JhengHei',system-ui,sans-serif;cursor:pointer";
+  + "padding:8px 14px;min-height:44px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.92);color:#d4a84a;font:bold 15px 'Microsoft JhengHei',system-ui,sans-serif;cursor:pointer;touch-action:manipulation";
 launcher.onclick = (e) => { e.preventDefault(); e.stopPropagation(); openEditor(); };
 for (const ev of ["pointerdown", "mousedown", "touchstart", "keydown"]) launcher.addEventListener(ev, (e) => e.stopPropagation());
 document.body.appendChild(launcher);
@@ -324,33 +327,37 @@ if (p0) { watched = p0; observer.observe(p0, { attributes: true, attributeFilter
 const timer = setInterval(sync, 500); // 保險：遊戲用其他方式切換畫面時也會更新
 window.__d2editStopWatch = () => { observer.disconnect(); clearInterval(timer); };
 sync();
-// 輔助器狀態列用同一份繁中字典翻譯物品名稱。
+// 輔助器狀態列與語言模組共用同一份繁中字典與遊戲資料 Promise，避免重複下載與解析 891KB 字典。
 window.__d2zhUrl = at("zh-TW.json");
-// 依使用者要求：點書籤後依序預先讀完輔助器、字典、遊戲資料、物品引擎與修改器頁面，畫面中央顯示進度條；
-// 單一步驟失敗不卡住（標示警告後繼續），全部結束才開放「修改器」按鈕。
+const loadZhDict = () => (window.__d2zhPromise ??= fetch(window.__d2zhUrl).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch((e) => { window.__d2zhPromise = null; throw e; }));
+const loadGameData = () => (window.__d2gamedataPromise ??= fetch(at("gamedata.json")).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch((e) => { window.__d2gamedataPromise = null; throw e; }));
+// 依使用者要求：點書籤後預先讀完輔助器、字典、遊戲資料、物品引擎與修改器頁面，畫面中央顯示進度條；
+// 各模組改為並行載入以縮短等待時間，單一步驟失敗不卡住（標示警告後繼續），全部結束才開放「修改器」按鈕。
 (async () => {
   window.__d2editLoading?.remove();
   const box = document.createElement("div"), bar = document.createElement("div"), fill = document.createElement("div"), text = document.createElement("div");
   box.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483647;width:min(360px,86vw);padding:16px 18px;border:1px solid #d4a84a;border-radius:8px;background:rgba(20,17,13,.95);color:#e8dcc4;font:14px 'Microsoft JhengHei',system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.6)";
   bar.style.cssText = "height:10px;margin-top:10px;border-radius:5px;background:#3a3127;overflow:hidden";
-  fill.style.cssText = "height:100%;width:0;background:#d4a84a;transition:width .25s";
+  fill.style.cssText = "height:100%;width:0;background:#d4a84a;transition:width .2s";
   bar.append(fill); box.append(text, bar); document.body.append(box); window.__d2editLoading = box;
   for (const ev of ["pointerdown", "mousedown", "touchstart", "keydown"]) box.addEventListener(ev, (e) => e.stopPropagation());
   const steps = [
+    [zhUI ? "繁中字典" : "Dictionary", loadZhDict],
+    [zhUI ? "遊戲資料" : "Game data", loadGameData],
     [zhUI ? "語言模組" : "Language module", () => import(at("lang.js"))],
     [zhUI ? "輔助器" : "Assistant", () => import(at("autobot.js"))],
-    [zhUI ? "繁中字典" : "Dictionary", () => fetch(at("zh-TW.json")).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })],
-    [zhUI ? "遊戲資料" : "Game data", () => fetch(at("gamedata.json")).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })],
     [zhUI ? "物品引擎（遊戲裝備產生器）" : "Item engine", () => engine()],
     [zhUI ? "修改器頁面" : "Editor page", () => fetch(at("editor.html")).then((r) => r.text())],
   ];
   const warn = [];
-  for (let i = 0; i < steps.length; i++) {
-    const [name, run] = steps[i];
-    text.textContent = (zhUI ? "D2 倖存者工具載入中（" : "Loading D2 Survivors tools (") + (i + 1) + "/" + steps.length + (zhUI ? "）：" : "): ") + name + "…";
-    fill.style.width = Math.round(i / steps.length * 100) + "%";
+  let done = 0;
+  text.textContent = (zhUI ? "D2 倖存者工具載入中（0/" : "Loading D2 Survivors tools (0/") + steps.length + (zhUI ? "）…" : ")…");
+  await Promise.all(steps.map(async ([name, run]) => {
     try { await run(); } catch (err) { warn.push(name); console.warn("載入失敗：" + name, err); }
-  }
+    done++;
+    text.textContent = (zhUI ? "D2 倖存者工具載入中（" : "Loading D2 Survivors tools (") + done + "/" + steps.length + (zhUI ? "）：" : "): ") + name + "…";
+    fill.style.width = Math.round(done / steps.length * 100) + "%";
+  }));
   fill.style.width = "100%";
   text.textContent = warn.length ? (zhUI ? "載入完成，但以下項目失敗（相關功能可能無法使用）：" : "Loaded, but these failed: ") + warn.join("、") : (zhUI ? "載入完成，按暫停後右上角開啟修改器" : "Loaded. Pause the game to open the editor (top right)");
   if (warn.length) fill.style.background = "#c0504d";

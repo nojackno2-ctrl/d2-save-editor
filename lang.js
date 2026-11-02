@@ -33,8 +33,8 @@
   const translatedTexts = new WeakMap();
 
   let dict = {};
-  let lowerDict = {};
-  let numPatterns = []; // { key, val, re, isStar }
+  let lowerDict = null;
+  let numPatterns = null; // { key, val, re }
   let observer = null;
   let batchScheduled = false;
   const pendingNodes = new Set();
@@ -148,17 +148,21 @@
     finally { gameHookPending = false; }
   }
 
-  // 建構樣板快取以加速數字樣板查詢
+  // 建構樣板快取以加速數字樣板查詢（僅在未載入 GameTranslator 的備援模式時延遲建構）
   function buildPatternIndex(d) {
     dict = d || {};
+    lowerDict = null;
+    numPatterns = null;
+  }
+  function ensurePatternIndex() {
+    if (lowerDict && numPatterns) return;
     lowerDict = {};
     numPatterns = [];
-    if (!d) return;
+    if (!dict) return;
 
-    for (const [k, v] of Object.entries(d)) {
+    for (const [k, v] of Object.entries(dict)) {
       lowerDict[k.toLowerCase()] = v;
       if (k.includes("#") || k.includes("*")) {
-        const hasHash = k.includes("#");
         // 把 # 或 * 替換為數字比對群組
         const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, (m) => {
           if (m === "*" || m === "#") return m;
@@ -338,6 +342,7 @@
     return false;
   }
   const replacedCanvases = new Map();
+  let cachedFonts = null, cachedFontGame = null;
   function redrawStaticCanvases(target = null) {
     if (!target) {
       for (const [replacement, original] of replacedCanvases) {
@@ -347,14 +352,19 @@
     }
     const game = getGame(), d2 = game?.hud?.d2;
     if (currentLang === "en" || !d2 || !fontPatched) return;
-    const fonts = [], seen = new Set(), queue = [[game, 0]];
-    while (queue.length) {
-      const [obj, depth] = queue.shift();
-      if (!obj || typeof obj !== "object" || seen.has(obj) || depth > 6 || obj instanceof Node || ArrayBuffer.isView(obj)) continue;
-      seen.add(obj);
-      if (typeof obj.measure === "function" && typeof obj.canvas === "function") fonts.push(obj);
-      if (obj instanceof Map) { for (const value of obj.values()) queue.push([value, depth + 1]); continue; }
-      for (const key of Object.keys(obj).slice(0, 300)) try { if (obj[key] && typeof obj[key] === "object") queue.push([obj[key], depth + 1]); } catch {}
+    let fonts = cachedFontGame === game && cachedFonts?.length ? cachedFonts : null;
+    if (!fonts) {
+      fonts = [];
+      const seen = new Set(), queue = [[game, 0]];
+      while (queue.length) {
+        const [obj, depth] = queue.shift();
+        if (!obj || typeof obj !== "object" || seen.has(obj) || depth > 6 || obj instanceof Node || ArrayBuffer.isView(obj)) continue;
+        seen.add(obj);
+        if (typeof obj.measure === "function" && typeof obj.canvas === "function") fonts.push(obj);
+        if (obj instanceof Map) { for (const value of obj.values()) queue.push([value, depth + 1]); continue; }
+        for (const key of Object.keys(obj).slice(0, 300)) try { if (obj[key] && typeof obj[key] === "object") queue.push([obj[key], depth + 1]); } catch {}
+      }
+      if (fonts.length) { cachedFonts = fonts; cachedFontGame = game; }
     }
     for (const canvas of target ? [target] : document.querySelectorAll("canvas.d2-text")) try {
       if (!canvas.isConnected || replacedCanvases.has(canvas)) continue;
@@ -520,6 +530,7 @@
     if (!str || typeof str !== "string") return str;
     const trimmed = str.trim();
     if (!trimmed || !dict) return str;
+    ensurePatternIndex();
 
     // 1. 精確比對
     if (dict[trimmed] !== undefined) {
@@ -766,6 +777,10 @@
     for (const f of [conf.base, conf.file]) {
       if (!f) continue;
       try {
+        if (f === "zh-TW.json" && window.__d2zhPromise) {
+          const shared = await window.__d2zhPromise;
+          if (shared && typeof shared === "object") { Object.assign(out, shared); continue; }
+        }
         const res = await fetch(new URL(f, BASE_URL).href);
         if (res.ok) Object.assign(out, await res.json());
         else console.warn("[d2lang] 載入語言檔失敗: " + f, res.status);
@@ -819,13 +834,13 @@
     btn.type = "button";
     updateButtonText();
     btn.style.cssText = "position:fixed;top:calc(max(12px, env(safe-area-inset-top)) + 50px);left:max(12px, env(safe-area-inset-left));z-index:2147483646;display:none;" +
-      "padding:8px 14px;min-height:40px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.95);color:#d4a84a;" +
-      "font:bold 15px 'Microsoft JhengHei',system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.5);";
+      "padding:8px 14px;min-height:44px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.95);color:#d4a84a;" +
+      "font:bold 15px 'Microsoft JhengHei',system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.5);touch-action:manipulation;";
 
     menu = document.createElement("div");
     menu.id = "d2lang-menu";
-    menu.style.cssText = "position:fixed;top:calc(max(12px, env(safe-area-inset-top)) + 50px);left:calc(max(12px, env(safe-area-inset-left)) + 150px);z-index:2147483647;display:none;" +
-      "background:rgba(20,17,13,.98);border:1px solid #d4a84a;border-radius:6px;min-width:140px;padding:4px 0;box-shadow:0 6px 16px rgba(0,0,0,0.6);";
+    menu.style.cssText = "position:fixed;top:calc(max(12px, env(safe-area-inset-top)) + 50px);left:min(calc(max(12px, env(safe-area-inset-left)) + 84px), calc(100vw - 210px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 64px);overflow:auto;z-index:2147483647;display:none;" +
+      "background:rgba(20,17,13,.98);border:1px solid #d4a84a;border-radius:6px;min-width:140px;padding:4px 0;box-shadow:0 6px 16px rgba(0,0,0,0.6);touch-action:manipulation;";
 
     function renderMenu() {
       menu.innerHTML = "";
