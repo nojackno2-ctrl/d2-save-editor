@@ -295,6 +295,21 @@
     return { protos: [...protos], caches: [...caches] };
   }
   let textCaches = [];
+  // 記下遊戲最後一次建立升級畫面的參數：即時換語言時請遊戲用同樣參數重建，整張卡片以新語言重畫
+  // （卡片的「進化為…」是分段畫的，逐段重畫只能逐字翻）
+  let lastLevelUp = null;
+  function wrapHud() {
+    const hud = getGame()?.hud;
+    if (!hud || hud.__d2langWrapped || typeof hud.showLevelUp !== "function") return;
+    const orig = hud.showLevelUp;
+    hud.showLevelUp = function (...args) { lastLevelUp = args; return orig.apply(this, args); };
+    hud.__d2langWrapped = true;
+  }
+  function rebuildScreens() {
+    const g = getGame();
+    if (g?.state === "levelUp" && lastLevelUp) try { g.hud.showLevelUp(...lastLevelUp); return true; } catch (e) { console.warn("[d2lang] 升級畫面重建失敗", e); }
+    return false;
+  }
   const replacedCanvases = new Map();
   function redrawStaticCanvases(target = null) {
     if (!target) {
@@ -367,6 +382,7 @@
     const { protos, caches } = scanGame(game);
     if (!protos.length) return false;
     textCaches = caches;
+    wrapHud();
     let ok = false;
     for (const P of protos) ok = patchFontProto(P) || ok;
     if (!ok) return false;
@@ -680,6 +696,7 @@
         processNode(document.body);
       }
       clearTextCaches();
+      rebuildScreens();
       redrawStaticCanvases();
       updateButtonText();
     },
@@ -695,7 +712,8 @@
     game: () => getGame(),
     debug: () => ({ translator: !!GameTranslator, gameTr: !!gameTr, fontPatched, gameHooked, game: !!getGame(), assets: assetSeen.size }),
     // 目前畫面上出現過、字典沒有的英文（遊戲更新後找缺漏用：copy(__d2lang.missing().join("\n"))）
-    missing() { return [...new Set([...missing, ...(gameTr?.missing ?? [])])].filter((s) => !/[　-鿿가-힣＀-￯]/.test(s)); },
+    // 排除本模組自己的語言選單（語言名稱本來就以各自的語言顯示）
+    missing() { const own = [...registry.values()].map((r) => r.name); return [...new Set([...missing, ...(gameTr?.missing ?? [])])].filter((s) => !/[　-鿿가-힣＀-￯]/.test(s) && !own.some((n) => s.includes(n))); },
   };
 
   // 讀語言檔：base 大字典 + file 補充（後者覆蓋前者）
