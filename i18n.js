@@ -226,12 +226,17 @@
     "恐怖層數": "Terror Tiers", "通關等待（秒）": "Post-clear Wait (sec)", "陣亡後重試（有保留角色時）": "Retry on Death (with kept hero)",
     "關卡進程": "Quest Progress", "優先接近任務頭目": "Prioritize Quest Bosses", "在營地自動開局／續玩（全新存檔可用）": "Auto Start / Continue in Camp",
     "排行榜學習": "Leaderboard Learning", "依排行榜高手配法選升級卡": "Pick upgrade cards by top players", "依高手比例自動配屬性點": "Auto assign stat points by top ratio", "技能配置和排行榜差太多時向阿卡拉付費重置技能（普通通關後可用，重置後立刻重新選卡）": "Paid respec at Akara when build deviates (available after Normal)",
+    "自動重抽（升級候選卡評分偏低時自動使用重抽）": "Auto reroll on low card scores",
     "自動穿上較佳裝備": "Auto Equip Better Gear", "替換門檻（約等於傷害提升％）": "Upgrade Threshold (~dmg gain %)",
     "營地整備（每次回營地自動變強）": "Camp Preparation (get stronger every town trip)", "回營地自動整備": "Auto Camp Maintenance", "暗金／套裝收進收藏庫": "Deposit Unique/Set to Collection", "較好的裝備存入倉庫": "Stash Better Gear", "賣掉用不到的裝備": "Sell Junk Gear", "用金幣向阿卡拉買生命藥水": "Buy Potions from Akara", "用金幣升級恰西永久能力": "Buy Charsi Permanent Upgrades", "向商人買較佳裝備": "Buy Better Gear from Vendors",
     "死亡保護": "Death Protection", "死亡保護（緊急離開本局）": "Death Protection (emergency save & exit)", "緊急生命門檻（％）": "Emergency Life Threshold (%)", "觸發後關閉兩頁總開關": "Disable both automation switches on trigger",
     "手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點下方「停止輔助」。": "Manual input temporarily yields control; pauses when backgrounded, in settings panel, save editor, or game paused. Master switch only toggles here; click \"Stop Assist\" below in emergencies.",
     "死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。": "Death protection defaults to off; triggers disable progression and must be manually re-enabled. Uses original exit settlement, risking loss of current run; may return to character select without camp. Damage and surrounding are heuristic, no survival guarantee. Quests track spawned items, stones, cages, bosses, and portals; specific builds, hand-ins, and secrets require manual action.",
     "品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。": "Quality filter controls active tracking; walking over items may still trigger original pickups. When unhooked, downgrades to readable HUD belt presses without guessing enemy positions from Canvas.",
+    "遊戲修改": "Cheats", "修改總控制": "Cheat Master Control", "遊戲修改總開關（主控所有修改項目）": "Cheat Master Switch (controls all cheats)",
+    "戰鬥修改": "Combat Cheats", "無敵（免疫所有傷害且鎖定滿血）": "Invincible (immune to all damage & lock full life)", "致命攻擊（致命一擊機率最高）": "Max Critical Strike (maximize crit chance)", "一擊必殺（所有屬性傷害提升一百倍）": "One-Hit Kill (100x all damage)", "技能最高等級99等（所有已學技能與被動等級鎖定99等）": "Max Skill Level 99 (lock all learned skills & passives at Lv 99)",
+    "怪物與環境修改": "Monster & World Cheats", "怪物數量最大化（地圖怪物生成速度與數量拉滿）": "Maximize Monster Count (max out spawn rate & monster cap)", "一般怪物全部變成精英以上等級（全圖小怪升階為金/藍怪）": "All Monsters Elite+ (upgrade normal monsters to Champion/Elite)",
+    "流程與掉落修改": "Progression & Drop Cheats", "選技能的重抽無限次數（升級選卡無限重抽、跳過與排除）": "Infinite Skill Rerolls (unlimited reroll, skip & banish on level-up)", "掉寶率最高（大幅提升暗金/套裝/稀有尋寶率）": "Max Drop Rate (massively boost Unique/Set/Rare Magic Find)", "金幣掉落率最高（偵測玩家金幣超過 90 億自動關閉）": "Max Gold Rate (auto-disables when gold reaches 9B)",
     "開啟": "ON", "啟用": "Enabled",
   };
   const PUNCT = { "（": " (", "）": ")", "「": "\"", "」": "\"", "，": ", ", "、": ", ", "：": ": ", "；": "; ", "。": ". ", "！": "!", "？": "?", "～": "–", "／": " / ", "＋": "+", "　": " ", "・": " · " };

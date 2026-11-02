@@ -7,7 +7,7 @@
   const BUILD_KEY = "d2autobot:gameBuild";
   const TESTED_GAME_BUILD = "20261101.1"; // 每次確認新版遊戲相容後更新此值
   const defaults = {
-    version: 9, enabled: false, progressEnabled: false,
+    version: 10, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, fallbackHpSlot: 1 },
     movement: { enabled: true, combatStyle: "auto", ignoreDamagePercent: 3, chaseFirst: true, attackRange: 320, kiteDistance: 220, dodgeProjectiles: true, projectileSafetyRadius: 45, smoothingFactor: 0.6 },
     loot: { enabled: true, vacuum: true, vacuumXp: true, searchRadius: 450, pickupGold: true, minRuneTier: 1, qualityThreshold: { normal: true, magic: true, rare: true, set: true, unique: true, runeword: true }, backtrackForLoot: true, kickJars: true, onlyUpgrades: false },
@@ -16,7 +16,7 @@
     gear: { autoEquip: true, minGainPercent: 2 },
     // 陣亡回營地後的整備：收藏、倉庫、賣裝、買藥、恰西升級，讓每一局都比上一局強。
     town: { enabled: true, collect: true, stash: true, sellJunk: true, buyPotions: true, charsiUpgrades: true, buyGear: true },
-    build: { ladder: true, autoStats: true, redraft: true },
+    build: { ladder: true, autoStats: true, redraft: true, autoReroll: true },
     // 實測 39～46 級角色陣亡會從 1 級重來；預設開啟：快被打死時原版「儲存並離開」，回營地後自動繼續上次進度。
     deathProtection: { enabled: true, emergencyHpPercent: 15, disableAutomation: false },
     // 遊戲修改：預設全部關閉，頂部設總開關
@@ -26,6 +26,7 @@
       maxCrit: false,
       oneHitKill: false,
       maxSkills: false,
+      maxMonsterDensity: false,
       monsterDensity10x: false,
       allElites: false,
       infiniteRerolls: false,
@@ -58,7 +59,7 @@
     if ((stored.version || 0) < 7) { settings.loot.onlyUpgrades = false; settings.loot.vacuum = true; settings.version = 7; }
     // 版本 8（依使用者說明）：原版重置技能後立刻進入選卡，舊版是因選卡被暫停條件擋住才停在沒技能；選卡已改為一定會選，重新開啟自動重置。
     if ((stored.version || 0) < 8) { settings.build.redraft = true; settings.version = 8; }
-    // 版本 9：新增遊戲修改分頁與總開關（無敵、致命攻擊、一擊必殺、技能等級最高、怪物數量提升10倍、一般怪物變精英、無限重抽、最高掉寶與金幣）
+    // 版本 9：新增遊戲修改分頁與總開關（無敵、致命攻擊、一擊必殺、技能等級最高、怪物數量最大化、一般怪物變精英、無限重抽、最高掉寶與金幣）
     if ((stored.version || 0) < 9) {
       settings.cheat = {
         enabled: false,
@@ -66,6 +67,7 @@
         maxCrit: false,
         oneHitKill: false,
         maxSkills: false,
+        maxMonsterDensity: false,
         monsterDensity10x: false,
         allElites: false,
         infiniteRerolls: false,
@@ -74,6 +76,15 @@
         ...stored.cheat
       };
       settings.version = 9;
+    }
+    if (stored.cheat?.monsterDensity10x && !stored.cheat?.maxMonsterDensity) {
+      settings.cheat.maxMonsterDensity = true;
+    }
+    settings.cheat.monsterDensity10x = !!settings.cheat.maxMonsterDensity;
+    // 版本 10：自動配技能支援自動重抽（autoReroll），升級出現不合適卡片時自動使用重抽。
+    if ((stored.version || 0) < 10) {
+      if (settings.build.autoReroll === undefined) settings.build.autoReroll = true;
+      settings.version = 10;
     }
   }
   catch { storageNote = "設定無法讀取，使用預設值"; }
@@ -114,6 +125,8 @@
       return;
     }
     const keys = path.split("."), last = keys.pop(); keys.reduce((o, k) => o[k], settings)[last] = value;
+    if (path === "cheat.maxMonsterDensity") settings.cheat.monsterDensity10x = !!value;
+    if (path === "cheat.monsterDensity10x") settings.cheat.maxMonsterDensity = !!value;
   }
   function normalize() {
     for (const [path, [min, max]] of Object.entries(bounds)) {
@@ -1077,7 +1090,7 @@
     return true;
   }
   // 排行榜學習：升級選卡依高手技能／被動權重，屬性點依高手配點比例；技能偏離時到阿卡拉重置（re-draft）。
-  let levelCards = null, campMenu = null, statsAt = 0, redraft = null, redraftVisits = 0;
+  let levelCards = null, levelHandlers = null, levelRerollCount = 0, campMenu = null, statsAt = 0, redraft = null, redraftVisits = 0;
   function hookBuild(g) {
     const hud = g.hud;
     if (!hud || hud.__d2autobotBuild === api) return;
@@ -1088,7 +1101,7 @@
       restores.push(() => { if (own) object[name] = original; else delete object[name]; });
     };
     // 實測原版 hud.showLevelUp(cards, build, handlers)：cards 為 {title, subtitle, text, rarity}；showCampMenu(npc, items) 為 {label, disabled, run}。
-    wrapOwn(hud, "showLevelUp", (original) => function (...args) { levelCards = Array.isArray(args[0]) ? args[0] : null; return Reflect.apply(original, this, args); });
+    wrapOwn(hud, "showLevelUp", (original) => function (...args) { levelCards = Array.isArray(args[0]) ? args[0] : null; levelHandlers = args[2] && typeof args[2] === "object" ? args[2] : null; return Reflect.apply(original, this, args); });
     wrapOwn(g, "showCampMenu", (original) => function (...args) { campMenu = { npc: args[0], items: Array.isArray(args[1]) ? args[1] : [] }; return Reflect.apply(original, this, args); });
     hud.__d2autobotBuild = api;
     restores.push(() => { delete hud.__d2autobotBuild; });
@@ -1159,18 +1172,38 @@
     let best = 0, score = -Infinity;
     buttons.forEach((button, i) => {
       const card = levelCards?.[i], evolve = button.classList.contains("evolves") || !!button.querySelector(".evolves.ready");
-            // 實測卡名是 .lines 的第一個元素：單一 canvas（如 Faster Cast Rate），或 .d2-parts 內多個 canvas 以「-」接副標題（如 Ice|Bolt|-|New skill）。
+      // 實測卡名是 .lines 的第一個元素：單一 canvas（如 Faster Cast Rate），或 .d2-parts 內多個 canvas 以「-」接副標題（如 Ice|Bolt|-|New skill）。
       const head = button.querySelector(".lines")?.firstElementChild, parts = head ? [...(head.tagName === "CANVAS" ? [head] : head.querySelectorAll("canvas"))].map((c) => c.textContent.trim()) : [], cut = parts.indexOf("-");
       const title = card?.title ?? (parts.length ? parts.slice(0, cut < 0 ? parts.length : cut).join(" ") : button.querySelector("strong")?.textContent);
       // 依使用者要求：技能進化後，基礎技能可再次學習（卡片寫「再次習得」／again，與進化技能並存）→ 額外加 20 分。
-      const again = /再次習得|再次學習|again/i.test(button.textContent || "") || [...button.querySelectorAll("canvas")].some((c) => /again|再次/i.test(c.textContent || ""));
+      const again = /再次習得|再次學習| again /i.test(button.textContent || "") || [...button.querySelectorAll("canvas")].some((c) => /again|再次/i.test(c.textContent || ""));
       let base = 0; try { base = g ? ladderScore(g, title) : 0; } catch { base = 0; }
       const value = (evolve ? 100 : 0) + (again ? 20 : 0) + base - i * 0.01;
       if (value > score) { best = i; score = value; }
     });
-    return best;
+    return { best, score };
   }
-  // 屬性點依高手比例分配；原版 spendStatPoints(屬性, 點數)。
+  function canReroll(g) {
+    if (!settings.build.autoReroll || levelRerollCount >= 10) return false;
+    const rerollBtn = document.getElementById("reroll") || document.querySelector("#level-up button#reroll, #level-up .reroll, button[data-action='reroll']");
+    if (rerollBtn && rerollBtn.disabled) return false;
+    if (g?.build && typeof g.build.rerolls === "number" && g.build.rerolls <= 0) return false;
+    return true;
+  }
+  function triggerReroll(now) {
+    levelRerollCount++;
+    if (typeof levelHandlers?.reroll === "function") {
+      try { levelHandlers.reroll(); } catch {}
+    }
+    const rerollBtn = document.getElementById("reroll") || document.querySelector("#level-up button#reroll, #level-up .reroll, button[data-action='reroll']");
+    if (rerollBtn && typeof rerollBtn.click === "function") {
+      try { rerollBtn.click(); } catch {}
+    }
+    keyPulse("KeyR", "r");
+    lastAction = "自動配技能：卡片評分低，使用重抽換一批技能卡";
+    actionAt = now;
+  }
+    // 屬性點依高手比例分配；原版 spendStatPoints(屬性, 點數)。
   // 依使用者要求：撿到赫拉迪克法典（hcx，+1 技能變體點數，上限 10）就讀，並把點數花在技能變體上。
   // 實測原版：game.useQuest(職業, 物品, 完成回呼) 會轉給 readCodex；變體介面為 hud.d2.mods { points() → {total, used, free}, options(技能), active(技能), set(技能, 變體) }。
   // 選法：已學技能中尚未套用變體者，優先排行榜高手常用變體（LADDER.mods），其次技能等級高者的第一個變體。
@@ -1348,7 +1381,7 @@
     return true;
   }
   function blocked() { return (!settings.enabled && !settings.progressEnabled) || document.hidden || !panel.hidden || window.__d2editIsOpen?.() || performance.now() < manualUntil || paused(); }
-  // 遊戲修改：無敵、致命攻擊、一擊必殺、技能滿級、怪量十倍、全精英、無限重抽、極限掉寶金幣
+  // 遊戲修改：無敵、致命攻擊、一擊必殺、技能99等、怪物數量最大化、全精英、無限重抽、極限掉寶金幣
   function applyCheats(g) {
     if (!g || !settings.cheat?.enabled) return;
     const currentGold = g.save?.gold ?? 0;
@@ -1367,6 +1400,8 @@
         if (p.maxLife > 0 && p.life < p.maxLife) p.life = p.maxLife;
         p.damageTaken = 0;
       }
+      if (g.world?.shield && g.world.shield.max > 0) g.world.shield.mana = g.world.shield.max;
+      if (g.world?.mana && g.world.mana.max > 0) g.world.mana.mana = g.world.mana.max;
     }
 
     const p = g.world?.player;
@@ -1375,11 +1410,19 @@
       if (settings.cheat.maxCrit) {
         p.criticalStrike = 100;
         p.deadlyStrike = 100;
+        (p.passiveLevels ??= {}).criticalStrike = Math.max(p.passiveLevels.criticalStrike || 0, 99);
       }
 
       // 3. 一擊必殺（所有屬性傷害一百倍）
       if (settings.cheat.oneHitKill) {
-        p.damageMult = (p.damageMult || 1) * 100;
+        p.might = Math.max(p.might || 1, 100);
+        p.weaponDamage = Math.max(p.weaponDamage || 1, 100);
+        if (p.mastery && typeof p.mastery === "object") {
+          for (const k of ["physical", "fire", "cold", "lightning", "poison", "magic"]) {
+            p.mastery[k] = Math.max(p.mastery[k] || 1, 100);
+          }
+        }
+        p.damageMult = 100;
         p.physicalDamageMult = 100;
         p.fireDamageMult = 100;
         p.lightningDamageMult = 100;
@@ -1408,39 +1451,44 @@
       g.world.gold = 999999;
     }
 
-    // 4. 技能等級最高
+    // 4. 技能最高等級 99 等
     if (settings.cheat.maxSkills) {
       if (Array.isArray(g.build?.skills)) {
         for (const s of g.build.skills) {
-          const max = SKILLS?.[s.id]?.maxLevel || 99;
-          if ((s.level || 0) < max) s.level = max;
+          if (s && (s.level || 0) < 99) s.level = 99;
         }
       }
       if (g.build?.passives && typeof g.build.passives === "object") {
         for (const [id, lvl] of Object.entries(g.build.passives)) {
-          const max = PASSIVES?.[id]?.maxLevel || 99;
-          if (lvl < max) g.build.passives[id] = max;
+          if (lvl < 99) g.build.passives[id] = 99;
         }
       }
     }
 
-    // 5. 怪物數量提升 10 倍
-    if (settings.cheat.monsterDensity10x) {
-      if (g.world) {
-        g.world.monsterDensity = 10;
-        g.world.spawnRate = (g.world.spawnRate || 1) * 10;
+    // 5. 怪物數量最大化
+    if (settings.cheat.maxMonsterDensity || settings.cheat.monsterDensity10x) {
+      if (g.director && typeof g.director === "object") {
+        g.director.batchTimer = 0;
+        g.director.owed = Math.max(g.director.owed || 0, 450);
+        if (g.director.waves && !g.director.waves.done) {
+          g.director.waveDue = Math.max(g.director.waveDue || 0, 450);
+        }
       }
-      if (Array.isArray(g.world?.enemies) && g.world.enemies.length > 0 && g.world.enemies.length < 800) {
+      if (g.world) {
+        g.world.monsterDensity = 999;
+        g.world.spawnRate = 999;
+      }
+      if (!g.director && Array.isArray(g.world?.enemies) && g.world.enemies.length > 0 && g.world.enemies.length < 450) {
         if (!g.world._cheatClonedCount) g.world._cheatClonedCount = 0;
         if (g.world.enemies.length - g.world._cheatClonedCount < 100) {
-          const baseEnemies = g.world.enemies.filter(e => e && !e._cheatClone && e.rank !== "breakable" && (e.life || 0) > 0);
+          const baseEnemies = g.world.enemies.filter(e => e && !e._cheatClone && !e.sprite && e.rank !== "breakable" && (e.life || 0) > 0);
           const copiesToAdd = [];
           for (const orig of baseEnemies) {
-            for (let c = 0; c < 9; c++) {
+            for (let c = 0; c < 9 && g.world.enemies.length + copiesToAdd.length < 450; c++) {
               const clone = Object.assign(Object.create(Object.getPrototypeOf(orig)), orig);
               clone._cheatClone = true;
-              clone.x = orig.x + (Math.random() - 0.5) * 80;
-              clone.y = orig.y + (Math.random() - 0.5) * 80;
+              clone.x = (orig.x || 0) + (Math.random() - 0.5) * 80;
+              clone.y = (orig.y || 0) + (Math.random() - 0.5) * 80;
               copiesToAdd.push(clone);
             }
           }
@@ -1459,6 +1507,7 @@
           if (e && e.rank === "normal") {
             e.rank = "champion";
             e.elite = true;
+            if (!Array.isArray(e.mods)) e.mods = [];
             if (e.maxLife) e.maxLife *= 2.5;
             if (e.life) e.life *= 2.5;
             if (e.speed) e.speed *= 1.2;
@@ -1475,6 +1524,7 @@
         g.build.banishes = 9999;
       }
       if (g.save?.ranks) {
+        g.save.ranks.rerolls = Math.max(g.save.ranks.rerolls || 0, 999);
         g.save.ranks.Reroll = Math.max(g.save.ranks.Reroll || 0, 999);
       }
       const rerollBtn = document.querySelector("#level-up button#reroll, #level-up .reroll, button[data-action='reroll']");
@@ -1486,10 +1536,26 @@
   function step(g, now) {
     applyCheats(g);
     checkRetreat(now);
+    const levelUpVisible = visible(document.getElementById("level-up"));
+    if (!levelUpVisible) levelRerollCount = 0;
     // 依使用者要求：自動戰鬥開著時每次升級一定要選卡（不受手動讓位影響；設定面板開著時除外）；只開戰鬥輔助時選卡交給玩家。
-    if (settings.progressEnabled && panel.hidden && visible(document.getElementById("level-up")) && now - actionAt > 800) {
+    if (settings.progressEnabled && panel.hidden && levelUpVisible && now - actionAt > 800) {
       const cards = [...document.querySelectorAll("#choices button")].filter(visible);
-      if (cards.length) { const i = pickCard(g, cards); keyPulse("Digit" + (i + 1), String(i + 1)); lastAction = "已選擇升級卡 " + (i + 1); actionAt = now; release(); return; }
+      if (cards.length) {
+        const choice = pickCard(g, cards);
+        if (choice.score < 25 && canReroll(g)) {
+          triggerReroll(now);
+          release();
+          return;
+        }
+        levelRerollCount = 0;
+        const i = choice.best;
+        keyPulse("Digit" + (i + 1), String(i + 1));
+        lastAction = "已選擇升級卡 " + (i + 1);
+        actionAt = now;
+        release();
+        return;
+      }
     }
     if (retreat || blocked()) { release(); return; }
     if (g) { hookBuild(g); autoEquip(g, now); useCodex(g, now); leaveLowNormal(g, now); leaveForScroll(g, now); if (g.state === "playing") autoStats(g, now); }
@@ -1523,9 +1589,18 @@
       // 實測：原版卡片有防誤觸，未經真實 pointerdown 的 click() 會被忽略，因此改按原版 1～3 鍵。
       if ((questOn() || terrorMode() !== "off") && visible(document.getElementById("level-up")) && now - actionAt > 800) {
         const cards = [...document.querySelectorAll("#choices button")].filter(visible);
-        const i = pickCard(g, cards);
-        if (cards.length) { keyPulse("Digit" + (i + 1), String(i + 1)); lastAction = "已選擇升級卡 " + (i + 1); }
-        actionAt = now;
+        if (cards.length) {
+          const choice = pickCard(g, cards);
+          if (choice.score < 25 && canReroll(g)) {
+            triggerReroll(now);
+          } else {
+            levelRerollCount = 0;
+            const i = choice.best;
+            keyPulse("Digit" + (i + 1), String(i + 1));
+            lastAction = "已選擇升級卡 " + (i + 1);
+            actionAt = now;
+          }
+        }
       }
       return;
     }
@@ -1550,7 +1625,6 @@
   function guarded(g, now) {
     if (!alive || now - lastStep < 50) return;
     lastStep = now;
-    applyCheats(g);
     try { step(g, now); errors = 0; }
     catch (err) { release(); if (++errors >= 3) stop("連續執行錯誤，已停機：" + String(err.message || err)); }
   }
@@ -1712,7 +1786,7 @@
   field("quest.fixedDifficulty", "固定關卡難度", [["normal", "普通"], ["nightmare", "惡夢"], ["hell", "地獄"]]); field("terror.targetFarmTier", "固定層數");
   group("恐怖層數"); field("terror.postClearWaitSec", "通關等待（秒）"); field("terror.autoReviveOrRestart", "陣亡後重試（有保留角色時）");
   group("關卡進程"); field("quest.prioritizeBoss", "優先接近任務頭目"); field("quest.autoStart", "在營地自動開局／續玩（全新存檔可用）");
-  group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "技能配置和排行榜差太多時向阿卡拉付費重置技能（普通通關後可用，重置後立刻重新選卡）");
+  group("排行榜學習"); field("build.ladder", "依排行榜高手配法選升級卡"); field("build.autoStats", "依高手比例自動配屬性點"); field("build.redraft", "技能配置和排行榜差太多時向阿卡拉付費重置技能（普通通關後可用，重置後立刻重新選卡）"); field("build.autoReroll", "自動重抽（升級候選卡評分偏低時自動使用重抽）");
   group("裝備"); field("gear.autoEquip", "自動穿上較佳裝備"); field("gear.minGainPercent", "替換門檻（約等於傷害提升％）");
   group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
   tab("assist"); group("死亡保護"); field("deathProtection.enabled", "死亡保護（緊急離開本局）"); field("deathProtection.emergencyHpPercent", "緊急生命門檻（％）"); field("deathProtection.disableAutomation", "觸發後關閉兩頁總開關");
@@ -1723,9 +1797,9 @@
   field("cheat.invincible", "無敵（免疫所有傷害且鎖定滿血）");
   field("cheat.maxCrit", "致命攻擊（致命一擊機率最高）");
   field("cheat.oneHitKill", "一擊必殺（所有屬性傷害提升一百倍）");
-  field("cheat.maxSkills", "技能等級最高（所有已學技能與被動等級全滿）");
+  field("cheat.maxSkills", "技能最高等級99等（所有已學技能與被動等級鎖定99等）");
   group("怪物與環境修改");
-  field("cheat.monsterDensity10x", "怪物數量提升10倍（地圖怪物密度與數量大幅增加）");
+  field("cheat.maxMonsterDensity", "怪物數量最大化（地圖怪物生成速度與數量拉滿）");
   field("cheat.allElites", "一般怪物全部變成精英以上等級（全圖小怪升階為金/藍怪）");
   group("流程與掉落修改");
   field("cheat.infiniteRerolls", "選技能的重抽無限次數（升級選卡無限重抽、跳過與排除）");

@@ -1,5 +1,35 @@
 # 交接紀錄
 
+- 2026-11-02｜Antigravity：全面驗證所有功能、修復真實遊戲底層相容 Bug，並更新「怪物數量最大化」與「技能最高等級99等」（同步 `web/` 與 `editor/`）：
+  1. **使用者指定功能變更**：
+     - **怪物數量最大化（`cheat.maxMonsterDensity`，相容舊欄位 `cheat.monsterDensity10x`）**：介面名稱改為「怪物數量最大化（地圖怪物生成速度與數量拉滿）」。對接真實遊戲 `Game.director`（`saveTransfer-B-JMspCD.js`），每幀將 `director.batchTimer = 0`、`director.owed = Math.max(owed, 450)`（恐懼層則同時拉滿 `director.waveDue = Math.max(waveDue, 450)`），使原版生成器每幀持續刷怪直到原版硬上限 450 隻，並鎖定 `world.monsterDensity = 999` 與 `world.spawnRate = 999`。
+     - **技能最高等級 99 等（`cheat.maxSkills`）**：介面名稱改為「技能最高等級99等（所有已學技能與被動等級鎖定99等）」。將 `g.build.skills` 所有已學技能 `s.level` 鎖定為 `99`，並將 `g.build.passives` 所有已學被動等級鎖定為 `99`（觸發原版 `b0` 自動以 99 等套用被動加成）。
+  2. **全專案驗證與真實遊戲底層 Bug 修復**：
+     - **修復怪物複製導致 Pixi Sprite 崩潰與倍率溢位**：舊版每幀對 `world.enemies` 淺拷貝（`Object.assign({}, orig)`）會共用同一個 `orig.sprite`，當任一分身死亡呼叫 `sprite.destroy()` 時會導致真機渲染崩潰；且 `(world.monsterDensity || 1) * 10` 每幀累乘會在數秒內溢位為 `Infinity`。現改為真機透過 `g.director` 原生生成，僅在無 `director` 且無 `sprite` 的模擬測試環境鏡像補滿敵怪。
+     - **修復一擊必殺（`cheat.oneHitKill`）真機屬性對接與累乘溢位**：逆向確認真機傷害公式（`moved-C2l42iCZ.js` 的 `D(e,t)`／`O(e,t)`）使用 `player.might`、`player.weaponDamage` 與 `player.mastery.{physical,fire,cold,lightning,poison,magic}`，而非 `damageMult`；且舊版 `(p.damageMult || 1) * 100` 每幀累乘會變 `Infinity`。已修正為同時設定 `might = 100`、`weaponDamage = 100`、六系 `mastery = 100` 及固定 `damageMult = 100`。
+     - **修復致命攻擊（`cheat.maxCrit`）真機暴擊率**：真機暴擊率透過 `passiveLevels.criticalStrike` 計算（`Yp`），已同步將 `player.passiveLevels.criticalStrike` 設為 `99`。
+     - **修復全精英怪（`cheat.allElites`）缺少 `mods` 陣列崩潰**：真機非 `normal` 怪物每幀會執行 `e.mods.includes("teleport")`，升階時若未初始化 `e.mods` 陣列可能拋出 `TypeError`，已補齊 `if (!Array.isArray(e.mods)) e.mods = []`。
+     - **修復升級選卡自動重抽（`autoReroll`）真機防連點攔截與無限重抽迴圈**：真機重抽按鈕使用 `onFreshClick`（檢查 `grace.key`），合成 `click()` 與 `KeyR` 不會觸發重抽；已改為在 `hud.showLevelUp` 攔截第三參數 `handlers` 並直接呼叫 `handlers.reroll()`，且限制每次升級最多自動重抽 10 次，防止搭配「無限重抽」時陷入無窮重抽迴圈。
+     - **補齊 `i18n.js` 遊戲修改分頁完整英文翻譯**：為所有遊戲修改分頁標題與開關說明補上對應英文詞條。
+  3. **測試與驗證**：
+     - 語法檢查：`node --check` 通過 `web/` 與 `editor/` 所有 JS 檔案。
+     - 語言單元測試：`node web/tests/test_lang.cjs` 與 `node editor/tests/test_lang.cjs`（6/6 通過）。
+     - 建置回歸測試：`node editor/tests/build-web.cjs` 通過。
+     - Electron 模擬測試：`editor/node_modules/electron/dist/electron.exe web/tests/autobot.cjs` 通過（**146 項通過、0 項失敗**）。未執行 commit/push。
+
+- 2026-11-02｜Antigravity：自動配技能支援使用重抽（autoReroll）（同步 `web/` 與 `editor/`）：
+  1. **重抽判定與觸發機制**：
+     - 在升級選卡（`pickCard`）中回傳最佳卡片之評分（`score`）。
+     - 若當前三張卡片最佳評分低於門檻（< 25 分，代表沒有進化卡、再次習得卡、主力技能或關鍵進化被動），且角色仍有重抽次數（`build.rerolls > 0` 或啟用無限重抽且重抽鈕可用），自動觸發重抽（點擊原版重抽按鈕並發送鍵盤事件 `KeyR`）。
+     - 更新輔助器狀態提示為「自動配技能：卡片評分低，使用重抽換一批技能卡」，並於重抽後自動重新評估新卡。
+  2. **設定與多語言支援**：
+     - 在設定 `build` 區塊新增 `autoReroll` 開關（預設為 `true`，升級選卡低於標準時自動使用重抽）。
+     - 版本號升級至 `version: 10`，支援舊版本自動升級相容。
+     - 在「自動戰鬥」面板「排行榜學習」群組中新增設定欄位「自動重抽（升級候選卡評分偏低時自動使用重抽）」，並同步中英文國際化翻譯（`i18n.js`）。
+  3. **測試與驗證**：
+     - 更新 `tests/autobot.cjs`，包含可及性設定切換開關、舊版本遷移檢查（`version: 10`）與升級選卡低評分自動觸發重抽單元測試。
+     - 執行全套 Electron 模擬測試通過：**145 項通過、0 項失敗**；`test_lang.cjs` 通過（6/6）；`build-web.cjs` 通過。未執行 commit/push。
+
 - 2026-11-02｜Antigravity：遊戲修改功能擴充與全項目獨立總開關配置（`web/autobot.js` 及同步 `editor/autobot.js`）：
   1. **預設全部關閉與修改總開關**：
      - 在「遊戲修改」分頁最上方新增「遊戲修改總開關（主控所有修改項目）」（`cheat.enabled`），且所有修改功能預設值一律為 `false`。
@@ -201,3 +231,16 @@
 - 2026-10-31｜Codex：使用者明確授權推送，準備發布物品頁屬性下拉選單及遊戲產生器上限；發布後需確認 GitHub Pages 已更新。
 
 - 2026-10-31｜Codex：網頁版與桌面版加入繁體中文字典備援，不再依賴先啟用中文書籤；字典取自本機 D2SurvivorsLauncher。`node --check` 與頁面指令碼檢查通過，並驗證小型咒符、所有技能及 129 個一般屬性顯示中文；自訂名稱或未知技能仍可能無對應翻譯。準備發布網頁版；桌面執行檔尚未重新封裝。
+
+## 待辦：修改功能 bug（2026-11-02，Codex 模擬驗證發現，尚未修正、尚未實機測試）
+1. 一擊必殺：`applyCheats()` 每次呼叫 damageMult 等倍率再乘 100（會累乘），需記住原始值冪等套用。
+2. 怪物 10 倍：一次 90→900 隻超過 800 上限；spawnRate 重複乘 10，需依剩餘容量截斷並冪等。
+3. 作弊總開關/子開關關閉後不還原已改寫的倍率、數值、函式。
+4. 金幣 90 億保護：觸發後不還原；`world.gold` 若為函式會被覆寫成數字。
+5. 技能滿級：找不到技能資料/ID 時預設 99，應跳過或用合法上限。
+6. 無限重抽：永久強化寫 `ranks.Reroll`，編輯器用 `ranks.rerolls`，需查明遊戲實際欄位並統一。
+7. 網頁版寫入存檔（`d2edit.js`）前未自動備份，與確認對話框說明不符；備份失敗時不可寫入。
+- 無敵(godMode)、致命攻擊(criticalStrike/deadlyStrike)、掉寶率(uniqueBoost 等)欄位未在遊戲程式碼中找到，效果待實機確認。
+- 實機測試請用官方網頁版 https://d2survivors.lol/play/ ；`web/index.html` 是工具包說明頁不是遊戲。測試前先備份瀏覽器 localStorage 存檔。桌面版存檔已備份於 `_backup_test/game-save`。
+- `web/` 為獨立 git 儲存庫，autobot.js、tests/autobot.cjs 有未提交變更需保留；web/ 與 editor/ 檔案需同步。
+- Codex 在 workspace-write 沙箱無法寫入本目錄，修正需改派可寫入的代理或開放權限。
