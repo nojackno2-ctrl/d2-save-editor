@@ -150,3 +150,7 @@ node build-web.js https://nojackno2-ctrl.github.io/d2-survivors-toolkit/   # 產
 ## 免責聲明
 
 本專案為玩家自製工具，與 D2 Survivors 開發者及 Blizzard Entertainment 無任何關聯。
+
+## 授權條款
+
+保留所有權利。可免費個人使用並分享官方連結；未經同意**不得修改、改作、重新散布或商業使用**。詳見 [LICENSE](LICENSE)。
