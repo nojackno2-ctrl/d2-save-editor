@@ -399,8 +399,9 @@
   const fighter = () => isMelee() && !meleeHurt();
   // 近戰站在攻擊距離約六成處（不必貼身），遠程照常保持距離。
   const style = () => fighter() ? { kite: Math.max(20, Math.min(myReach(), 150) * 0.6), range: Math.min(myReach(), 150) + 30 } : { kite: settings.movement.kiteDistance, range: settings.movement.attackRange };
+  // 依實測：技能自動施放、自動選最近目標，玩家只能移動；任務頭目也用近戰站位，貼近到它成為最近目標才打得到。
   function battleGoal(e, p, kind = "戰鬥") {
-    const u = unit(p.x - e.x, p.y - e.y), distance = fighter() ? (e.radius || 12) + (p.radius || 12) + Math.min(myReach(), 150) * 0.6 : settings.movement.kiteDistance;
+    const u = unit(p.x - e.x, p.y - e.y), distance = fighter() || kind === "任務頭目" ? (e.radius || 12) + (p.radius || 12) + Math.min(myReach(), 150) * 0.6 : settings.movement.kiteDistance;
     return { x: e.x + (u.x || 1) * distance, y: e.y + u.y * distance, kind };
   }
   function questGoal(s) {
@@ -594,7 +595,8 @@
     let goal = thief && m.enabled && ratio > 0.25 ? { ...battleGoal(thief, s.p, "盜賊"), ...(fighter() ? {} : (() => { const u = unit(s.p.x - thief.x, s.p.y - thief.y), d = Math.min(m.kiteDistance, m.attackRange * 0.6); return { x: thief.x + (u.x || 1) * d, y: thief.y + u.y * d }; })()) } : null;
     // 依使用者要求：精英怪與王才會掉裝備與寶箱，生命過半時先追 900 內的精英／王，打倒後再撿掉落物。
     // 依使用者要求：配合劇情推進，任務目標（石陣、牢籠、任務頭目、任務物品）最優先；其次精英／王，最後撿物。
-    if (!goal && questOn() && !portalDue) goal = questGoal(s);
+    // 依實測：石塊陣開門後一般通關傳送門也出現，原本 portalDue 會略過任務目標，角色離開該局、石陣進度重置；石陣／任務傳送門／牢籠仍優先；依使用者要求，任務頭目沒打倒就繼續打，不走出口。
+    if (!goal && questOn()) { const q = questGoal(s); if (q && (!portalDue || /石陣|任務傳送門|牢籠|任務頭目/.test(q.kind))) goal = q; }
     const hunt = !goal && m.enabled && progressing && !portalDue && ratio > 0.35 ? nearestElite(s) : null;
     if (hunt) goal = battleGoal(hunt, s.p, "精英");
     if (!goal) goal = free && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
@@ -1235,10 +1237,12 @@
   // 依使用者要求：任務模式達成（普通、惡夢、地獄各 6 項共 18 項都有紀錄，且角色 99 級）就自動改成固定關卡模式刷地獄。
   function questModeDone(g) {
     if (autoMode() !== "quest" || (g?.world?.player?.level ?? 0) < 99) return false;
-    const q = g?.save?.cain?.quests?.[g?.kit?.id] || {};
-    if (!["N", "M", "H"].every((p) => [1, 2, 3, 4, 5, 6].every((n) => q[p + n] != null))) return false;
+    const q = g?.save?.cain?.quests?.[g?.kit?.id] || {}, lv = g.world.player.level;
+    // 依使用者要求：角色等級超過某難度可得經驗的上限（lowLevelUseless／noXpAt），就不回去打那個難度的任務，該難度不列入達成條件。
+    const skip = (diff) => lowLevelUseless(diff, lv) || noXpAt(g.kit?.id, diff, lv);
+    if (!Object.entries(QUEST_DIFF).every(([diff, p]) => skip(diff) || [1, 2, 3, 4, 5, 6].every((n) => q[p + n] != null))) return false;
     settings.quest.fixedDifficulty = "hell"; put("autoMode", "fixedDifficulty"); save(true); refreshControls();
-    lastAction = "任務模式達成（18 項任務完成、99 級）：自動改為固定關卡模式刷地獄";
+    lastAction = "任務模式達成（可得經驗難度的任務完成、99 級）：自動改為固定關卡模式刷地獄";
     return true;
   }
   let turnInAt = 0;
