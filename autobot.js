@@ -413,6 +413,10 @@
       if (i >= 0 && point(stones.spots[i])) return { ...stones.spots[i], kind: "任務石陣" };
     }
     if (point(search?.portalSpot)) return { x: search.portalSpot.x, y: search.portalSpot.y, kind: "任務傳送門" };
+    // 依實測（尋找凱恩從未完成）：拉卡尼休被原版標為任務頭目（questHeld）卻一滴血沒掉，輔助器一直追其他精英。
+    // 原版在 search.watch.watched 追蹤樹頭木拳（掉伊尼弗斯卷軸）與拉卡尼休（有鑰匙時倒下處出現石塊陣），須由玩家擊殺；活著且被標記者優先攻擊。
+    const held = [...(search?.watch?.watched?.values?.() || [])].filter((b) => b && !b.dead && b.life > 0 && b.questHeld && point(b));
+    if (held.length) { const b = held.reduce((a, x) => dist(x, s.p) < dist(a, s.p) ? x : a); return battleGoal(b, s.p, "任務頭目"); }
     const tyrael = g.clearing?.tyrael;
     if (point(tyrael) && !tyrael.spoke) return { x: tyrael.x, y: tyrael.y, kind: "任務對話" };
     if (settings.quest.prioritizeBoss) {
