@@ -19,8 +19,19 @@
     build: { ladder: true, autoStats: true, redraft: true },
     // 實測 39～46 級角色陣亡會從 1 級重來；預設開啟：快被打死時原版「儲存並離開」，回營地後自動繼續上次進度。
     deathProtection: { enabled: true, emergencyHpPercent: 15, disableAutomation: false },
-    // 遊戲修改：掉寶率最高、金幣掉落率最高（金幣滿 90 億自動關閉安全閥）
-    cheat: { maxDropRate: false, maxGoldRate: false },
+    // 遊戲修改：預設全部關閉，頂部設總開關
+    cheat: {
+      enabled: false,
+      invincible: false,
+      maxCrit: false,
+      oneHitKill: false,
+      maxSkills: false,
+      monsterDensity10x: false,
+      allElites: false,
+      infiniteRerolls: false,
+      maxDropRate: false,
+      maxGoldRate: false
+    },
   };
   // 由 d2survivors.lol 排行榜 API 產生（editor/ladder-learn.js）：各職業前 50 位不同玩家，每人只取最高恐懼層紀錄（依使用者要求），不足 20 位以地獄榜補：技能／被動 [id, 名稱, 權重]、常用變體、配點比例、各欄常用暗金套裝。
   const LADDER = {"source":"d2survivors.lol/api/leaderboard（各職業前 50 位不同玩家，每人取最高恐懼層紀錄；不足 20 位以地獄榜補）","generatedAt":"2026-11-01","classes":{"amazon":{"runs":50,"players":50,"tiers":[118,103,94,87,84],"skills":[["fireArrow","Fire Arrow",1.68],["explodingArrow","Exploding Arrow",1.64],["guidedArrow","Guided Arrow",1.44],["magicArrow","Magic Arrow",1.4],["seekerArrow","Widowmaker",1.13],["strafe","Strafe",1.1],["immolationArrow","Immolation Arrow",1.03],["coldArrow","Cold Arrow",1],["freezingArrow","Freezing Arrow",0.99],["iceArrow","Ice Arrow",0.99],["lightningFury","Lightning Fury",0.9],["multipleShot","Multiple Shot",0.8],["valkyrie","Valkyrie",0.48],["lightningBolt","Lightning Bolt",0.16],["plagueJavelin","Plague Javelin",0.11],["impale","Impale",0.08],["lightningStrike","Lightning Strike",0.05],["jab","Jab",0.04],["fend","Fend",0.02],["chargedStrike","Charged Strike",0.02]],"mods":{"seekerArrow":"blackArrow","plagueJavelin":"lingering","strafe":"bullseye","guidedArrow":"bounty","lightningFury":"chain","freezingArrow":"frostField","iceArrow":"deepFreeze","immolationArrow":"pyre","explodingArrow":"focused","fireArrow":"frostfire","magicArrow":"ricochet","coldArrow":"split","valkyrie":"huntress","multipleShot":"narrow","impale":"slayer","fend":"spearwind","jab":"heavy","lightningStrike":"frostEdge","chargedStrike":"frostCharge","lightningBolt":"frostJavelin"},"passives":[["criticalStrike","Critical Strike",2],["penetrate","Penetrate",2],["pierce","Pierce",2],["innerSight","Inner Sight",2],["dodge","Dodge",1.96],["avoid","Avoid",1.96],["dopplezon","Decoy",1.88],["slowMissiles","Slow Missiles",1.84],["evade","Evade",1.76],["fcr","Faster Cast Rate",1.68],["frw","Faster Run/Walk",0.44],["vitality","Vitality",0.32],["telekinesis","Telekinesis",0.1],["replenish","Replenish Life",0.04]],"attributes":{"strength":0.02,"dexterity":0.78,"vitality":0.13,"energy":0.07},"gear":{"belt":["Arachnid Mesh","Thundergod's Vigor","M'avina's Tenet"],"boots":["Gore Rider","Marrowwalk","Goblin Toe"],"amulet":["Mara's Kaleidoscope","Atma's Scarab","Highlord's Wrath"],"ring1":["Wisp Projector","Bul-Kathos' Wedding Band","The Stone of Jordan"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","Carrion Wind"],"weapon":["Blood Raven's Charge","Gimmershred","Kuko Shakaku"],"head":["Harlequin Crest","Andariel's Visage","Kira's Guardian"],"body":["Skin of the Vipermagi","Arkaine's Valor","M'avina's Embrace"],"gloves":["Soul Drainer","Dracul's Grasp","Laying of Hands"],"shield":["The Ward","Spirit Ward"]}},"assassin":{"runs":50,"players":50,"tiers":[100,84,82,72,66],"skills":[["cloakOfShadows","Cloak of Shadows",1.52],["cobraStrike","Cobra Strike",1.48],["dragonFlight","Dragon Flight",1.1],["bladesOfIce","Blades of Ice",1.1],["royalStrike","Phoenix Strike",1.1],["tigerStrike","Tiger Strike",1.04],["clawsOfThunder","Claws of Thunder",0.88],["deathSentry","Death Sentry",0.77],["dragonTail","Dragon Tail",0.65],["mindBlast","Mind Blast",0.61],["fistsOfFire","Fists of Fire",0.6],["bladeShield","Blade Shield",0.59],["shadowMaster","Shadow Master",0.59],["infernoSentry","Wake of Inferno",0.27],["dragonClaw","Dragon Claw",0.25],["shockField","Shock Web",0.24],["bladeFury","Blade Fury",0.23],["lightningSentry","Lightning Sentry",0.18],["wakeOfFireSentry","Wake of Fire",0.09],["chargedBoltSentry","Charged Bolt Sentry",0.08],["dragonTalon","Dragon Talon",0.08],["psychicHammer","Psychic Hammer",0.04]],"mods":{"cobraStrike":"spit","dragonFlight":"hunter","cloakOfShadows":"shroud","mindBlast":"focus","bladesOfIce":"shards","deathSentry":"chainBlast","dragonTail":"wideTail","clawsOfThunder":"chain","royalStrike":"tempest","bladeShield":"burst","tigerStrike":"shockwave","shadowMaster":"stalker","fistsOfFire":"flare","dragonClaw":"cleave","infernoSentry":"fan","lightningSentry":"fork","bladeFury":"bullseye","wakeOfFireSentry":"ring","shockField":"wideNet","chargedBoltSentry":"lance","dragonTalon":"sweep"},"passives":[["vitality","Vitality",2],["fcr","Faster Cast Rate",2],["frw","Faster Run/Walk",2],["clawMastery","Claw Mastery",2],["weaponBlock","Weapon Block",2],["quickness","Burst of Speed",2],["fade","Fade",2],["venom","Venom",2],["replenish","Replenish Life",1.96],["telekinesis","Telekinesis",1.6]],"attributes":{"strength":0.22,"dexterity":0.27,"vitality":0.31,"energy":0.2},"gear":{"weapon":["Firelizard's Talons","Bartuc's Cut-Throat","Mang Song's Lesson"],"head":["Harlequin Crest","Andariel's Visage","Griffon's Eye"],"belt":["Arachnid Mesh","Verdungo's Hearty Cord","String of Ears"],"boots":["Gore Rider","Shadow Dancer","Goblin Toe"],"amulet":["Mara's Kaleidoscope","Atma's Scarab","Highlord's Wrath"],"ring1":["Bul-Kathos' Wedding Band","Wisp Projector","Raven Frost"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","The Stone of Jordan"],"gloves":["Dracul's Grasp","Laying of Hands","Magefist"],"body":["Arkaine's Valor","Skin of the Vipermagi","Naj's Light Plate"],"shield":["Bartuc's Cut-Throat","Jade Talon","Firelizard's Talons"]}},"barbarian":{"runs":50,"players":50,"tiers":[260,235,233,228,223],"skills":[["battleCry","Battle Cry",2],["doubleThrow","Double Throw",2],["grimWard","Grim Ward",2],["doubleSwing","Double Swing",2],["taunt","Taunt",1.72],["whirlingAxes","Lacerator",1.13],["frenzy","Frenzy",1.13],["berserk","Berserk",1.13],["battleCommand","Battle Command",1.13],["concentrate","Concentrate",1.03],["whirlwind","Whirlwind",0.36],["stun","Stun",0.08]],"mods":{"whirlwind":"blazingPath","whirlingAxes":"stormAxes","frenzy":"flameEdge","berserk":"gore","battleCry":"contagion","doubleThrow":"venom","battleCommand":"warBanner","grimWard":"lure","doubleSwing":"stormEdge","taunt":"rabble","concentrate":"stormBlow","stun":"concussion"},"passives":[["vitality","Vitality",2],["axeMastery","Axe Mastery",2],["throwingMastery","Throwing Mastery",2],["ironSkin","Iron Skin",2],["naturalResistance","Natural Resistance",2],["increasedSpeed","Increased Speed",2],["findItem","Find Item",2],["fcr","Faster Cast Rate",1.96],["increasedStamina","Increased Stamina",1.96],["swordMastery","Sword Mastery",1.16],["maceMastery","Mace Mastery",0.52],["telekinesis","Telekinesis",0.19],["poleArmMastery","Pole Arm Mastery",0.04],["replenish","Replenish Life",0.04],["frw","Faster Run/Walk",0.04],["spearMastery","Spear Mastery",0.04]],"attributes":{"strength":0.23,"dexterity":0.01,"vitality":0.76,"energy":0},"gear":{"gloves":["Dracul's Grasp","Steelrend","Laying of Hands"],"belt":["Arachnid Mesh","Verdungo's Hearty Cord"],"boots":["Gore Rider","Goblin Toe","War Traveler"],"amulet":["Atma's Scarab","Mara's Kaleidoscope","Highlord's Wrath"],"ring1":["Wisp Projector","Bul-Kathos' Wedding Band","The Stone of Jordan"],"ring2":["Bul-Kathos' Wedding Band","Wisp Projector","The Stone of Jordan"],"head":["Wolfhowl","Arreat's Face"],"weapon":["Azurewrath"]}},"druid":{"runs":50,"players":50,"tiers":[174,129,100,97,70],"skills":[["twister","Twister",1.36],["arcticBlast","Arctic Blast",1.28],["spiritOfBarbs","Spirit of Barbs",0.99],["hurricane","Hurricane",0.99],["fury","Fury",0.92],["tornado","Tornado",0.92],["shockWave","Shock Wave",0.86],["moltenBoulder","Molten Boulder",0.86],["armageddon","Armageddon",0.81],["volcano","Volcano",0.81],["vines","Solar Creeper",0.77],["firestorm","Firestorm",0.72],["summonGrizzly","Summon Grizzly",0.63],["eruption","Fissure",0.56],["raven","Raven",0.12],["cycleOfLife","Carrion Vine",0.09],["oakSage","Oak Sage",0.08],["summonFenris","Summon Dire Wolf",0.07],["heartOfWolverine","Heart of Wolverine",0.07],["plaguePoppy","Poison Creeper",0.04]],"mods":{"shockWave":"earthquake","fury":"stormFangs","armageddon":"wrath","vines":"sunburst","hurricane":"galeForce","volcano":"caldera","tornado":"maelstrom","moltenBoulder":"magmaCore","twister":"vortex","summonGrizzly":"wildPack","spiritOfBarbs":"thornNova","firestorm":"firewall","arcticBlast":"iceLance","cycleOfLife":"nourish","eruption":"wideFissure","raven":"nightwing","oakSage":"sap","heartOfWolverine":"loneWolf","summonFenris":"frenzied"},"passives":[["shapeShifting","Lycanthropy",1.92],["cycloneArmor","Cyclone Armor",1.92],["replenish","Replenish Life",1.88],["spiritKeeper","Spirit Keeper",1.88],["fcr","Faster Cast Rate",1.84],["frw","Faster Run/Walk",1.84],["feralRage","Feral Rage",1.72],["fireClaws","Fire Claws",1.68],["vitality","Vitality",1.52],["ravenlore","Ravenlore",1.4],["hunger","Hunger",1.32],["rabies","Rabies",0.56],["telekinesis","Telekinesis",0.42]],"attributes":{"strength":0.44,"dexterity":0.03,"vitality":0.34,"energy":0.18},"gear":{"weapon":["Azurewrath","Islestrike","Earth Shifter"],"shield":["Tiamat's Rebuke","Stormshield","The Ward"],"head":["Jalal's Mane","Harlequin Crest","Cerebus' Bite"],"gloves":["Dracul's Grasp","Soul Drainer","Magefist"],"belt":["Arachnid Mesh","Goldwrap","Verdungo's Hearty Cord"],"boots":["Gore Rider","War Traveler","Goblin Toe"],"amulet":["Mara's Kaleidoscope","Atma's Scarab","Highlord's Wrath"],"ring1":["Bul-Kathos' Wedding Band","Raven Frost","The Stone of Jordan"],"ring2":["Bul-Kathos' Wedding Band","Raven Frost","The Stone of Jordan"],"body":["Skin of the Vipermagi","Skullder's Ire","Arkaine's Valor"]}},"necromancer":{"runs":50,"players":50,"tiers":[144,129,120,103,102],"skills":[["corpseExplosion","Corpse Explosion",2],["teeth","Teeth",1.44],["raiseSkeletalMage","Raise Skeletal Mage",1.44],["bonePrison","Bone Prison",1.2],["boneSpirit","Bone Spirit",1.1],["lifeTap","Life Tap",1.08],["revive","Revive",1.06],["boneSpear","Bone Spear",0.97],["decrepify","Decrepify",0.77],["ironMaiden","Iron Maiden",0.68],["attract","Attract",0.65],["poisonNova","Poison Nova",0.61],["fireGolem","Fire Golem",0.45],["amplifyDamage","Amplify Damage",0.44],["bloodGolem","Blood Golem",0.41],["weaken","Weaken",0.28],["poisonExplosion","Poison Explosion",0.27],["poisonDagger","Poison Dagger",0.16],["terror","Terror",0.08],["confuse","Confuse",0.02]],"mods":{"boneSpirit":"reaper","boneSpear":"impaler","teeth":"clench","attract":"sacrifice","amplifyDamage":"contagion","revive":"legion","bloodGolem":"bloodbond","raiseSkeletalMage":"legion","bonePrison":"crushing","corpseExplosion":"chain","fireGolem":"forge","ironMaiden":"spite","lifeTap":"feast","poisonNova":"plagueWave","decrepify":"contagion","poisonExplosion":"miasma","poisonDagger":"venomPuff","terror":"cower","weaken":"contagion","confuse":"contagion"},"passives":[["fcr","Faster Cast Rate",2],["boneArmor","Bone Armor",2],["boneWall","Bone Wall",2],["lowerResist","Lower Resist",2],["skeletonMastery","Skeleton Mastery",1.96],["vitality","Vitality",1.88],["golemMastery","Golem Mastery",1.72],["replenish","Replenish Life",1.56],["frw","Faster Run/Walk",1.56],["telekinesis","Telekinesis",1.47],["summonResist","Summon Resist",1.32]],"attributes":{"strength":0,"dexterity":0,"vitality":0.15,"energy":0.84},"gear":{"shield":["Trang-Oul's Wing","Homunculus","Boneflame"],"head":["Harlequin Crest","Trang-Oul's Guise","Kira's Guardian"],"body":["Trang-Oul's Scales","Skullder's Ire","Tal Rasha's Guardianship"],"gloves":["Trang-Oul's Claws","Magefist","Chance Guards"],"belt":["Arachnid Mesh","Trang-Oul's Girth"],"boots":["Marrowwalk","War Traveler","Silkweave"],"amulet":["Mara's Kaleidoscope"],"ring1":["The Stone of Jordan","Wisp Projector","Bul-Kathos' Wedding Band"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","The Stone of Jordan"],"weapon":["Boneshade","Death's Web","Gravenspine"]}},"paladin":{"runs":49,"players":50,"tiers":[166,127,123,122,119],"skills":[["holyShield","Holy Shield",2],["smite","Smite",2],["zeal","Zeal",1.99],["sacrifice","Sacrifice",1.96],["charge","Charge",1.88],["vengeance","Vengeance",1.22],["holyCharge","Herald of Zakarum",1.13],["fanaticZeal","Passion",1.13],["almaNegra","Alma Negra",1.13],["rusthandle","Rusthandle",0.83],["blessedHammer","Blessed Hammer",0.57],["hammerOfZakarum","Zakarum's Hand",0.39],["conversion","Conversion",0.08],["fistOfTheHeavens","Fist of the Heavens",0.05],["bloodrise","Bloodrise",0.02]],"mods":{"holyCharge":"lance","fanaticZeal":"fervor","almaNegra":"wideWave","rusthandle":"cascade","zeal":"holyEdge","smite":"pin","charge":"lance","vengeance":"attuned","holyShield":"retribution","sacrifice":"bloodletting","hammerOfZakarum":"swarm","conversion":"legion","fistOfTheHeavens":"storm","blessedHammer":"return"},"passives":[["might","Might",2],["concentration","Concentration",2],["fanaticism","Fanaticism",2],["conviction","Conviction",2],["vigor","Vigor",2],["holyShock","Holy Shock",1.96],["resistFire","Resist Fire",1.88],["resistLightning","Resist Lightning",1.84],["resistCold","Resist Cold",1.51],["holyFire","Holy Fire",1.35],["holyFreeze","Holy Freeze",0.73],["salvation","Salvation",0.53],["blessedAim","Blessed Aim",0.16],["redemption","Redemption",0.04]],"attributes":{"strength":0.07,"dexterity":0.08,"vitality":0.85,"energy":0},"gear":{"weapon":["Heaven's Light","The Redeemer","Azurewrath"],"shield":["Herald of Zakarum","Alma Negra","Steelclash"],"head":["Andariel's Visage","Harlequin Crest","Guillaume's Face"],"gloves":["Dracul's Grasp","Soul Drainer","Steelrend"],"belt":["Arachnid Mesh","String of Ears"],"boots":["Marrowwalk","Gore Rider","War Traveler"],"ring1":["Bul-Kathos' Wedding Band","Wisp Projector","The Stone of Jordan"],"ring2":["Wisp Projector","Bul-Kathos' Wedding Band","Carrion Wind"],"amulet":["Highlord's Wrath","Mara's Kaleidoscope","Seraph's Hymn"],"body":["Arkaine's Valor","Guardian Angel","Skullder's Ire"]}},"sorceress":{"runs":50,"players":50,"tiers":[119,109,97,87,76],"skills":[["staticField","Static Field",1.92],["lightning","Lightning",1.88],["hydra","Hydra",1.32],["chainLightning","Chain Lightning",1.1],["meteor","Meteor",1.1],["blizzard","Blizzard",0.92],["thunderStorm","Thunder Storm",0.92],["frostNova","Frost Nova",0.88],["fireBall","Fire Ball",0.88],["teleport","Teleport",0.68],["frozenOrb","Frozen Orb",0.61],["fireBolt","Fire Bolt",0.56],["chargedBolt","Charged Bolt",0.48],["chillingArmor","Chilling Armor",0.41],["fireWall","Fire Wall",0.36],["glacialSpike","Glacial Spike",0.25],["nova","Nova",0.24],["frozenArmor","Frozen Armor",0.2],["blaze","Blaze",0.08],["inferno","Inferno",0.08],["iceBlast","Ice Blast",0.04]],"mods":{"frozenOrb":"shatter","frozenArmor":"brittle","staticField":"wider","chainLightning":"stormChain","blizzard":"hailstorm","frostNova":"deepFreeze","lightning":"thunderbolt","meteor":"shower","fireBall":"cluster","fireBolt":"split","fireWall":"crossfire","hydra":"triHydra","thunderStorm":"wrath","glacialSpike":"avalanche","teleport":"frostStep","chillingArmor":"lastStand","nova":"coldSnap","chargedBolt":"split","iceBlast":"ricochet","blaze":"frostTrail"},"passives":[["energyShield","Energy Shield",2],["fireMastery","Fire Mastery",2],["coldMastery","Cold Mastery",2],["lightningMastery","Lightning Mastery",2],["warmth","Warmth",2],["enchant","Enchant",2],["fcr","Faster Cast Rate",1.96],["replenish","Replenish Life",1.88],["frw","Faster Run/Walk",1.64],["vitality","Vitality",1.48],["telekinesis","Telekinesis",0.83]],"attributes":{"strength":0,"dexterity":0,"vitality":0.01,"energy":0.99},"gear":{"weapon":["Eschuta's Temper","The Oculus","Mang Song's Lesson"],"gloves":["Magefist","Trang-Oul's Claws","Frostburn"],"belt":["Arachnid Mesh","Trang-Oul's Girth","Nightsmoke"],"boots":["Marrowwalk","War Traveler","Silkweave"],"amulet":["Mara's Kaleidoscope","Highlord's Wrath","Seraph's Hymn"],"ring1":["The Stone of Jordan","Wisp Projector","Bul-Kathos' Wedding Band"],"ring2":["The Stone of Jordan","Wisp Projector","Bul-Kathos' Wedding Band"],"head":["Harlequin Crest","Griffon's Eye","Andariel's Visage"],"body":["Skin of the Vipermagi","Arkaine's Valor","Ormus' Robes"],"shield":["Lidless Wall","Spirit Ward","The Ward"]}}}};
@@ -47,8 +58,23 @@
     if ((stored.version || 0) < 7) { settings.loot.onlyUpgrades = false; settings.loot.vacuum = true; settings.version = 7; }
     // 版本 8（依使用者說明）：原版重置技能後立刻進入選卡，舊版是因選卡被暫停條件擋住才停在沒技能；選卡已改為一定會選，重新開啟自動重置。
     if ((stored.version || 0) < 8) { settings.build.redraft = true; settings.version = 8; }
-    // 版本 9：新增遊戲修改分頁（最高掉寶率、最高金幣掉落率，90億自動關閉安全閥）
-    if ((stored.version || 0) < 9) { settings.cheat = { maxDropRate: false, maxGoldRate: false, ...stored.cheat }; settings.version = 9; }
+    // 版本 9：新增遊戲修改分頁與總開關（無敵、致命攻擊、一擊必殺、技能等級最高、怪物數量提升10倍、一般怪物變精英、無限重抽、最高掉寶與金幣）
+    if ((stored.version || 0) < 9) {
+      settings.cheat = {
+        enabled: false,
+        invincible: false,
+        maxCrit: false,
+        oneHitKill: false,
+        maxSkills: false,
+        monsterDensity10x: false,
+        allElites: false,
+        infiniteRerolls: false,
+        maxDropRate: false,
+        maxGoldRate: false,
+        ...stored.cheat
+      };
+      settings.version = 9;
+    }
   }
   catch { storageNote = "設定無法讀取，使用預設值"; }
   // 走位只開放開關、戰鬥方式、閃避飛彈；距離與係數一律用內建值（依職業自動調整）。
@@ -1322,33 +1348,139 @@
     return true;
   }
   function blocked() { return (!settings.enabled && !settings.progressEnabled) || document.hidden || !panel.hidden || window.__d2editIsOpen?.() || performance.now() < manualUntil || paused(); }
-  // 遊戲修改：掉寶率最高、金幣掉落率最高，90億自動關閉安全保護
+  // 遊戲修改：無敵、致命攻擊、一擊必殺、技能滿級、怪量十倍、全精英、無限重抽、極限掉寶金幣
   function applyCheats(g) {
-    if (!g) return;
+    if (!g || !settings.cheat?.enabled) return;
     const currentGold = g.save?.gold ?? 0;
-    if (settings.cheat?.maxGoldRate && currentGold >= 9000000000) {
+    if (settings.cheat.maxGoldRate && currentGold >= 9000000000) {
       settings.cheat.maxGoldRate = false;
       save(true);
       refreshControls();
       lastAction = "玩家金幣達到 90 億，已自動關閉金幣掉落修改保護存檔";
     }
+
+    // 1. 無敵 (God Mode)
+    if (settings.cheat.invincible) {
+      if (g.world) g.world.godMode = true;
+      const p = g.world?.player;
+      if (p) {
+        if (p.maxLife > 0 && p.life < p.maxLife) p.life = p.maxLife;
+        p.damageTaken = 0;
+      }
+    }
+
     const p = g.world?.player;
     if (p) {
-      if (settings.cheat?.maxGoldRate) {
+      // 2. 致命攻擊（機率最高）
+      if (settings.cheat.maxCrit) {
+        p.criticalStrike = 100;
+        p.deadlyStrike = 100;
+      }
+
+      // 3. 一擊必殺（所有屬性傷害一百倍）
+      if (settings.cheat.oneHitKill) {
+        p.damageMult = (p.damageMult || 1) * 100;
+        p.physicalDamageMult = 100;
+        p.fireDamageMult = 100;
+        p.lightningDamageMult = 100;
+        p.coldDamageMult = 100;
+        p.poisonDamageMult = 100;
+        p.magicDamageMult = 100;
+        p.elementalDamageMult = 100;
+      }
+
+      // 掉寶與金幣倍率
+      if (settings.cheat.maxGoldRate) {
         p.goldGain = 999999;
       }
-      if (settings.cheat?.maxDropRate) {
+      if (settings.cheat.maxDropRate) {
         p.magicFind = 999999;
         p.uniqueBoost = 9999;
         p.rareBoost = 9999;
         p.setBoost = 9999;
       }
     }
-    if (g.world && settings.cheat?.maxGoldRate) {
+
+    if (g.world && settings.cheat.maxGoldRate) {
       if (!g.world._origGoldFn && typeof g.world.gold === "function") {
         g.world._origGoldFn = g.world.gold;
       }
       g.world.gold = 999999;
+    }
+
+    // 4. 技能等級最高
+    if (settings.cheat.maxSkills) {
+      if (Array.isArray(g.build?.skills)) {
+        for (const s of g.build.skills) {
+          const max = SKILLS?.[s.id]?.maxLevel || 99;
+          if ((s.level || 0) < max) s.level = max;
+        }
+      }
+      if (g.build?.passives && typeof g.build.passives === "object") {
+        for (const [id, lvl] of Object.entries(g.build.passives)) {
+          const max = PASSIVES?.[id]?.maxLevel || 99;
+          if (lvl < max) g.build.passives[id] = max;
+        }
+      }
+    }
+
+    // 5. 怪物數量提升 10 倍
+    if (settings.cheat.monsterDensity10x) {
+      if (g.world) {
+        g.world.monsterDensity = 10;
+        g.world.spawnRate = (g.world.spawnRate || 1) * 10;
+      }
+      if (Array.isArray(g.world?.enemies) && g.world.enemies.length > 0 && g.world.enemies.length < 800) {
+        if (!g.world._cheatClonedCount) g.world._cheatClonedCount = 0;
+        if (g.world.enemies.length - g.world._cheatClonedCount < 100) {
+          const baseEnemies = g.world.enemies.filter(e => e && !e._cheatClone && e.rank !== "breakable" && (e.life || 0) > 0);
+          const copiesToAdd = [];
+          for (const orig of baseEnemies) {
+            for (let c = 0; c < 9; c++) {
+              const clone = Object.assign(Object.create(Object.getPrototypeOf(orig)), orig);
+              clone._cheatClone = true;
+              clone.x = orig.x + (Math.random() - 0.5) * 80;
+              clone.y = orig.y + (Math.random() - 0.5) * 80;
+              copiesToAdd.push(clone);
+            }
+          }
+          if (copiesToAdd.length > 0) {
+            g.world._cheatClonedCount = (g.world._cheatClonedCount || 0) + copiesToAdd.length;
+            g.world.enemies.push(...copiesToAdd);
+          }
+        }
+      }
+    }
+
+    // 6. 一般怪物全部變成精英以上等級
+    if (settings.cheat.allElites) {
+      if (Array.isArray(g.world?.enemies)) {
+        for (const e of g.world.enemies) {
+          if (e && e.rank === "normal") {
+            e.rank = "champion";
+            e.elite = true;
+            if (e.maxLife) e.maxLife *= 2.5;
+            if (e.life) e.life *= 2.5;
+            if (e.speed) e.speed *= 1.2;
+          }
+        }
+      }
+    }
+
+    // 7. 選技能重抽無限次數 (Infinite Rerolls)
+    if (settings.cheat.infiniteRerolls) {
+      if (g.build) {
+        g.build.rerolls = 9999;
+        g.build.skips = 9999;
+        g.build.banishes = 9999;
+      }
+      if (g.save?.ranks) {
+        g.save.ranks.Reroll = Math.max(g.save.ranks.Reroll || 0, 999);
+      }
+      const rerollBtn = document.querySelector("#level-up button#reroll, #level-up .reroll, button[data-action='reroll']");
+      if (rerollBtn && rerollBtn.disabled) {
+        rerollBtn.disabled = false;
+      }
     }
   }
   function step(g, now) {
@@ -1584,7 +1716,19 @@
   group("裝備"); field("gear.autoEquip", "自動穿上較佳裝備"); field("gear.minGainPercent", "替換門檻（約等於傷害提升％）");
   group("營地整備（每次回營地自動變強）"); field("town.enabled", "回營地自動整備"); field("town.collect", "暗金／套裝收進收藏庫"); field("town.stash", "較好的裝備存入倉庫"); field("town.sellJunk", "賣掉用不到的裝備"); field("town.buyPotions", "用金幣向阿卡拉買生命藥水"); field("town.charsiUpgrades", "用金幣升級恰西永久能力"); field("town.buyGear", "向商人買較佳裝備");
   tab("assist"); group("死亡保護"); field("deathProtection.enabled", "死亡保護（緊急離開本局）"); field("deathProtection.emergencyHpPercent", "緊急生命門檻（％）"); field("deathProtection.disableAutomation", "觸發後關閉兩頁總開關");
-  tab("cheat"); group("掉落修改");
+  tab("cheat");
+  group("修改總控制");
+  field("cheat.enabled", "遊戲修改總開關（主控所有修改項目）");
+  group("戰鬥修改");
+  field("cheat.invincible", "無敵（免疫所有傷害且鎖定滿血）");
+  field("cheat.maxCrit", "致命攻擊（致命一擊機率最高）");
+  field("cheat.oneHitKill", "一擊必殺（所有屬性傷害提升一百倍）");
+  field("cheat.maxSkills", "技能等級最高（所有已學技能與被動等級全滿）");
+  group("怪物與環境修改");
+  field("cheat.monsterDensity10x", "怪物數量提升10倍（地圖怪物密度與數量大幅增加）");
+  field("cheat.allElites", "一般怪物全部變成精英以上等級（全圖小怪升階為金/藍怪）");
+  group("流程與掉落修改");
+  field("cheat.infiniteRerolls", "選技能的重抽無限次數（升級選卡無限重抽、跳過與排除）");
   field("cheat.maxDropRate", "掉寶率最高（大幅提升暗金/套裝/稀有尋寶率）");
   field("cheat.maxGoldRate", "金幣掉落率最高（偵測玩家金幣超過 90 億自動關閉）");
   // 依使用者要求：目前模式用不到的設定隱藏（欄位所在的 label 列與分組標題）。

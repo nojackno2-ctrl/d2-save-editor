@@ -1,16 +1,21 @@
 # 交接紀錄
 
-- 2026-11-02｜Antigravity：輔助器新增第三個分頁「遊戲修改」（`web/autobot.js`）：
-  1. **遊戲修改分頁與功能實作**：
-     - 在 Shadow DOM 面板 tablist 新增第三個標籤 `<button data-tab="cheat">遊戲修改</button>` 與面板容器 `<div data-pane="cheat" hidden></div>`。
-     - 在 `defaults` 新增 `cheat: { maxDropRate: false, maxGoldRate: false }`，設定版本遞增至 `version: 9`；補強設定遷移邏輯保留既有 cheat 設定。
-     - **掉寶率最高（`cheat.maxDropRate`）**：開啟時注入角色極限尋寶屬性（`magicFind = 999999`、`uniqueBoost = 9999`、`rareBoost = 9999`、`setBoost = 9999`），大幅提升暗金、套裝、稀有掉落機率。
-     - **金幣掉落率最高（`cheat.maxGoldRate`）**：開啟時注入角色極限金幣尋獲倍率（`goldGain = 999999`、`world.gold = 999999`）。
-     - **90 億金幣自動關閉安全保護**：在 `guarded()` 循環中即時監測玩家存檔金幣（`g.save?.gold`），當金幣達到或超過 90 億（`9000000000`）時，自動將 `settings.cheat.maxGoldRate` 設為 `false`、存檔並刷新 UI 控制項，且於狀態列提示「玩家金幣達到 90 億，已自動關閉金幣掉落修改保護存檔」，避免超過 100 億（`MAX_GOLD = 1e10`）觸發存檔損壞或作弊標記。
-  2. **測試與驗證**：
-     - 更新 `web/tests/autobot.cjs`：加入遊戲修改分頁 DOM 存在檢查、兩項開關切換可及性測試、掉寶與金幣數值套用測試，以及滿 90 億自動停用安全閥測試。
-     - 執行 `node tests/test_lang.cjs`（6/6 全部通過）。
-     - 執行 `tests/autobot.cjs`（模擬測試通過：**126 項通過、0 項失敗**）。未執行 commit/push。
+- 2026-11-02｜Antigravity：遊戲修改功能擴充與全項目獨立總開關配置（`web/autobot.js` 及同步 `editor/autobot.js`）：
+  1. **預設全部關閉與修改總開關**：
+     - 在「遊戲修改」分頁最上方新增「遊戲修改總開關（主控所有修改項目）」（`cheat.enabled`），且所有修改功能預設值一律為 `false`。
+     - 若修改總開關未開啟，所有修改項目即使單獨勾選亦不生效，確保安全性。
+  2. **新增修改項目實作**：
+     - **無敵 (`cheat.invincible`)**：啟用原版戰鬥防護 `world.godMode = true`，鎖定受傷倍率 `damageTaken = 0`，且生命值自動維持全滿。
+     - **致命攻擊（機率最高，`cheat.maxCrit`）**：設定角色 `criticalStrike = 100` 與 `deadlyStrike = 100`，使所有攻擊必出暴擊。
+     - **一擊必殺（所有屬性傷害一百倍，`cheat.oneHitKill`）**：全屬性傷害倍率（物理、火、冰、電、毒、魔法、元素）全面提升 100 倍（`*DamageMult = 100`）。
+     - **技能等級最高 (`cheat.maxSkills`)**：遍歷角色當前所有技能與被動，自動依原版技能定義上限（`maxLevel`）升至最高等級。
+     - **怪物數量提升10倍 (`cheat.monsterDensity10x`)**：動態調高地圖生成密度與刷新率，並在戰鬥中安全鏡像複製敵怪群達 10 倍數量。
+     - **一般怪物全部變成精英以上等級 (`cheat.allElites`)**：自動將場上所有普通怪物（`normal`）轉換為冠軍怪（`champion` / `elite = true`），享有強化詞綴、血量與掉落提升。
+     - **選技能重抽無限次數 (`cheat.infiniteRerolls`)**：鎖定升級選卡重抽、跳過與排除次數為 9999 次，解除按鈕禁用狀態。
+     - **掉寶率與金幣掉落率最高**：保留並強化現有 999999 尋寶率與金幣倍率，金幣超過 90 億時自動關閉安全保護。
+  3. **測試與驗證**：
+     - 更新 `web/tests/autobot.cjs` 涵蓋全部 8 項新修改開關的可及性與邏輯套用測試。
+     - `node --check` 驗證通過，`test_lang.cjs` 6/6 通過。未執行 commit/push。
 
 - 2026-11-02｜Antigravity：專案整體最佳化與手機解析度最佳化（同步 `web/` 與 `editor/`）：
   1. **手機解析度與行動裝置體驗最佳化**：
