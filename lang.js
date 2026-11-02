@@ -797,11 +797,11 @@
           e.stopPropagation();
           menu.style.display = "none";
           if (loc.code === currentLang) return;
-          // 換成原文 English 或在桌面版：跟遊戲原生的語言切換一樣重新整理，所有文字以新語言重畫
-          // （遊戲很多文字在建立時就已翻好；桌面版重新整理後會自動再載入本模組，網頁版重新整理後就是原版英文）。
-          // 網頁版換成其他語言：本模組已在頁面上，直接即時切換並重畫畫面上的文字，不必重新整理、也不必再點書籤
+          // 從原文 English 換成其他語言：即時切換，重建目前畫面並重畫畫面上的文字（不必重新整理、網頁版也不必再點書籤）。
+          // 從翻譯換成其他語言（含回到 English）：遊戲很多文字在建立時就已翻好、沒有原文可還原，
+          // 跟遊戲原生的語言切換一樣重新整理；桌面版重新整理後會自動再載入本模組，網頁版重新整理後就是原版英文
           try { localStorage.setItem(STORAGE_KEY, loc.code); } catch {}
-          if (location.protocol !== "app:" && loc.code !== "en" && currentLang === "en") { api.set(loc.code); return; }
+          if (loc.code !== "en" && currentLang === "en") { api.set(loc.code); return; }
           location.reload();
         };
         for (const ev of ["pointerdown", "mousedown", "touchstart", "keydown"]) {
