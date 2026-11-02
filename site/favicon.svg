@@ -1,40 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#7a1212" />
-      <stop offset="60%" stop-color="#2a0505" />
-      <stop offset="100%" stop-color="#0a0505" />
-    </radialGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f5d77f" />
-      <stop offset="50%" stop-color="#d4af37" />
-      <stop offset="100%" stop-color="#8a6c18" />
+    <linearGradient id="hudBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f1923" />
+      <stop offset="100%" stop-color="#090d12" />
     </linearGradient>
-    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="40%" stop-color="#c0c0c0" />
-      <stop offset="100%" stop-color="#4a4a4a" />
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5fffd2" />
+      <stop offset="100%" stop-color="#1dbf91" />
     </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffd56b" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
   </defs>
-  <!-- Background Shield/Emblem -->
-  <rect width="64" height="64" rx="14" fill="url(#bgGlow)" stroke="#d4af37" stroke-width="2"/>
-  
-  <!-- Outer gothic ring -->
-  <circle cx="32" cy="32" r="26" fill="none" stroke="#d4af37" stroke-width="1" stroke-dasharray="2,3" opacity="0.6"/>
-  <circle cx="32" cy="32" r="22" fill="none" stroke="#8a1010" stroke-width="1.5"/>
 
-  <!-- Stylized D2 Cross Swords / Soul Gem Motif -->
-  <!-- Soul Gem in Center -->
-  <polygon points="32,10 40,24 32,38 24,24" fill="#ff2222" stroke="url(#goldGrad)" stroke-width="1.5"/>
-  <polygon points="32,16 37,24 32,34 27,24" fill="#ff6666" opacity="0.8"/>
+  <!-- HUD Slate Background -->
+  <rect x="2" y="2" width="60" height="60" rx="8" fill="url(#hudBg)" stroke="#223344" stroke-width="1.5" />
 
-  <!-- Lower Rune Blade -->
-  <polygon points="30,36 34,36 33,52 32,56 31,52" fill="url(#bladeGrad)" stroke="#1a1a1a" stroke-width="0.5"/>
+  <!-- Corner Brackets (HUD style) -->
+  <path d="M6 16 L6 6 L16 6" fill="none" stroke="#3ee6b0" stroke-width="2" stroke-linecap="round" />
+  <path d="M58 16 L58 6 L48 6" fill="none" stroke="#3ee6b0" stroke-width="2" stroke-linecap="round" />
+  <path d="M6 48 L6 58 L16 58" fill="none" stroke="#3ee6b0" stroke-width="2" stroke-linecap="round" />
+  <path d="M58 48 L58 58 L48 58" fill="none" stroke="#3ee6b0" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Grid Tech Lines -->
+  <line x1="10" y1="32" x2="54" y2="32" stroke="#1d2e3f" stroke-width="1" stroke-dasharray="3 3" />
+  <line x1="32" y1="10" x2="32" y2="54" stroke="#1d2e3f" stroke-width="1" stroke-dasharray="3 3" />
+
+  <!-- Center HUD Diamond / Scope Core -->
+  <polygon points="32,15 47,32 32,49 17,32" fill="#142834" stroke="url(#cyanGrad)" stroke-width="1.5" filter="url(#glow)" />
   
-  <!-- Cross Guard -->
-  <path d="M20,38 Q32,42 44,38 Q32,46 20,38 Z" fill="url(#goldGrad)"/>
-  
-  <!-- Glowing eye/core dot -->
-  <circle cx="32" cy="24" r="2" fill="#fff" filter="drop-shadow(0 0 3px #ff0000)"/>
-  <circle cx="32" cy="46" r="1.5" fill="#f5d77f"/>
+  <!-- Inner Crosshair & Tech Accents -->
+  <circle cx="32" cy="32" r="5" fill="none" stroke="#ffd56b" stroke-width="1.5" />
+  <circle cx="32" cy="32" r="2" fill="#ffd56b" />
+
+  <!-- Status indicators / ticks -->
+  <circle cx="21" cy="21" r="1.5" fill="#3ee6b0" />
+  <circle cx="43" cy="21" r="1.5" fill="#3ee6b0" />
+  <line x1="28" y1="53" x2="36" y2="53" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" />
 </svg>
