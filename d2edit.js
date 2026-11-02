@@ -291,13 +291,13 @@ function openEditor() {
   window.addEventListener("message", onMessage);
   document.body.appendChild(frame);
 }
-// 點書籤後不直接開啟：留在遊戲中，按暫停時畫面右上角才出現「修改器」按鈕
+// 點書籤後不直接開啟：留在遊戲中，按暫停時畫面左上角才出現「修改器」按鈕
 const zhUI = String((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase().startsWith("zh");
 const launcher = document.createElement("button");
 launcher.type = "button";
 launcher.textContent = zhUI ? "修改器" : "Editor";
 launcher.title = zhUI ? "開啟 D2 倖存者存檔修改器" : "Open the D2 Survivors save editor";
-launcher.style.cssText = "position:fixed;top:max(12px, env(safe-area-inset-top));right:max(12px, env(safe-area-inset-right));z-index:2147483646;display:none;"
+launcher.style.cssText = "position:fixed;top:calc(max(12px, env(safe-area-inset-top)) + 100px);left:max(12px, env(safe-area-inset-left));z-index:2147483646;display:none;"
   + "padding:8px 14px;min-height:40px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.92);color:#d4a84a;font:bold 15px 'Microsoft JhengHei',system-ui,sans-serif;cursor:pointer";
 launcher.onclick = (e) => { e.preventDefault(); e.stopPropagation(); openEditor(); };
 for (const ev of ["pointerdown", "mousedown", "touchstart", "keydown"]) launcher.addEventListener(ev, (e) => e.stopPropagation());
@@ -305,7 +305,7 @@ document.body.appendChild(launcher);
 window.__d2editLauncher = launcher;
 // 遊戲的暫停選單畫在 canvas 上：暫停時 body 會加上 frontend-over-run（實測 d2survivors.lol 營地與冒險中皆同）；舊版或其他畫面用 #paused
 const pausedNow = () => {
-  if (document.body.classList.contains("frontend-over-run")) return true;
+  if (document.body.classList.contains("frontend-over-run") || document.body.classList.contains("frontend-open")) return true;
   const p = document.getElementById("paused");
   return !!p && !p.classList.contains("hidden") && getComputedStyle(p).display !== "none";
 };

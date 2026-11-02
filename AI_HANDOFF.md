@@ -1,5 +1,11 @@
 # 交接紀錄
 
+- 2026-11-02｜Codex：此次介面更新僅暫存本次相關差異，於暫存版本獨立執行 Electron tests/autobot.cjs，116 項通過、0 項失敗；保留其他未提交工作。
+
+- 2026-11-02｜Codex：主選單及其選項等前端畫面以 frontend-open 顯示輔助、語言、修改器入口；輔助設定允許在前端開啟，戰鬥暫停判定維持獨立。同步 web 與 editor；node --check、node tests/test_lang.cjs 通過，Electron tests/autobot.cjs 119 項通過、0 項失敗（首次測試使用舊面板參照失敗，修正測試後重跑通過）。尚未實機驗證、未發布。
+
+- 2026-11-02｜Codex：遊戲中「停止輔助」與狀態列移至下方中央；暫停選單的輔助、語言、修改器改為左上角直排，語言清單向右展開。同步 web 與 editor；兩處 JS 的 node --check 通過，web 的 node tests/test_lang.cjs 通過，Electron tests/autobot.cjs 117 項通過、0 項失敗。尚未實機確認畫面，未發布。
+
 
 - 2026-11-02／Codex：接續桌面翻譯普查；lang.js 對後建 d2-text 畫布排程重畫，開放翻譯輸入框 placeholder、保留輸入值，locales/zh-TW.json 補存檔代碼提示。node --check lang.js 與 node tests/test_lang.cjs 通過；tools/desktop-lang.mjs 以原版重建 %TEMP%\d2lang-baseline.asar 與 d2lang-updated.asar 成功。新的隔離桌面測試程序未開啟預期 CDP 9444，尚未驗證畫布重畫、上一輪 22 筆、各畫面與 hover，需排查啟動參數後補截圖；9333 舊程序截圖 %TEMP%\d2lang-current-1.png 非新版驗證。未修改字型、未 commit/push。
 - 2026-11-02／Codex：桌面繁中普查未完成；locales/zh-TW.json 新增 22 筆翻譯。node --check lang.js 與 node tests/test_lang.cjs 通過；DT 重建後確認存檔摘要及新聞日期已翻譯。暫停語言切換已操作；升級畫面靜態標題與分段文字、存檔輸入框提示仍待修正，物品欄、角色與結算及完整重跑仍待驗證。未改字型，未 commit/push。

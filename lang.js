@@ -796,7 +796,7 @@
 
   // 檢查遊戲暫停狀態（與 autobot 同判定：#paused 可見或 body.frontend-over-run）
   const pausedNow = () => {
-    if (document.body.classList.contains("frontend-over-run")) return true;
+    if (document.body.classList.contains("frontend-over-run") || document.body.classList.contains("frontend-open")) return true;
     const p = document.getElementById("paused");
     return !!p && !p.classList.contains("hidden") && getComputedStyle(p).display !== "none";
   };
@@ -818,13 +818,13 @@
     btn.id = "d2lang-btn";
     btn.type = "button";
     updateButtonText();
-    btn.style.cssText = "position:fixed;top:max(12px, env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:2147483646;display:none;" +
+    btn.style.cssText = "position:fixed;top:calc(max(12px, env(safe-area-inset-top)) + 50px);left:max(12px, env(safe-area-inset-left));z-index:2147483646;display:none;" +
       "padding:8px 14px;min-height:40px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.95);color:#d4a84a;" +
       "font:bold 15px 'Microsoft JhengHei',system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.5);";
 
     menu = document.createElement("div");
     menu.id = "d2lang-menu";
-    menu.style.cssText = "position:fixed;top:calc(max(12px, env(safe-area-inset-top)) + 46px);left:50%;transform:translateX(-50%);z-index:2147483647;display:none;" +
+    menu.style.cssText = "position:fixed;top:calc(max(12px, env(safe-area-inset-top)) + 50px);left:calc(max(12px, env(safe-area-inset-left)) + 150px);z-index:2147483647;display:none;" +
       "background:rgba(20,17,13,.98);border:1px solid #d4a84a;border-radius:6px;min-width:140px;padding:4px 0;box-shadow:0 6px 16px rgba(0,0,0,0.6);";
 
     function renderMenu() {

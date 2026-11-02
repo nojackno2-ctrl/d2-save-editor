@@ -63,6 +63,7 @@ let server, win;
    const emergency=shadow.querySelector('[data-setting="deathProtection.emergencyHpPercent"]');emergency.value='999';emergency.dispatchEvent(new Event('change'));
    check('緊急門檻限制範圍並儲存',storage().deathProtection.emergencyHpPercent===90);
    shadow.getElementById('close').click();game.state='playing';await wait();check('遊玩時隱藏輔助按鈕',document.getElementById('d2autobot-launcher').style.display==='none');
+   document.body.classList.add('frontend-open');game.state='frontend';await wait();check('主選單顯示輔助入口',document.getElementById('d2autobot-launcher').style.display==='block');document.getElementById('d2autobot-launcher').click();await wait();const mainShadow=document.getElementById('d2autobot-panel').shadowRoot;check('主選單可開啟輔助設定',!mainShadow.querySelector('.backdrop').hidden);mainShadow.getElementById('close').click();document.body.classList.remove('frontend-open');
    reset();await install(enabled);game.state='playing';game.world.player.life=30;tick();check('低血量喝水',game.calls.filter(x=>x[0]==='drink').length===1);
    game.world.player.life=30;tick();check('藥水冷卻避免連喝',game.calls.length===1);
    game.state='paused';time+=2000;tick();check('暫停不喝水',game.calls.length===1);
