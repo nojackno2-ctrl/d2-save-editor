@@ -295,6 +295,18 @@
     return { protos: [...protos], caches: [...caches] };
   }
   let textCaches = [];
+  // 沿用舊畫布的樣式，但寬高依新畫布尺寸按原本的縮放比例重設（換行數不同時才不會被裁掉或拉伸）
+  function copyCanvasStyle(from, to) {
+    to.className = from.className;
+    if (from.style.cssText) to.style.cssText = from.style.cssText;
+    // 依原畫布的縮放比例設定大小；寬度不超過原方框（超過就等比例縮小），換行數變多時高度跟著增加、不會被裁掉
+    const box = { width: from.offsetWidth || parseFloat(from.style.width) || 0 }, scale = (box.width / from.width) || 1;
+    let w = to.width * scale, h = to.height * scale;
+    if (box.width > 0 && w > box.width) { h *= box.width / w; w = box.width; }
+    to.style.width = `${w}px`; to.style.height = `${h}px`;
+  }
+
+
   const liveCanvases = new Set();
   // 用記下的原文與參數，以目前語言重畫遊戲建立的文字畫布
   function redrawLiveCanvases() {
@@ -304,7 +316,7 @@
       try {
         const next = src.font.canvas(src.text, ...src.rest);
         if (next instanceof HTMLCanvasElement && next !== c) {
-          next.className = c.className; if (c.style.cssText) next.style.cssText = c.style.cssText;
+          copyCanvasStyle(c, next);
           c.replaceWith(next); liveCanvases.delete(c);
         }
       } catch {}
@@ -379,11 +391,9 @@
           if (typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) && parseInt(value.slice(1), 16) === dominant) color = value;
         }
       } catch {}
-      const next = font.canvas(translateString(text), { color, align: "center", maxWidth: Math.max(canvas.width, 200), balance: true, shadow });
+      const next = font.canvas(translateString(text), { color, align: "center", maxWidth: canvas.width, balance: true, shadow });
       if (next instanceof HTMLCanvasElement) {
-        next.className = canvas.className;
-        next.style.cssText = canvas.style.cssText;
-        if (next.width > canvas.width) next.style.maxWidth = `${canvas.width}px`;
+        copyCanvasStyle(canvas, next);
         // 重畫時傳入的是譯文，原文要記成英文，切回 English 才畫得回來
         if (next.__d2langSrc) next.__d2langSrc.text = text;
         canvas.replaceWith(next); replacedCanvases.set(next, canvas);
@@ -448,7 +458,19 @@
       P.wrapLines = function (text, max) {
         if (typeof text !== "string" || !CJK.test(text) || !(max > 0)) return origWrap.call(this, text, max);
         const out = [];
+        const fits = (t) => this.measure(t) <= max;
         for (const para of text.split("\n")) {
+          // 有「 · 」分隔的提示（例如商店操作說明）：跟原版一樣以分隔處為單位排行，整段放得下就不拆
+          const parts = para.split(" · ");
+          if (parts.length > 1 && parts.every(fits)) {
+            let line = "";
+            for (const part of parts) {
+              const next = line ? `${line} · ${part}` : part;
+              if (line && !fits(next)) { out.push(line); line = part; } else line = next;
+            }
+            out.push(line);
+            continue;
+          }
           // 切成：連續拉丁字（含空白後綴）或單一中日文字
           const tokens = para.match(/[⺀-鿿豈-﫿＀-￯　-〿]|[^⺀-鿿豈-﫿＀-￯　-〿\s]+\s*|\s+/g) || [""];
           let line = "";
