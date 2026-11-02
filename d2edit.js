@@ -1,4 +1,4 @@
-// D2 倖存者 存檔修改器（網頁版）
+// D2 倖存者工具包（網頁版）
 // 由書籤載入，在 d2survivors.lol 的頁面裡執行：直接讀寫遊戲的 localStorage 存檔，
 // 修改器介面放在全螢幕 iframe 裡，透過 postMessage 跟這裡溝通。
 const HOST = new URL(".", import.meta.url).href;
@@ -337,6 +337,7 @@ window.__d2zhUrl = at("zh-TW.json");
   bar.append(fill); box.append(text, bar); document.body.append(box); window.__d2editLoading = box;
   for (const ev of ["pointerdown", "mousedown", "touchstart", "keydown"]) box.addEventListener(ev, (e) => e.stopPropagation());
   const steps = [
+    [zhUI ? "語言模組" : "Language module", () => import(at("lang.js"))],
     [zhUI ? "輔助器" : "Assistant", () => import(at("autobot.js"))],
     [zhUI ? "繁中字典" : "Dictionary", () => fetch(at("zh-TW.json")).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })],
     [zhUI ? "遊戲資料" : "Game data", () => fetch(at("gamedata.json")).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })],

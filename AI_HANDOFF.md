@@ -1,5 +1,9 @@
 # 交接紀錄
 
+
+- 2026-11-02／Codex：接續桌面翻譯普查；lang.js 對後建 d2-text 畫布排程重畫，開放翻譯輸入框 placeholder、保留輸入值，locales/zh-TW.json 補存檔代碼提示。node --check lang.js 與 node tests/test_lang.cjs 通過；tools/desktop-lang.mjs 以原版重建 %TEMP%\d2lang-baseline.asar 與 d2lang-updated.asar 成功。新的隔離桌面測試程序未開啟預期 CDP 9444，尚未驗證畫布重畫、上一輪 22 筆、各畫面與 hover，需排查啟動參數後補截圖；9333 舊程序截圖 %TEMP%\d2lang-current-1.png 非新版驗證。未修改字型、未 commit/push。
+- 2026-11-02／Codex：桌面繁中普查未完成；locales/zh-TW.json 新增 22 筆翻譯。node --check lang.js 與 node tests/test_lang.cjs 通過；DT 重建後確認存檔摘要及新聞日期已翻譯。暫停語言切換已操作；升級畫面靜態標題與分段文字、存檔輸入框提示仍待修正，物品欄、角色與結算及完整重跑仍待驗證。未改字型，未 commit/push。
+
 ## 長期規則：遊戲更新後全部重新驗證（使用者要求，2026-11-01）
 遊戲（d2survivors.lol）任何版本更新後，本專案所有功能都要重新驗證，不可沿用舊版的驗證結論：
 - 版本來源：官方 `/changelog.json` 第一筆的 `build`（目前驗證過的是 `20261101.1`），以及遊戲主程式 `/assets/Game-*.js` 檔名。輔助器與修改器的常數 `TESTED_GAME_BUILD` 記錄已驗證的版本，遊戲版本較新時兩個工具的設定上方都會提示。
@@ -13,6 +17,37 @@
 - 實機測試一律用 GitHub 連結：推送後以 `tests/live-harness/reload-gh.cjs` 等部署完成，再讓測試頁面以書籤方式重載。
 
 ## 工作紀錄
+- 2026-11-02｜Claude：補完畫面普查（桌面版實測）：存檔、選項（含子頁，遊戲語言選項改顯示「繁體中文」）、角色、物品欄、商店、暫停、死亡結算皆為繁中；新增魔法／稀有物品名稱拆解翻譯（工匠之福運戒指）；切換語言改為與原生相同的重新整理（桌面版 English↔繁中來回實測正常）。
+- 2026-11-02｜Claude：語言功能真實遊戲實測（網頁版：獨立 Electron 載入 d2survivors.lol＋本機書籤程式；桌面版：官方 2026.1101.1 複本以 tools/desktop-lang.mjs 注入、獨立 APPDATA，不動真實安裝與存檔）。修正：遊戲點陣字型只認韓文→擴充中日文字並可逐字換行；書籤載入前已畫好的畫布依原字型／陰影／換行重畫（升級標題、商店提示等）；整句相符時保留譯文換行（主選單版權文字兩行）；桌面版 app:// 無資源紀錄→沿 import 爬模組、翻譯器類別在 lang-*.js 由注入工具補匯出；版本號「Build」改走字典鍵「Build (version)」。實測主選單、選職業、升級、HUD、暫停（中上方語言按鈕）、營地商店皆為繁中；__d2lang.missing() 只剩稀有／魔法物品名稱（遊戲原版韓文也不翻稀有名）。字型依使用者指示暫停（已可從本機 D2R 取出，未再調整）。未 commit/push。
+- 2026-11-02｜Codex：依要求修改 `lang.js` 靜態畫布重畫，傳入 `color`、置中、原畫布寬度、`balance` 與陰影，保留 class/style；`node --check lang.js`、`node tests/test_lang.cjs` 通過。以原版 asar 重建桌面測試複本並重新啟動，CDP 確認載入新版，但主選單版權文字仍與版本重疊，截圖 `desktest/codex-verified-1.png`；問題未解決，尚未同步 editor，未 commit/push。需繼續確認主選單版權文字的實際繪製路徑。
+- 2026-11-02｜Codex：調整 `lang.js` 的桌面版本號辨識及靜態文字畫布尺寸保護，補充 README 桌面注入與字型說明，並同步 `lang.js`、`d2rfont.js`、`locales/`、`tools/` 至 editor。`node --check lang.js`、`node tests/test_lang.cjs` 通過。桌面測試複本重建後主選單 `__d2lang.missing()` 為空，版本顯示「版本」，但截圖仍顯示版權文字與版本號重疊，尺寸保護尚未解決該問題。兩版本各畫面、語言切換及缺漏盤點尚未完成，勿視為驗收通過。未 commit/push。
+- 2026-11-02｜Claude：重跑「每職業 5 個全新存檔、任務模式、不介入」（`launch.ps1 -Classes "amazon,sorceress,necromancer,paladin,barbarian,druid,assassin" -Copies 5`，職業清單須加引號；`boot.js` 改為明確寫入 `terror.mode="off"`）。約 20 分鐘：全普通難度、僅 barbarian-3 陣亡 1 次、任務全 0／6；尋找凱恩 24 個卡在樹頭木拳、11 個有鑰匙。**發現**：4 個存檔曾到「石塊陣已開門：進入傳送門」，後來全退回「有鑰匙」——一般通關傳送門出現時 `portalDue` 跳過 `questGoal`，角色離開該局、石陣重置。已在本機 `autobot.js` 修正（石陣／任務傳送門／牢籠在 portalDue 時仍優先），模擬測試 110／110 通過，**未推送**（依規則等本輪結束再更新）。codex 靜態分析另指出樹頭木拳／拉卡尼休只是走位目標、技能未鎖定頭目，為第二個卡點，未修。agy 唯讀監測正常（plan 模式只會交計畫，須用 accept-edits 並明令不改檔）。
+- 2026-11-02｜Antigravity：重新設計 `site/index.html` 與 `site/favicon.svg` 為「倖存者 HUD／工具包」視覺主題：
+  1. 視覺全面重塑：擺脫暴雪/Diablo 官網傳統黑金襯線血光風格，採用深石板藍灰底（`#090d12`、`#0f1620`、細緻科技格線背景）、螢光青綠（`#3ee6b0`）主調、琥珀金（`#f59e0b`）點綴與等寬字體標籤（`// MODULE: ...`、`[HUD MON: ACTIVE]`）。
+  2. 元素與卡片設計：Hero 下方新增一條模擬輔助器即時狀態列（「自動戰鬥中 ｜ 模式: 任務模式 ｜ 關卡: 地獄 第二幕 ｜ 威脅預判: 低」）；卡片與區塊加入細線邊框與 HUD 科技角標（`::before` / `::after` 細直角邊框線）。
+  3. 保留全部文字與章節：Hero 三按鈕、修改器 6 大功能、輔助器 3 大自動模式、實測數據、自動戰鬥並不完美警告、書籤三步驟、合規 vs 解除限制、免責與授權聲明完整無缺。
+  4. 新增「實際畫面」畫廊章節：納入 `img/battle1.png`、`img/battle2.png`、`img/panel.png`、`img/editor.png`、`img/paused.png` 5 張圖片，每張配備一行說明、`loading="lazy"`、響應式自適應、`onerror` 容錯隱藏，以及純原生無相依的點擊放大燈箱（支援點外側/✕按鈕/ESC鍵關閉）。
+  5. 更新 `favicon.svg`：改為 HUD 瞄準鎖定稜鏡、青綠 HUD 角標與琥珀十字準星科技風格。
+  6. 響應式驗證：行動裝置排版完全自適應、無水平捲動；固定深色風格。未執行 git commit。
+- 2026-11-02｜Claude：審查 lang.js 並修正以書籤 import() 載入時字典路徑錯指遊戲網址（改由 window.__d2zhUrl 推出工具目錄）；本機瀏覽器模擬暫停頁實測：中上方語言按鈕、繁中翻譯、動態新增文字、切回英文還原、非暫停時隱藏皆正常。尚未在真實遊戲實測。
+- 2026-11-02｜Codex：實作遊戲內語言模組（`lang.js`）與多語言擴充支援，完成工具語言連動：
+  1. 新增 `lang.js`（遊戲內語言模組）：
+     - 語言登錄表：`window.__d2lang = { register(code, {name, dict}), set(code), get(), list(), translate(str) }`，內建 "en"（原文不翻譯）與 "zh-TW"（字典採用 `zh-TW.json`）。預設語言為 `zh-TW`，選擇存於 `localStorage["d2lang"]`。
+     - 擴充能力：定義 `LOCALES` 常數清單，擴充只需新增 `locales/<code>.json` 並在清單加入一行；亦支援執行期 `register`。
+     - 介面整合：遊戲暫停時（`#paused` 可見或 `body.frontend-over-run`）於畫面「中間上方」（`position:fixed; top:max(12px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%)`）顯示金邊深底語言按鈕（🌐 繁體中文／English），點擊展開下拉選單切換語言；所有按鈕事件 `stopPropagation` 避免遊戲吃到；不與僅在運行時出現的 autobot 停止按鈕衝突。
+     - DOM 即時翻譯：以 `MutationObserver` 監看 `document.body`（childList/subtree/characterData/attributes），翻譯文字節點及 `placeholder`、`title`、`aria-label`。比對規則依序為「整句精確」→「不分大小寫」→「數字/星號樣板（#與*代入{0}{1}）」。
+     - 原文還原與效能：使用 `WeakMap` 保存文字節點與屬性原文，切回 `en` 時精準還原；略過 script/style/input/textarea/code/pre 以及輔助器/修改器 shadow host 與 iframe；使用 `requestAnimationFrame` 批次處理，已翻譯節點不重複重翻。
+  2. 工具聯動：
+     - `d2edit.js`：預載步驟加入 `lang.js`；
+     - `i18n.js`：讀取 `localStorage["d2lang"]` / `window.__d2lang`，若選 `en` 自動設定為英文介面；新增輔助器（autobot）介面所有標籤、選項與說明之英文對照。
+     - `autobot.js`：面板標籤、分組、開關狀態與按鈕支援 `trAuto()` 國際化，選 `en` 時自動顯示英文。
+  3. 同步與文件：
+     - 同步 `lang.js`、`locales/`、`autobot.js`、`i18n.js`、`d2edit.js` 至 `../editor/` 資料夾。
+     - 更新 `README.md` 說明語言功能與新增語言教學。
+  4. 驗證：
+     - `node --check` 檢查所有 web 與 editor 修改過的 JS 檔案全數通過。
+     - 撰寫單元測試 `web/tests/test_lang.cjs`（同步至 `editor/tests/test_lang.cjs`），測試精確比對、大小寫無關、`# seconds left`→`剩餘5秒`、多變數樣板、`# hits`、DOM WeakMap 記錄與還原，全數通過。
+     - 未執行 `git commit` 或 `git push`。
 - 2026-11-02｜Claude：35 存檔實機測試與輔助器／修改器改良，使用者要求「停止所有測試寫交接」，以下為停止時狀態。
   - **測試已全部停止**：舊批次（`scratchpad\h`，最高 96 級、地獄 33／35）與新的乾淨批次（`scratchpad\h2`，跑約 10 分鐘、最高 37 級普通）的遊戲程序都已關閉，資料夾保留在 Claude 暫存目錄（非倉庫）。codex／agy 監測工作已取消；codex 監測在沙箱中無法建立常駐程序（exit 79，未產生任何回報），之後監測請改用 agy 或 `tests/live-harness/watch.cjs`。
   - **使用者目標「每職業 5 個全新存檔、完全不介入、codex 與 agy 監測」未達成**（使用者已清除）。舊批次期間我多次重新整理、注入指令、熱重載，不算乾淨測試；乾淨批次剛起跑就停止。下次重跑：`tests/live-harness/launch.ps1 -Classes ... -Copies 5`，全程不碰遊戲，輔助器修正等該輪結束才更新。
