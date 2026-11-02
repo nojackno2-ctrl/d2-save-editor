@@ -62,23 +62,24 @@ function modZh(m) {
 }
 
 // 物品名稱：先整句查；魔法物品拆成 字首 + 底材 + 字尾 再組成中文（字尾 + 字首 + 底材）
+const cleanName = (s) => (typeof s === "string" ? s.replace(/([\u4e00-\u9fa5\u3400-\u4dbf])\s+([\u4e00-\u9fa5\u3400-\u4dbf])/g, "$1$2") : s);
 function nameZh(it) {
   if (UI_EN) return it.name ?? "";
-  if (has(it.name)) return T(it.name);
+  if (has(it.name)) return cleanName(T(it.name));
   const base = it.base ?? "", i = base ? it.name.indexOf(base) : -1;
   if (i >= 0) {
     const pre = it.name.slice(0, i).trim(), suf = it.name.slice(i + base.length).trim();
-    return (suf ? T(suf) : "") + (pre ? T(pre) : "") + baseZh(it);
+    return cleanName((suf ? T(suf) : "") + (pre ? T(pre) : "") + baseZh(it));
   }
   // 稀有物品：兩個字分別翻
   const words = it.name.split(" ");
-  if (words.length === 2 && words.every(has)) return words.map(T).join("");
-  return it.name;
+  if (words.length === 2 && words.every(has)) return cleanName(words.map(T).join(""));
+  return cleanName(it.name);
 }
 function baseZh(it) {
   if (UI_EN) return it.type === "quest" ? it.name : it.base;
-  if (it.type === "quest") return nameZhQuest(it);
-  return T(it.base);
+  if (it.type === "quest") return cleanName(nameZhQuest(it));
+  return cleanName(T(it.base));
 }
-const nameZhQuest = (it) => T(it.name);
+const nameZhQuest = (it) => cleanName(T(it.name));
 const rarityZh = { normal: "普通", magic: "魔法", rare: "稀有", set: "套裝", unique: "暗金", runeword: "符文之語" };

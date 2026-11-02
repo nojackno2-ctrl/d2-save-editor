@@ -43,7 +43,7 @@ let server, win;
    const enabledInput=[...shadow.querySelectorAll('label')].find(e=>e.textContent.includes('戰鬥輔助總開關')).querySelector('[role=switch]');enabledInput.click();
    check('設定寫入獨立儲存鍵',JSON.parse(localStorage.getItem('d2autobot:settings')).enabled===true);
    const storage=()=>JSON.parse(localStorage.getItem('d2autobot:settings'));
-   const switches=['enabled','progressEnabled','potion.autoHp','potion.lethalProtection','movement.enabled','loot.enabled','deathProtection.enabled'];
+   const switches=['enabled','progressEnabled','potion.autoHp','potion.lethalProtection','movement.enabled','loot.enabled','deathProtection.enabled','cheat.maxDropRate','cheat.maxGoldRate'];
    for(const setting of switches){
      const button=shadow.querySelector('[data-setting="'+setting+'"]');
      check('明顯開關與可及性 '+setting,button?.getAttribute('role')==='switch'&&['開啟','關閉'].includes(button.textContent));
@@ -51,6 +51,7 @@ let server, win;
      check('開關立即切換 '+setting,button.getAttribute('aria-checked')!==before);
      button.click();
    }
+   check('包含遊戲修改分頁',[...shadow.querySelectorAll('[data-tab]')].some((b)=>b.textContent==='遊戲修改')&&!!shadow.querySelector('[data-pane="cheat"]'));
    const mode=shadow.querySelector('[data-setting="autoKind"]'),ladder=shadow.querySelector('[data-setting="ladderMode"]'),pickMode=(v)=>{mode.value=['quest','fixedDifficulty'].includes(v)?v:'ladder';mode.dispatchEvent(new Event('change'));if(!['quest','fixedDifficulty'].includes(v)){ladder.value=v;ladder.dispatchEvent(new Event('change'));}};
    check('分頁改名自動戰鬥',[...shadow.querySelectorAll('[data-tab]')].some((b)=>b.textContent==='自動戰鬥')&&mode?.tagName==='SELECT'&&mode.options.length===3&&ladder?.options.length===2);
    pickMode('terror');check('推層模式儲存 mode',storage().terror.mode==='progress'&&storage().quest.autoProgress===false);
@@ -145,7 +146,7 @@ let server, win;
    reset();await install(protection);game.state='playing';game.world.player.life=90;game.world.hostiles=[{x:-30,y:0,vx:200,vy:0,damage:95}];tick();await Promise.resolve();check('可喝水脫險不誤離場',game.calls.some(x=>x[0]==='drink')&&!game.calls.some(x=>x[0]==='leave')&&game.world.player.life===100);
    reset();await install(protection);game.state='playing';game.world.player.life=30;tick();game.world.player.life=10;tick();await Promise.resolve();check('緊急低血量且藥水冷卻觸發',game.calls.some(x=>x[0]==='leave'));
    reset();await install({...protection,deathProtection:{enabled:true,emergencyHpPercent:5}});game.state='playing';game.world.player.life=30;tick();game.world.player.life=10;tick();check('調低緊急門檻即影響判斷',!game.calls.some(x=>x[0]==='leave'));
-   reset();await install({version:1,...enabled,terror:{mode:'farm',targetFarmTier:2}});check('舊設定自動補值且保留模式',storage().version===8&&storage().loot.onlyUpgrades===false&&storage().loot.qualityThreshold.magic===true&&storage().terror.mode==='farm');
+   reset();await install({version:1,...enabled,terror:{mode:'farm',targetFarmTier:2}});check('舊設定自動補值且保留模式',storage().version===9&&storage().loot.onlyUpgrades===false&&storage().loot.qualityThreshold.magic===true&&storage().terror.mode==='farm');
    reset();await install({...protection,enabled:false,progressEnabled:false});game.state='playing';game.world.belt.columns=[[],[],[],[]];game.world.hostiles=[{x:-30,y:0,vx:200,vy:0,damage:120}];tick();check('總開關關閉也停用死亡保護',!game.calls.length);
    reset();await install(protection);game.state='playing';game.world.player.life=40;game.world.terror={tier:1,affixes:['nobelt']};game.world.hostiles=[{x:-30,y:0,vx:200,vy:0,damage:50}];tick();await Promise.resolve();check('禁藥帶視為無可用回血藥',game.calls.some(x=>x[0]==='leave')&&!game.calls.some(x=>x[0]==='drink'));
    reset();await install(protection);game.state='playing';game.world.enemies=Array.from({length:8},(_,i)=>({x:32*Math.cos(i*Math.PI/4),y:32*Math.sin(i*Math.PI/4),radius:12,damage:1}));tick();await Promise.resolve();check('滿血被圍不誤觸離場',!game.calls.some(x=>x[0]==='leave'));
@@ -160,6 +161,8 @@ let server, win;
    reset();await install(protection);game.state='playing';game.world.belt.columns=[[],[],[],[]];game.world.hostiles=[{x:-30,y:0,vx:200,vy:0,damage:120}];game.leaveRun=null;tick();await Promise.resolve();check('無離場函式或按鈕時停止並回報',storage().enabled&&__d2autobot.diagnostics().lastAction.includes('離場未確認'));delete game.leaveRun;
 
    reset();await install(enabled);game.state='playing';Object.defineProperty(game.world,'mana',{configurable:true,get(){throw Error('模擬讀取錯誤')}});const frames=game.ticks;tick();tick();tick();check('連續錯誤停機且原遊戲仍執行',JSON.parse(localStorage.getItem('d2autobot:settings')).enabled===true && !__d2autobot.diagnostics().lastAction.includes('待命') && game.ticks===frames+3);delete game.world.mana;
+   reset();await install({...enabled,cheat:{maxDropRate:true,maxGoldRate:true}});game.state='playing';tick();check('開啟遊戲修改時套用掉寶與金幣數值',game.world.player.magicFind>=999999&&game.world.player.goldGain>=999999);
+   game.save.gold=9000000000;tick();check('金幣超過90億時自動關閉金幣修改',storage().cheat.maxGoldRate===false&&__d2autobot.diagnostics().lastAction.includes('90 億'));
    __d2autobot.destroy();const entries=performance.getEntriesByType.bind(performance);performance.getEntriesByType=()=>[];document.getElementById('life-text').textContent='20 / 100';let pulses=[];const capture=e=>pulses.push([e.type,e.code]);window.addEventListener('keydown',capture);window.addEventListener('keyup',capture);
    await install({...enabled,potion:{fallbackHpSlot:4}});await wait();check('無掛鉤時讀取HUD模擬指定藥帶鍵',pulses.some(x=>x[0]==='keydown'&&x[1]==='Digit4')&&pulses.some(x=>x[0]==='keyup'&&x[1]==='Digit4'));check('降級模式明確回報掛鉤缺失',!__d2autobot.diagnostics().connected && __d2autobot.diagnostics().hookNote.includes('簽名不相容'));window.removeEventListener('keydown',capture);window.removeEventListener('keyup',capture);performance.getEntriesByType=entries;
    __d2autobot.destroy();check('卸載還原遊戲原型',Game.prototype.tick===originalTick && Game.prototype.steer===originalSteer);check('卸載移除面板',!document.getElementById('d2autobot-panel'));

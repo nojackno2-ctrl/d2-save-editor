@@ -16,7 +16,7 @@
 
   // 清單串接用字（新增語言可在此加一行；沒有的語言用 default）
   const LIST_SEP = {
-    "zh-TW": { comma: "、", and: "與", or: "或" },
+    "zh-TW": { comma: " ", and: " ", or: " / " },
     default: { comma: ", ", and: " & ", or: " / " },
   };
 
@@ -91,7 +91,8 @@
       let style = document.getElementById("d2lang-font-style");
       if (!style) { style = document.createElement("style"); style.id = "d2lang-font-style"; document.head.appendChild(style); }
       const family = getComputedStyle(document.body).fontFamily || "sans-serif";
-      if (!style.textContent) style.textContent = `:root body { font-family: ${family}, "D2L CJK"; }`;
+      if (!style.textContent) style.textContent = `:root body { font-family: ${family}, "D2L CJK"; }
+canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) brightness(1.12); }`;
       if (persist) try { await fontStorage("readwrite", data); } catch (e) { console.warn("[d2lang] 字型儲存失敗", e); }
       clearTextCaches(); redrawStaticCanvases();
       return true;
@@ -211,9 +212,9 @@
       forcedKo = !nativeKo;
       const P = GameTranslator.prototype, orig = { translate: P.translate, translateAs: P.translateAs, translateMagic: P.translateMagic };
       const via = (name, self, args, raw) => currentLang === "en" || !gameTr ? (nativeKo ? orig[name].apply(self, args) : raw) : orig[name].apply(gameTr, args);
-      P.translate = function (s) { return via("translate", this, [s], s); };
-      P.translateAs = function (kind, s) { return via("translateAs", this, [kind, s], s); };
-      P.translateMagic = function (s, base) { return via("translateMagic", this, [s, base], s); };
+      P.translate = function (s) { return cleanCJK(via("translate", this, [s], s)); };
+      P.translateAs = function (kind, s) { return cleanCJK(via("translateAs", this, [kind, s], s)); };
+      P.translateMagic = function (s, base) { return cleanCJK(via("translateMagic", this, [s, base], s)); };
       // 遊戲把技能名稱串成清單（「A and B」「A, +19% of B, +150% of C」）再代入樣板；原版萬用樣板至少要 3 個大寫字母，
       // 串接詞撐不起來，逐段翻譯後用中文標點組回（只在本模組的字典上，韓文原版不受影響）
       if (typeof P.find === "function") {
@@ -248,13 +249,13 @@
               if (base === null) continue;
               const pre = words.slice(0, i).join(" "), suf = words.slice(i + len).join(" ");
               const p = pre ? exactOf(this, "affix", pre) : "", s = suf ? exactOf(this, "affix", suf) : "";
-              if (p !== null && s !== null) return `${s}${p}${base}`;
+              if (p !== null && s !== null) return cleanCJK(`${s}${p}${base}`);
             }
           }
           // 兩個字的稀有名稱
           if (words.length === 2) {
             const [a, b] = words.map((w) => exactOf(this, "affix", w));
-            if (a !== null && b !== null) return a + b;
+            if (a !== null && b !== null) return cleanCJK(a + b);
           }
           return null;
         };
@@ -498,6 +499,23 @@
     return true;
   }
 
+  // 淨化中文字串：移除怪物名稱中文字之間的空格、精英怪屬性中間的逗號／頓號
+  function cleanCJK(str) {
+    if (!str || typeof str !== "string" || currentLang === "en") return str;
+    let s = str;
+    // 將逗號、頓號替換為空格，多餘空格縮減
+    if (/[，,、]/.test(s)) {
+      s = s.replace(/[，,、]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    }
+    // 移除中文字（CJK字元）之間的空格，保留中英或數字之間的合理空格
+    if (/[\u4e00-\u9fa5\u3400-\u4dbf]/.test(s)) {
+      while (/([\u4e00-\u9fa5\u3400-\u4dbf])\s+([\u4e00-\u9fa5\u3400-\u4dbf])/.test(s)) {
+        s = s.replace(/([\u4e00-\u9fa5\u3400-\u4dbf])\s+([\u4e00-\u9fa5\u3400-\u4dbf])/g, "$1$2");
+      }
+    }
+    return s;
+  }
+
   function useDict(d) {
     buildPatternIndex(d);
     cache.clear();
@@ -520,6 +538,7 @@
     else r = look(str);
     // 已含中日韓文字的（我們自己的工具介面、已翻好的）不算缺漏
     if (r === str && str.trim().length > 1 && !/[　-鿿가-힣＀-￯]/.test(str)) missing.add(str.trim());
+    r = cleanCJK(r);
     if (cache.size > 20000) cache.clear();
     cache.set(str, r);
     return r;

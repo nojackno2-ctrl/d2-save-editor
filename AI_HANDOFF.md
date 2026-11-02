@@ -1,5 +1,17 @@
 # 交接紀錄
 
+- 2026-11-02｜Antigravity：輔助器新增第三個分頁「遊戲修改」（`web/autobot.js`）：
+  1. **遊戲修改分頁與功能實作**：
+     - 在 Shadow DOM 面板 tablist 新增第三個標籤 `<button data-tab="cheat">遊戲修改</button>` 與面板容器 `<div data-pane="cheat" hidden></div>`。
+     - 在 `defaults` 新增 `cheat: { maxDropRate: false, maxGoldRate: false }`，設定版本遞增至 `version: 9`；補強設定遷移邏輯保留既有 cheat 設定。
+     - **掉寶率最高（`cheat.maxDropRate`）**：開啟時注入角色極限尋寶屬性（`magicFind = 999999`、`uniqueBoost = 9999`、`rareBoost = 9999`、`setBoost = 9999`），大幅提升暗金、套裝、稀有掉落機率。
+     - **金幣掉落率最高（`cheat.maxGoldRate`）**：開啟時注入角色極限金幣尋獲倍率（`goldGain = 999999`、`world.gold = 999999`）。
+     - **90 億金幣自動關閉安全保護**：在 `guarded()` 循環中即時監測玩家存檔金幣（`g.save?.gold`），當金幣達到或超過 90 億（`9000000000`）時，自動將 `settings.cheat.maxGoldRate` 設為 `false`、存檔並刷新 UI 控制項，且於狀態列提示「玩家金幣達到 90 億，已自動關閉金幣掉落修改保護存檔」，避免超過 100 億（`MAX_GOLD = 1e10`）觸發存檔損壞或作弊標記。
+  2. **測試與驗證**：
+     - 更新 `web/tests/autobot.cjs`：加入遊戲修改分頁 DOM 存在檢查、兩項開關切換可及性測試、掉寶與金幣數值套用測試，以及滿 90 億自動停用安全閥測試。
+     - 執行 `node tests/test_lang.cjs`（6/6 全部通過）。
+     - 執行 `tests/autobot.cjs`（模擬測試通過：**126 項通過、0 項失敗**）。未執行 commit/push。
+
 - 2026-11-02｜Antigravity：專案整體最佳化與手機解析度最佳化（同步 `web/` 與 `editor/`）：
   1. **手機解析度與行動裝置體驗最佳化**：
      - `editor.html` / `editor/index.html`、`index.html` / `editor/web-install.html`、`site/index.html` 全面加入 `viewport-fit=cover`、`-webkit-text-size-adjust: 100%` 與 `env(safe-area-inset-*)` 四向安全區域邊距。
