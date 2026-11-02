@@ -1442,7 +1442,9 @@ function detect() {
 let faultyItems = null, ruleBad = null;
 async function renderGuard() {
   const items = allItems(save), f = await window.api.engine("faults", items);
-  try { ruleBad = await invalidItems(items); } catch { ruleBad = null; }
+  // 賭博商店清單是遊戲自己以普通品質底材展示（含戒指、護身符），買下時才決定品質，不算玩家物品
+  const gamble = new Set(Object.values(save.gambleByClass ?? {}).flatMap(v => v ?? []));
+  try { ruleBad = await invalidItems(items.filter(it => !gamble.has(it))); } catch { ruleBad = null; }
   faultyItems = Array.isArray(f) ? items.filter((_, i) => f[i]) : null;
   const t = await window.api.traces($("#mode").value, false);
   traceKeys = Array.isArray(t) ? t : [];
