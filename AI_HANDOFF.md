@@ -1,5 +1,73 @@
 # 交接紀錄
 
+- 2026-11-02｜Codex｜**暫停**：依使用者要求停止測試與修改。目標仍為檢查遊戲更新並更新工具包；使用者要求以最新版網頁為主，不再驗證舊版相容，舊版／未知版本保留功能封鎖。最新官方測試版本 `20261102.1`；本機網頁程式尚未發布，`TESTED_GAME_BUILD` 仍為 `20261101.1`，因新版完整驗收未完成不可提前調高。根目錄桌面執行檔已更新至封鎖版，SHA-256 `7F5388A4246A191A90B0861023FD13F07D2A76630FFD6F606C3EAFA1FF30B82D`；本機桌面遊戲目前為 20261101.1，會被封鎖。
+  - 已驗證：`tests/autobot.cjs` 160 通過、0 失敗；網頁版本封鎖端到端、雙武器組介面與隔離實機往返、亞馬遜短時間走位、選卡回呼及重綁鍵位、金幣 90 億門檻、574 筆物品一般及最高值模式生成與檢查；具體限制與指令見下方紀錄及 `docs/game-analysis/verify-20261102.1.md`。實機皆使用 TEMP 測試設定檔複本，未操作使用者存檔。
+  - 未完成：最新版網頁的實際自動重抽（含一般升級與替換技能）、特殊選卡及按鍵、其他職業與長跑、死亡保護／營地／任務／完整存檔與修改器功能，及大額單次掉落跨越金幣門檻；不得把模擬或單角色測試當完整驗收。下一步先核對官方版本與現有差異，再以隔離網頁測試原版重抽回呼，逐項完成剩餘驗證；實機資料僅可用隔離測試設定檔。網頁原始碼與既有使用者／代理未提交變更均保留，未 commit／push；`.wrangler/` 為既有未追蹤資料，勿清理。停止時無已知執行中測試或委派工作。
+
+- 2026-11-02｜Codex：輔助器的技能表與候選函式改為只載入已核對遊戲主程式所引用的 `itemArt-CUOhw0kt.js` 與 `saveTransfer-C-ucl_ha.js`，避免同頁殘留其他版本資源而選錯模組；同步 web／editor。Electron `tests/autobot.cjs` 160 通過、0 失敗，並再次在隔離官方最新版網頁驗證遊戲記憶體鍵位與儲存值不一致時仍以 KeyZ 正確選卡。
+
+- 2026-11-02｜Codex：選卡備援優先使用新版 itemArt 的原版鍵位讀取函式，讀不到時才按 `d2s:keys` 還原預設與衝突規則。隔離官方網頁測試先以原版設定函式將選卡設為 Z／X／V，再刻意將 localStorage 改成 Q／R／T 而保留原版記憶體設定；選卡畫面啟用本機輔助器後，實際送 KeyZ、習得 Fire Arrow 並回到 playing，未碰使用者設定檔。Electron `tests/autobot.cjs` 160 通過、0 失敗。特殊按鍵與特殊選卡模式仍未完整驗證。
+
+- 2026-11-02｜Codex：新版支援自訂鍵盤，因此自動選卡改優先呼叫 `hud.showLevelUp` 的原版 `pick` 回呼；回呼不可用時依原版 `d2s:keys` 設定及預設／衝突規則送鍵，無法確認則停下並提示；重抽同樣依回呼或設定鍵位。離開選卡畫面時清除舊回呼。隔離官方網頁實測：自然升級後原版 `pick` 回呼觸發一次、無合成數字鍵並恢復戰鬥；另以原版鍵位設定函式將選卡設為 Z／X／V，在既有升級畫面才注入輔助器，觀察送出 KeyZ、習得 Magic Arrow 並回到 playing。測試僅亞馬遜、使用 TEMP 測試設定檔複本。Electron 模擬測試 159 項通過、0 失敗；未驗證所有特殊按鍵及特殊選卡模式。
+
+- 2026-11-02｜Codex：隔離官方 20261102.1 網頁亞馬遜測試設定檔，注入目前本機 autobot.js，只啟用戰鬥輔助的自動走位；取樣 6 次，遊戲時間 4.33→6.67 秒，角色最遠移動約 138.3 遊戲單位，狀態為「全圖走位」，隨後進入升級選卡並停止取樣。此為短時間單職業測試，未驗證長跑、其他職業、死亡保護或通關；未操作使用者存檔。
+
+- 2026-11-02｜Codex：以隔離 Electron 載入 20261102.1 原版物品模組、目前工具引擎及本機 itemstats，對 `catalog()` 全部 574 筆各以 `generateMany(..., false)` 與 `generateMany(..., true)` 各生成一件：兩輪各 574 件均產生，遊戲 `itemFault` 與工具 `validateItems` 均為 0 件錯誤。最高值輪僅證明生成項通過兩種檢查，未獨立證明所有理論最大值可合法同時存在；未遍歷每個底材、隨機種子與全部詞綴。
+
+- 2026-11-02｜Codex：使用者明確指示不需再驗證舊版，連網遊戲重開即為最新版；保留舊版／未知版本封鎖，後續測試專注最新版網頁。隔離官方 20261102.1 網頁，使用測試設定檔複本與測試掛鉤，建立亞馬遜 40 級、六技能的記憶體測試配置；實際呼叫原版候選函式與本機輔助器擷取，原版替換清單與工具均為 guidedArrow、valkyrie，測試角色資料不變，`Array.prototype.push`／`sort` 均已還原。僅驗證這個合成配置，未證明所有職業、特殊選卡及實際自動重抽行為。
+
+- 2026-11-02｜Codex：複製已通過冷啟驗證的 TEMP 測試設定檔，再進入官方 20261102.1 網頁亞馬遜戰鬥，以遊戲原生 `swapWeaponSet()` 切換：回傳 true、active 由 1 改 2，`equippedOf('amazon').shield.name` 為 Pelta Lunata；1.5 秒後隔離 localStorage 亦保存 active 2 與該盾牌。僅一名角色及一件盾牌，未碰使用者存檔，不能推論全部雙持／雙手組合。
+
+- 2026-11-02｜Codex：在官方 20261102.1 網頁以本機 HTTP 載入未發布工具、使用 TEMP 測試設定檔副本；修改器 `capabilities.supported=true`、目錄 574 筆，原版引擎產生 Pelta Lunata 且 `faults=[null]`，將盾牌放入測試角色備用組、金幣設 12345 後後端寫入及讀回成功。同一視窗重載等待 `did-finish-load` 逾時；改為關閉後以同一隔離設定檔冷啟遊戲，實際 `g.save` 讀回金幣 12345、武器組 active 1、備用盾牌 Pelta Lunata，原始 localStorage 相同。未測其他存檔與裝備，無使用者存檔寫入。
+
+- 2026-11-02｜Codex：以先前測試設定檔的 TEMP 複本開啟官方網頁 20261102.1、注入目前本機 autobot.js，確認實際 Game 掛鉤成功，主程式載入類型為 `script`。第一次在隱藏視窗與 levelUp 測試，設定 90 億後未關閉；第二次經原版介面選卡後仍未關閉，當時未記錄世界時間。改為畫面外顯示測試視窗並確認戰鬥時間由 3.83 增至 4.65 秒：啟用時 `world.gold=123` 保留、`goldGain=999999`；設定存檔金幣 8999999877 加本局 123 後，開關自動關閉、倍率還原 1.25、本局金幣仍 123。僅改動測試設定檔複本，未操作使用者存檔；大額單次掉落跨越門檻尚未驗證。
+
+- 2026-11-02｜Codex：封鎖版桌面可攜包已重建，asar 的 index／main／engine／engine-page／signatures／patch 與來源雜湊一致。以隔離 TEMP 設定檔啟動，實際 IPC `capabilities` 回報本機遊戲 `20261101.1` 不支援，直接呼叫 `save` 回傳不相容且未碰使用者存檔；根目錄執行檔已替換並與 dist 比對，SHA-256 `7F5388A4246A191A90B0861023FD13F07D2A76630FFD6F606C3EAFA1FF30B82D`，前一版另備份於 `backups/D2倖存者存檔修改器-before-version-gate.exe`。網頁仍未發布；最新輔助器模擬測試 158 項通過，包含原版候選異常時還原原型。
+
+- 2026-11-02｜Codex：修正網頁版本辨識不能把工具自己的 `fetch` 掃描當成遊戲已載入：`activeGameScript` 僅採 `script`／`link`／`other` 載入類型。隔離 Chromium 實測 modulepreload 為 `other`、動態 import 為 `script`、fetch 為 `fetch`；`tests/version-gate-web.cjs` 重跑三版，最新版允許、20261101.1 與 20261030.2 拒絕寫入，未知、混雜，以及舊版執行中僅掃描到新版時均拒絕且資料不變。桌面後端每次操作重讀安裝版 changelog；引擎啟動後安裝包變更則封鎖，`tests/version-gate.cjs` 通過。此機桌面遊戲為 20261101.1；使用者要求驗證以網頁為主。
+
+- 2026-11-02｜Codex：AGY 工作 8db56b1d9a08 的工具登記已失效，但日誌 `%TEMP%/agent-delegation-logs/68daaf31-agy.log` 顯示已完成；其提出同步攔截原版替換清單。自行核對 `ss`／`Ka` 後，只在一般升級且原版抽樣池實際含 `respec` 時補入原版隨機選擇前的其他替換候選，避免在特殊選卡模式擴充；以 `finally` 還原 `push`／`sort`。模擬測試涵蓋隱藏替換與排除，157 項通過；異常還原測試已新增，待重跑。真實遊戲選卡尚未驗證，AGY 報告對完整性的斷言不作為實機結論。
+
+- 2026-11-02｜Codex：依使用者要求「測試都先以網頁版為主」。新增網頁實際後端與 iframe 端對端測試 `tests/version-gate-web.cjs`：隔離 Electron 載入新版 `Game-Ba9RuE4G.js` 與舊版 `Game-CP0n0PpN.js` 原版模組、目前 itemstats 和工具程式；新版可透過介面寫入隔離測試存檔，舊版拒絕且不改資料，未知、未載入或混雜主程式亦拒絕。測試通過，未測線上部署或使用者存檔。輔助器模擬舊版／未知版本時封鎖走位、喝水與修改，最新測試 155 通過、0 失敗。網頁主程式與物品／存檔模組必須皆為 20261102.1；桌面版使用安裝包內 changelog，遊戲檔案在工具運行中變更亦封鎖。此機實際安裝包 changelog 為 20261101.1。修改器的介面、網頁寫入後端、桌面 IPC 與物品引擎均有封鎖；根目錄可攜版先前建置早於上述封鎖，需重新打包後替換。
+
+- 2026-11-02｜Codex：使用者調整目標：工具包只針對最新遊戲修正，玩家使用舊版時封鎖不相容功能。舊版 `Game-C88Jt16A.js`／`Game-CP0n0PpN.js` 與新版 `Game-Ba9RuE4G.js` 的必要引擎特徵均命中；隔離 Electron 對每版七職業技能變體、三件代表物品及 20 件職業底材符文之語冒煙測試均無錯誤，使用現有 itemstats，不代表完整舊版相容。先前僅依雙武器組特徵封鎖仍不足以滿足最新要求，正在改為依實際遊戲程式版本封鎖修改器寫入與遊戲相依操作；需避免僅以網路最新 changelog 代替本機實際版本。
+
+- 2026-11-02｜Codex：AGY 稽核 ac2ce231fa08 完成；自行對照新版 `saveTransfer-C-ucl_ha.js` 的 `ss`，技能欄滿時原版在候選池前隨機選出一個 `respec`，故目前單次擷取無法窮舉所有可替換技能，可能漏掉值得重抽的選項。未採用多次抽樣冒稱完整。金幣保護修正後 Electron `tests/autobot.cjs` 最終為 154 通過、0 失敗；仍需新版實戰驗證及處理高額單次掉落跨過門檻的情況。
+
+- 2026-11-02｜Codex：追查新版金幣保護：原版 `collectFloorLoot` 與 `autoSell` 對 `world.gold` 累加，可確定它是本局金幣，舊輔助器每幀寫 999999 屬錯誤。同步 web／editor 不再覆寫該欄位，90 億門檻計入存檔與本局金幣，關閉或卸載時有條件還原 `player.goldGain`。首次模擬測試因測試碼重複卸載造成 `__d2autobot is not defined`，已修正測試並重跑；新版實戰與高金額單次掉落跨越門檻尚未驗證。
+
+- 2026-11-02｜Codex：以隔離 Electron 載入 20261102.1 原版物品模組與目前引擎，對 Vortex Shield／Ancients' Pledge 隨機產生 100 件比較遊戲 `itemFault` 與修改器 `validateItems`；遊戲錯誤 0 件、工具拒絕 0 件。測試包含抗性與傷害／攻擊命中兩類固有詞綴，只涵蓋一種底材與符文之語，不能推論所有組合。
+
+- 2026-11-02｜Codex：以獨立 TEMP `APPDATA`／`LOCALAPPDATA` 啟動新可攜版並透過 CDP 確認視窗標題、修改器及寫入按鈕載入；隔離設定檔沒有存檔，顯示找不到 localStorage，未測遊戲存檔。將根目錄執行檔備份至 `backups/D2倖存者存檔修改器-before-20261102-update.exe`，備份與舊版雜湊均為 `A8F5FB3E6D7DC14D04BE4503E9BD60D3946E2C1E0BCCA263757510346AC86D49`；根目錄已替換成新版，與 dist 雜湊同為 `8B0E0457AD0205982154050235767563892DE5AE953AFE32DB4625F4F40627C7`。新版完整遊戲驗收仍未完成。
+
+- 2026-11-02｜Codex：新增 `tests/weapon-sets-ui.cjs`，以隔離 Electron 設定檔和假後端載入實際 web／editor 修改器，測試切換武器組、未按寫入不呼叫後端、按寫入後兩組與其他裝備保持正確；兩端測試均通過，未碰真實存檔。`editor/build-web.js` 與其回歸測試新增複製兩個武器組測試，`node tests/build-web.cjs` 通過。新增 `docs/game-analysis/verify-20261102.1.md` 整理更新與未驗證項目。
+
+- 2026-11-02｜Codex：修改器兩個武器組頁新增切換按鈕，可切換後用既有身上裝備流程編輯另一組；僅更動記憶體，需按寫入才保存。從新版 `saveTransfer-C-ucl_ha.js` 擷取原版切換函式，以隔離 VM 比對 36 種狀態，與修改器輸出一致；`node tests/weapon-sets.cjs` 兩頁通過，`node tests/test_lang.cjs`、`node ../editor/tests/build-web.cjs` 通過。尚未驗證實際遊戲讀檔。重新建置 `editor/dist/D2倖存者存檔修改器.exe` 成功，SHA-256 `8B0E0457AD0205982154050235767563892DE5AE953AFE32DB4625F4F40627C7`；asar 的 index、engine-page、signatures 均與來源相符，未替換根目錄執行檔。
+
+- 2026-11-02｜Codex：AGY 工作 e3186f7baa71 已成功結束，唯讀確認新版選卡函式 `Do`／匯出 `va` 為既有特徵唯一命中；武器函式為 itemArt 的 `A`，舊的 `O` 已改為雙持判定。此證據支持目前載入修正，尚不證明抽樣與選卡行為。新 AGY 工作 ac2ce231fa08 稽核候選擷取與副作用。
+
+- 2026-11-02｜Codex：新版選卡候選函式位於 `saveTransfer-C-ucl_ha.js` 的 `Do`（匯出 `va`），`Game-Ba9RuE4G.js` 的 `offerLevelUp` 以 `itemArt-CUOhw0kt.js` 匯出 `A` 取得武器；原本只搜尋 keepSave 與固定 itemArt.O，無法可靠支援新版。同步修改 web／editor 的 autobot.js：辨識兩種模組名稱，從目前 Game 選卡呼叫及 import 尋找武器函式，找不到時不推測重抽。模擬新版模組及武器參數的 Electron 測試最終重跑 152 通過、0 失敗；新版原始碼靜態解析成功，尚未實戰驗證自動選卡。AGY 工作 e3186f7baa71 仍在檢查，應繼續輪詢。
+
+- 2026-11-02｜Codex（已過時）：`editor/npm run dist` 因 Windows 無法建立 winCodeSign 的 macOS 符號連結而失敗；改執行 `electron-builder --win portable --config.win.signAndEditExecutable=false` 成功，未簽章。後續版本與雜湊見上方紀錄。
+
+- 2026-11-02｜Codex：新版介面繁中補 112 條並同步 web／editor；代理以原版翻譯器比對韓文模組 11937 條直接字串，僅 DPS 保留原文，未涵蓋動態樣板及畫面實測。`node tests/test_lang.cjs` 通過。修改器 `validateItems` 對職業底材符文之語的例外已修正：分離隨機固有詞綴與固定屬性並在資料不足時拒絕驗證；代理以新版引擎實測 Pelta Lunata、Civerb's Ward、Ancients' Pledge／Vortex Shield，遊戲 `itemFault` 均為 null、修改器驗證均無問題。`node tests/runeword-class-base.cjs`、`node tests/skill-mods.cjs`、`node tests/build-web.cjs` 通過；固有詞綴範圍採抽樣，未涵蓋全部組合。
+
+- 2026-11-02｜Codex：雙武器組適配同步修改器頁面：列出目前與備用組，備用裝備納入物品檢查、一鍵最高及新存檔複製；暫禁止移入備用組，既有物品可編輯或移出。官方 `saveTransfer-C-ucl_ha.js` 確認 `active` 為 1／2，`weaponSets` 保存未啟用組。`node tests/weapon-sets.cjs` 兩版通過；未實機讀寫。修正 `signatures.json` 的 `modDefs`，代理以新版 47 個模組與 itemstats 隔離啟動引擎，七職業可取得技能變體；待主代理複驗測試。`node tests/test_lang.cjs`、`node ../editor/tests/build-web.cjs` 通過，Electron `tests/autobot.cjs` 152 通過、0 失敗；新版完整實戰尚未驗證。AGY 正唯讀檢查新版選卡候選產生器。
+
+- 2026-11-02｜Codex：重新讀取官方 `/changelog.json`，最新仍為 `20261102.1`。取得首頁列出的 30 個 JS 區塊並以 `editor/patch.js` 及現有 `signatures.json` 比對：所有必需特徵命中，選用 `modDefs` 未命中；僅為靜態比對，不能證明引擎啟動或資料正確。新版 `Game-Ba9RuE4G.js` 顯示 `equippedOf` 使用目前 `equippedByClass`、`swapWeaponSet` 透過 `changeGear` 切換，`steer` 使用 `input.moveVector()`；雙武器組、自動走位與存檔仍需實際驗證，未更新已驗證版本常數。另分工檢查物品引擎、雙武器組與翻譯。
+
+- 2026-11-02｜Codex：以 GitHub Pages 版本及全新隔離設定檔實測遊戲 20261102.1（Game-Ba9RuE4G.js）；目前本機 autobot.js 與部署版本雜湊不同，本機重抽新邏輯未測。總開關關閉時單開無敵，生命維持 50/100；開啟總開關後回滿。逐項開啟觀察致命被動 99、might 100、已學魔法箭 99、重抽／跳過／排除 9999、magicFind 與 goldGain 999999、普通怪轉冠軍；效果和實戰結果仍需分開驗證。隔離角色金幣設為 8,999,999,999 時金幣開關保持啟用，設為 9,000,000,000 後關閉，但 goldGain 和 world.gold 仍為 999999，保護實際效果未通過。另一個只開無敵及最大怪量的新角色，升級選卡後戰鬥約 10 秒普通怪由 8 增至 10，owed 達 463，隨後升級暫停，未證明達 450 隻。官方更新新增雙武器組、可重新綁定鍵盤且預設方向鍵移動、恐怖層 40 以上尋寶與金幣加成調降，須重新驗證走位、裝備、掉落及新版掛鉤。測試日誌：%TEMP%\d2-cheat-independent-0f14b763cf2c4305ae58d3074009009f\log.txt 與 %TEMP%\d2-density-4abe74a4625d4dbc9c9d9eb4165ee76b\log.txt。
+
+- 2026-11-02｜Codex：遊戲修改總開關與無限重抽同時開啟時，自動選卡不受每次升級兩次上限限制；未啟用時保留上限，仍依原版可抽候選與評分決定是否重抽。同步 web／editor；`node --check` 與 Electron `tests/autobot.cjs` 152 項通過、0 失敗，涵蓋啟用時連續五次及總開關關閉時兩次上限；未實機驗證、未發布。
+
+- 2026-11-02｜Codex：一般升級改呼叫原版候選產生器並同步擷取抽樣前排序清單，依遊戲目前等級、欄位、排除、替換與技能／被動限制評分，包含未學技能；當可抽選項比現有最佳卡高至少 10 分且不在現有卡時才重抽，每個升級畫面預設最多兩次（無限重抽啟用時不受此限），即使選卡按鍵未生效也不重置上限。原版函式無法識別、初始選卡或重新配置時直接選現有最佳卡；技能評分為輔助器啟發式而非保證實戰最佳。使用原版 `keepSave-x6SwGO80.js` 的候選產生器 `ji`，透過同步暫時攔截候選排序並於 finally 還原；遊戲更新可能使辨識失效而保守選卡。`node --check`、`node tests/test_lang.cjs`、`node ../editor/tests/build-web.cjs` 通過；Electron `tests/autobot.cjs` 150 項通過、0 失敗，含未學技能、排除、現有最佳及兩次上限。未實機驗證、未發布。
+
+- 2026-11-02｜Codex（已過時）：取代先前 30 級暫定門檻。檢查原版 `keepSave-x6SwGO80.js` 的 `oa`／`aa`／`F`，以及 `itemArt-BTVnyuWi.js` 等級表：已學技能升級須達技能解鎖等級加目前技能等級；由遊戲載入等級表，僅有符合等級、未滿級、未排除且評分更佳的已學技能或被動時才重抽，資料缺失時選現有卡。未學技能及起始技能特殊例外採保守判斷，可能少重抽；尚未實機驗證。每次重抽僅使用一種觸發方式。同步 web／editor；Electron `tests/autobot.cjs` 147 項通過、0 失敗，`node --check`、`node tests/test_lang.cjs`、`node ../editor/tests/build-web.cjs` 通過；未發布。
+
+- 2026-11-02｜Codex（已過時）：自動選卡新增等級保守策略：未滿 30 級或無法取得等級時選現有最佳卡，30 級以上沿用低分重抽；讀取 player.level 並以 build.level 備援，兩處選卡路徑共用。`node --check` 通過，Electron `tests/autobot.cjs` 147 項通過、0 項失敗。30 級為保守暫定門檻，尚未核實原版完整技能解鎖規則與實機行為；未發布。其他代理曾同時驗證並記錄相關修改，後續修改前須確認協作狀態。
+
+- 2026-11-02｜Codex：隔離 Electron 設定檔以 GitHub Pages 載入真實遊戲 20261101.1，測試開始時遠端與本機 autobot.js 雜湊相同。亞馬遜戰鬥開啟全部修改後，觀察到滿血、godMode=true、might=100、技能 99、重抽等數值 9999、magicFind 與 goldGain 為 999999、普通怪轉冠軍及 director owed 455；尚未證明實際傷害、掉落機率或 450 怪上限。關閉總開關後仍觀察到 godMode、might、magicFind 與技能等數值未還原。重抽數由 9999 降至 9982，需追查限制。繁中職業名稱造成測試框架英文比對失敗，已手動選角。測試時其他代理正在修改 autobot.js 與 tests/autobot.cjs；未改動這些檔案。完整逐項實戰、90 億保護與新版重新驗證尚未完成。紀錄：%TEMP%\d2-cheat-validation-6d0be73b7cd94539b7a4273c122eedb5\log.txt。
+
 - 2026-11-02｜Antigravity：全面驗證所有功能、修復真實遊戲底層相容 Bug，並更新「怪物數量最大化」與「技能最高等級99等」（同步 `web/` 與 `editor/`）：
   1. **使用者指定功能變更**：
      - **怪物數量最大化（`cheat.maxMonsterDensity`，相容舊欄位 `cheat.monsterDensity10x`）**：介面名稱改為「怪物數量最大化（地圖怪物生成速度與數量拉滿）」。對接真實遊戲 `Game.director`（`saveTransfer-B-JMspCD.js`），每幀將 `director.batchTimer = 0`、`director.owed = Math.max(owed, 450)`（恐懼層則同時拉滿 `director.waveDue = Math.max(waveDue, 450)`），使原版生成器每幀持續刷怪直到原版硬上限 450 隻，並鎖定 `world.monsterDensity = 999` 與 `world.spawnRate = 999`。

@@ -3,7 +3,7 @@ const ILVL = 99;
 const SEED_TRIES = 4000;      // 每件物品最多試幾個種子找「全部最高」的合法 roll
 const SEED_MAX_SPACE = 20000; // 可能組合在這以內時，大多找得到全滿的種子
 
-export function boot(G, itemstatsText) {
+export function boot(G, itemstatsText, gameIdentity = {}) {
   const stats = JSON.parse(itemstatsText);
   G.__setData(stats);
   const defs = {
@@ -155,11 +155,25 @@ export function boot(G, itemstatsText) {
   function fixedProblems(rarity, def, base, item) {
     const low = pinned(() => make(rarity, def.name, base.name), 0), high = pinned(() => make(rarity, def.name, base.name));
     if (!low || !high) return ["error.generate"];
-    const out = [], remaining = [...(item.mods ?? [])];
+    const out = [], remaining = (item.mods ?? []).filter(m => !m.auto);
+    // 職業底材的固有詞綴可隨機選擇不同組合，不能用最低與最高擲值的陣列索引配對。
+    const autoMods = (item.mods ?? []).filter(m => m.auto), autoSeen = new Set();
+    if (autoMods.length && !G.__makeAffix) return [{ code: "error", why: "缺少遊戲詞綴產生器，無法驗證職業底材屬性。" }];
+    const autoRanges = autoMods.length ? baseImplicits(base) : {};
+    if (!autoMods.length && low.mods.some(m => m.auto) && high.mods.some(m => m.auto)) out.push({ code: "error", why: "職業底材缺少固有屬性，無法驗證。" });
+    for (const m of autoMods) {
+      const r = autoRanges[m.stat];
+      if (!r?.auto || autoSeen.has(m.stat)) out.push({ code: "implicit", stat: m.stat });
+      else if (!(m.value > 0 && m.value <= Math.ceil(r[1] * 1.05))) out.push({ code: "range", stat: m.stat, value: m.value, min: r[0], max: r[1] });
+      autoSeen.add(m.stat);
+    }
     // 無形物品：底材防禦與基礎傷害提高（最多 1.5 倍）
     const eth = item.ethereal ? 1.5 : 1;
-    low.mods.forEach((m, i) => {
-      const h = high.mods[i], lo = Math.min(m.value, h.value), hi = Math.max(m.value, h.value) * (m.implicit && typeof m.value === "number" ? eth : 1) + (m.implicit && eth > 1 ? 1 : 0);
+    const lowFixed = low.mods.filter(m => !m.auto), highFixed = high.mods.filter(m => !m.auto);
+    lowFixed.forEach((m, i) => {
+      const h = highFixed[i];
+      if (!h) { out.push({ code: "error", why: "遊戲產生的固定屬性不一致，無法驗證。" }); return; }
+      const lo = Math.min(m.value, h.value), hi = Math.max(m.value, h.value) * (m.implicit && typeof m.value === "number" ? eth : 1) + (m.implicit && eth > 1 ? 1 : 0);
       // 隨機技能類屬性（例如奧瑪斯長袍）每次產生的技能不同：只要同一類即可
       const kind = (s) => s.split(":")[0], random = m.stat !== h?.stat && m.stat.includes(":");
       // 觸發／充能技能的等級隨物品等級變化（例如 proc:struck:blizzard:20 → 低等級掉落為 16）：同技能、等級不超過原版最高即可
@@ -393,6 +407,10 @@ export function boot(G, itemstatsText) {
   }
 
   return {
+    capabilities(gameScript = gameIdentity.gameScript) {
+      const supported = gameIdentity.source === "desktop" ? gameIdentity.build === "20261102.1" : gameScript === "Game-Ba9RuE4G.js" && gameIdentity.items === "itemArt-CUOhw0kt.js" && gameIdentity.save === "saveTransfer-C-ucl_ha.js";
+      return { supported, gameScript: gameScript || null, weaponSets: supported && typeof G.__weaponSetActive === "function" };
+    },
     // 依原版規則檢查物品（未解除限制時使用）；回傳每件物品的問題清單
     // 屬性下拉選單用：modsList 每一組是「其他列的屬性」，回傳每組還能加入的屬性
     // 取得詞綴欄位上限、目前指派已用數量與可用屬性前後綴歸屬

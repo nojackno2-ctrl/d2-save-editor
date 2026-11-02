@@ -359,6 +359,8 @@
 // 依診斷（iPhone 一直用快取的舊 webapi.js）：用本頁網址的 ?v=（書籤每次開啟修改器都帶新值）載入這三個腳本，避免手機快取舊版；document.write 保持載入順序。
 (() => { const v = new URLSearchParams(location.search).get("v") || String(Date.now()); for (const f of ["i18n.js", "webapi.js", "zh.js"]) document.write('<script src="' + f + "?v=" + encodeURIComponent(v) + '"><' + '/script>'); })();
 </script>
+
+
 <script>
 const LOCALE = window.LANG === "en" ? "en-US" : "zh-TW";
 const TESTED_GAME_BUILD = "20261101.1"; // 每次確認新版遊戲相容後更新此值
@@ -375,6 +377,8 @@ const SLOT_ZH = {weapon:"武器", shield:"副手", head:"頭盔", body:"盔甲",
 const RANK_ZH = {strength:"力量",dexterity:"敏捷",vitality:"體力",energy:"能量",goldFind:"金幣尋獲",magicFind:"魔法尋獲",damageReduced:"傷害減免",replenish:"生命回復",rerolls:"重抽",skips:"跳過",banishes:"放逐",resurrect:"復活",frw:"跑速",fcr:"施法速度",sellPrice:"賣價",potions:"藥水",experience:"經驗",firePierce:"火焰穿透",coldPierce:"冰冷穿透",lightningPierce:"閃電穿透",poisonPierce:"毒素穿透",physicalPierce:"物理穿透",mercLife:"傭兵生命",mercResist:"傭兵抗性",mercDefense:"傭兵防禦"};
 const GRID = { stash:[10,10], inventory:[10,4], charms:[5,4] };
 let save = null, A = null, cur = null, sel = null; // cur = 目前容器, sel = 目前物品 key
+let supportsWeaponSets = null; // 由實際載入的遊戲程式判斷；null 表示尚未確認。
+let gameSupported = null;
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const LOG = [];
@@ -383,7 +387,7 @@ const status = (t, cls = "") => {
   LOG.push(`${new Date().toLocaleTimeString(LOCALE)} ${cls === "bad" ? "✖ " : ""}${t}`);
   if (LOG.length > 60) LOG.shift();
 };
-let checkedGameBuild = false, versionNotice = "", toolkitNotice = "", versionDismissed = false;
+let checkedGameBuild = false, versionNotice = "", toolkitNotice = "", compatibilityNotice = "", versionDismissed = false;
 function parseBuild(s) { return String(s || "").trim().split(".").map((n) => Number(n) || 0); }
 function isBuildNewer(latest, tested) {
   const p1 = parseBuild(latest), p2 = parseBuild(tested);
@@ -415,7 +419,7 @@ function findGameScript() {
 function refreshVersionNotice() {
   const w = $("#versionWarn"), m = $("#versionMsg");
   if (!w || !m) return;
-  const msg = [toolkitNotice, versionNotice].filter(Boolean).join("；");
+  const msg = [compatibilityNotice, toolkitNotice, versionNotice].filter(Boolean).join("；");
   if (msg && !versionDismissed) { m.textContent = msg; w.hidden = false; }
   else { w.hidden = true; }
 }
@@ -510,10 +514,14 @@ function containers() {
   const out = [{ grp: "共用" }];
   for (const t of ["shared1", "shared2", "shared3"]) out.push({ id: "st:" + t, label: "共用倉庫 " + t.slice(-1), kind: "stash", arr: () => save.stashTabs[t] ??= [] });
   for (const c of CLASSES) {
-    const used = save.unlocked?.[c] || Object.keys(save.equippedByClass?.[c] ?? {}).length || save.stashTabs?.[c]?.length || save.charmsByClass?.[c]?.length;
+    const used = save.unlocked?.[c] || Object.keys(save.equippedByClass?.[c] ?? {}).length || save.weaponSets?.[c] || save.stashTabs?.[c]?.length || save.charmsByClass?.[c]?.length;
     if (!used) continue;
     out.push({ grp: CLASS_ZH[c] });
-    out.push({ id: "eq:" + c, label: "身上裝備", kind: "slots", obj: () => (save.equippedByClass ??= {})[c] ??= {} });
+    const active = save.weaponSets?.[c]?.active === 2 ? 2 : 1;
+    out.push({ id: "eq:" + c, label: supportsWeaponSets || save.weaponSets?.[c] ? `身上裝備（武器組 ${active}）` : "身上裝備", kind: "slots", obj: () => (save.equippedByClass ??= {})[c] ??= {} });
+    // 遊戲只把未啟用組放在 weaponSets；其他部位仍屬於身上裝備。
+    if (supportsWeaponSets || save.weaponSets?.[c]) out.push({ id: "alt:" + c, label: `備用武器組 ${active === 1 ? 2 : 1}`, kind: "slots", slots: ["weapon", "shield"],
+      obj: () => save.weaponSets?.[c] ?? {} });
     out.push({ id: "st:" + c, label: "個人倉庫", kind: "stash", arr: () => save.stashTabs[c] ??= [] });
     out.push({ id: "inv:" + c, label: "背包", kind: "inventory", arr: () => (save.inventoryByClass ??= {})[c] ??= [] });
     out.push({ id: "ch:" + c, label: "護身符欄", kind: "charms", arr: () => (save.charmsByClass ??= {})[c] ??= [] });
@@ -526,6 +534,20 @@ function containers() {
   return out;
 }
 const contById = (id) => containers().find(c => c.id === id);
+// 與遊戲切換流程一致：只交換武器及副手，其他裝備維持原位。
+function swapWeaponSets(s, cls) {
+  const worn = (s.equippedByClass ??= {})[cls] ??= {};
+  const old = s.weaponSets?.[cls] ?? {};
+  const next = { active: old.active === 2 ? 1 : 2 };
+  for (const slot of ["weapon", "shield"]) {
+    if (worn[slot]) next[slot] = worn[slot];
+    if (old[slot]) worn[slot] = old[slot]; else delete worn[slot];
+  }
+  const sets = { ...s.weaponSets };
+  delete sets[cls];
+  if (next.active !== 1 || next.weapon || next.shield) sets[cls] = next;
+  if (Object.keys(sets).length) s.weaponSets = sets; else delete s.weaponSets;
+}
 function itemAt(c, key) { if (c.kind === "slots") return c.obj()[key]; const v = c.arr()[key]; return c.wrap ? v?.[c.wrap] : v; }
 
 function renderTree() {
@@ -539,10 +561,14 @@ function renderView() {
   if (c.collection) return renderCollection(c, v);
   if (c.kind === "slots") {
     const o = c.obj();
-    v.innerHTML = `<h2>${c.label}</h2><div class="slots">` + Object.keys(SLOT_ZH).map(s => {
+    const canSwap = supportsWeaponSets === true && /^(eq|alt):/.test(c.id);
+    v.innerHTML = `<h2>${c.label}</h2>${canSwap ? '<button id="swap-weapon-sets">切換武器組</button><p class="note">切換後可編輯另一組；按「寫入存檔」才會儲存。</p>' : ''}<div class="slots">` + (c.slots || Object.keys(SLOT_ZH)).map(s => {
       const it = o[s];
       return `<div class="row ${sel === s ? "on" : ""}" data-k="${s}"><span class="slot">${SLOT_ZH[s]}</span>${it ? iconTag(it) + `<span class="r-${it.rarity}">${zhName(it)}</span>` : '<span class="dim">（空）</span>'}</div>`;
     }).join("") + "</div>";
+    if (canSwap) v.querySelector("#swap-weapon-sets").onclick = () => {
+      swapWeaponSets(save, c.id.split(":")[1]); sel = null; renderTree(); renderView(); renderEditor(); status("已切換武器組（尚未寫入存檔）", "ok");
+    };
   } else if (c.kind === "list") {
     const arr = c.arr();
     v.innerHTML = `<h2>${c.label}</h2><input id="flt" placeholder="搜尋名稱…" style="width:100%;margin-bottom:6px"><div class="list" style="max-height:calc(100vh - 230px);overflow:auto;min-width:300px">` +
@@ -643,10 +669,14 @@ async function unlock(list) {
 }
 // 一鍵：先把已有的全部調最高，再補齊缺的（補的本來就是最高值）
 // 範圍：收藏、角色身上、傭兵身上、倉庫、背包、護身符欄（商店商品不動）
+function alternateWeaponItems(s) {
+  return Object.values(s.weaponSets ?? {}).flatMap(set => [set?.weapon, set?.shield]).filter(Boolean);
+}
 function ownedGear(s) {
   const flat = (o) => Object.values(o ?? {}).flatMap(v => v ?? []);
   return [...(s.uniques ?? []), ...flat(s.stashTabs), ...flat(s.inventoryByClass), ...flat(s.charmsByClass),
     ...Object.values(s.equippedByClass ?? {}).flatMap(o => Object.values(o ?? {})),
+    ...alternateWeaponItems(s),
     ...Object.values(s.mercs ?? {}).flatMap(m => Object.values(m?.hired ?? {}).flatMap(h => Object.values(h?.worn ?? {})))]
     .filter(it => it && ["unique", "set", "runeword"].includes(it.rarity));
 }
@@ -1150,8 +1180,10 @@ const newId = () => Array.from({ length: 16 }, () => "abcdefghijklmnopqrstuvwxyz
 function placeInto(destId, it) {
   const d = contById(destId);
   if (d.kind === "slots") {
+    // 尚未接上原版的職業、雙手武器與雙持規則，避免寫入遊戲無法載入的武器組。
+    if (d.id.startsWith("alt:")) throw new Error("請在遊戲內配置備用武器組；修改器可編輯或移出現有裝備。");
     const slot = it.type === "ring" ? (d.obj().ring1 ? "ring2" : "ring1") : it.type;
-    if (!SLOT_ZH[slot]) throw new Error("這件物品不能穿戴在任何欄位。");
+    if (!SLOT_ZH[slot] || (d.slots && !d.slots.includes(slot))) throw new Error("這件物品不能穿戴在此欄位。");
     if (d.obj()[slot]) throw new Error(`${SLOT_ZH[slot]}欄已有物品，請先移走。`);
     d.obj()[slot] = it; return;
   }
@@ -1439,6 +1471,7 @@ function allItems(s) {
   const flat = (o) => Object.values(o ?? {}).flatMap(v => v ?? []);
   return [...flat(s.stashTabs), ...(s.uniques ?? []), ...flat(s.inventoryByClass), ...flat(s.charmsByClass), ...flat(s.stockByClass),
     ...flat(s.gambleByClass), ...flat(s.akaraByClass), ...Object.values(s.equippedByClass ?? {}).flatMap(o => Object.values(o ?? {})),
+    ...alternateWeaponItems(s),
     ...Object.values(s.mercs ?? {}).flatMap(m => Object.values(m?.hired ?? {}).flatMap(h => Object.values(h?.worn ?? {}))),
     ...Object.values(s.imbueByClass ?? {})].filter(it => it && typeof it === "object");
 }
@@ -1544,7 +1577,7 @@ const KEEP = {
   heroes: ["角色進度（等級、技能、重置次數）", ["heroes", "resets", "paidResets", "skillMods", "beltBought"]],
   terror: ["恐怖等級", ["terror", "wavesRestart"]],
   stash: ["倉庫物品", ["stashTabs"]],
-  gear: ["身上裝備、背包、護身符", ["equippedByClass", "inventoryByClass", "charmsByClass"]],
+  gear: ["身上裝備、雙武器組、背包、護身符", ["equippedByClass", "weaponSets", "inventoryByClass", "charmsByClass"]],
   mercs: ["傭兵", ["mercs", "hireOpen"]],
   uniques: ["暗金收藏", ["uniques"]],
   light: ["光之碎片／翅膀", ["light"]],
@@ -1612,6 +1645,16 @@ function renderAll() {
 let zhMissing = false;
 async function load() {
   versionDismissed = false; refreshVersionNotice(); void checkGameVersion(); startToolkitCheck();
+  supportsWeaponSets = null;
+  gameSupported = null;
+  compatibilityNotice = "正在確認目前遊戲版本；確認前暫停寫入和物品引擎。"; refreshVersionNotice();
+  void Promise.resolve().then(() => window.api.engine("capabilities")).then((r) => {
+    if (typeof r?.weaponSets === "boolean") supportsWeaponSets = r.weaponSets;
+    gameSupported = r?.supported === true;
+    compatibilityNotice = gameSupported ? "" : "目前遊戲版本不相容或無法確認，已封鎖寫入和物品引擎；請更新遊戲與工具包。";
+    refreshVersionNotice();
+    if (save) { renderTree(); renderView(); renderEditor(); }
+  }).catch(() => { gameSupported = false; compatibilityNotice = "無法確認目前遊戲版本，已封鎖寫入和物品引擎；請確認遊戲已更新並重新開啟。"; refreshVersionNotice(); });
   status("讀取中…");
   if (!A) {
     A = await window.api.assets();
@@ -1629,6 +1672,7 @@ async function load() {
 }
 async function write() {
   if (!save) return;
+  if (gameSupported !== true) return fail(new Error("目前遊戲版本不相容或無法確認，已拒絕寫入以保護存檔。請更新遊戲與工具包。"));
   if (page === "hero") collectHero();
   if (!unlocked()) {
     const invalidPoints = attributeChecks(save).filter(x => x.ok === false);

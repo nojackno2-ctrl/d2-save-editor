@@ -63,6 +63,13 @@ async function d2url(file) {
 let enginePromise = null;
 // 診斷用：引擎啟動到哪一步、找到哪些程式區塊
 const engineInfo = { step: "未啟動" };
+function activeGameScript() {
+  // 排除本工具用 fetch 掃描的檔案；只採用頁面實際載入或預載的遊戲模組。
+  const scripts = new Set(performance.getEntriesByType("resource").filter((e) => ["script", "link", "other"].includes(e.initiatorType)).map((e) => {
+    try { return new URL(e.name).pathname.match(/\/(Game-[\w-]+\.js)$/)?.[1]; } catch { return null; }
+  }).filter(Boolean));
+  return scripts.size === 1 ? [...scripts][0] : null;
+}
 async function startEngine() {
   engineInfo.step = "讀取程式清單";
   const [{ patch }, signatures] = await Promise.all([import(at("patch.mjs")), fetch(at("signatures.json")).then((r) => r.json())]);
@@ -115,11 +122,12 @@ async function startEngine() {
   const w = box.contentWindow;
   w.__entries = Object.keys(map);
   w.__itemstats = itemstats;
+  w.__gameIdentity = { items: found.setData, save: found.rankDefs };
   mark("讀取物品資料");
   return w.eval(`(async () => {
     const mods = await Promise.all(__entries.map((u) => import(u)));
     const { boot } = await import(${JSON.stringify(at("engine-page.js"))});
-    return boot(Object.assign({}, ...mods), __itemstats);
+    return boot(Object.assign({}, ...mods), __itemstats, __gameIdentity);
   })()`);
 }
 let engineStartedAt = 0;
@@ -156,6 +164,7 @@ const backend = {
   },
   async save(m, save) {
     if (typeof save !== "object" || !save || typeof save.version !== "number") throw new Error("存檔格式不正確。");
+    if (!(await (await engine()).capabilities(activeGameScript())).supported) throw new Error("目前遊戲版本不相容，已封鎖寫入；請更新遊戲與工具包。");
     const text = await sealText(save);
     realSetItem.call(localStorage, mode(m).key, text);
     lockSaves();
@@ -220,8 +229,11 @@ const backend = {
     return { dict, game };
   },
   async engine(fn, ...args) {
-    if (!["catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName", "validateItems", "allowedStatsMany", "affixSlots"].includes(fn)) throw new Error("不支援的操作");
+    if (!["capabilities", "catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName", "validateItems", "allowedStatsMany", "affixSlots"].includes(fn)) throw new Error("不支援的操作");
     const e = await engine();
+    const capability = e.capabilities(activeGameScript());
+    if (fn === "capabilities") return JSON.parse(JSON.stringify(capability));
+    if (!capability.supported) throw new Error("目前遊戲版本不相容，已封鎖物品引擎；請更新遊戲與工具包。");
     // 結果來自另一個 iframe，複製一份成這邊的物件
     return JSON.parse(JSON.stringify(await e[fn](...args) ?? null));
   },

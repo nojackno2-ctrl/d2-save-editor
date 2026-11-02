@@ -21,6 +21,8 @@
 | [skills.md](skills.md)／[skills.json](skills.json) | 全職業 154 技能、66 被動；與排行榜（LADDER）、攻擊距離表（REACH）比對 |
 | [modules.md](modules.md) | 45 個程式模組的大小、用途與匯出對照 |
 | [verify-20261101.1.md](verify-20261101.1.md) | 遊戲 20261030.2 → 20261101.1 的相容性驗證（輔助器用到的原版方法、修改器特徵碼、藥水、防禦、Charsi） |
+| [verify-20261102.1.md](verify-20261102.1.md) | 遊戲 20261102.1 更新、工具調整與未完成驗證 |
+| [verify-older-builds.md](verify-older-builds.md) | 舊版遊戲辨識、封鎖與有限對照測試 |
 | [news-analysis.md](news-analysis.md) | 官方最新消息（`/changelog.json`）對輔助器的影響、99 級相關機制 |
 | [editor-analysis.md](editor-analysis.md) | 官方最新消息對存檔修改器（合法性、排行榜資格、存檔欄位）的影響 |
 

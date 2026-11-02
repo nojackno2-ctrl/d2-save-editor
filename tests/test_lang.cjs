@@ -106,4 +106,14 @@ fakeTextNode.nodeValue = origMap.get(fakeTextNode);
 assert.strictEqual(fakeTextNode.nodeValue, "5 seconds left");
 console.log("  -> 通過");
 
+// 新版遊戲的鍵盤、雙武器組及掉落過濾提示由擴充字典提供。
+const extra = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "locales", "zh-TW.json"), "utf8"));
+for (const [source, expected] of Object.entries({
+  "KEYBOARD": "鍵盤",
+  "MOVE WITH WASD": "使用 WASD 移動",
+  "SWAP WEAPONS": "切換武器",
+  "Weapon set II": "武器組 II",
+  "MAGIC ITEMS hides magic charms too. Set CHARMS to KEEP to keep them": "「魔法物品」也會隱藏魔法護符。將「護符」設為「保留」即可保留它們",
+})) assert.strictEqual(extra[source], expected);
+
 console.log("=== 所有語言模組單元測試均成功通過！ ===");

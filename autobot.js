@@ -148,7 +148,7 @@
   let alive = true, game = null, lastStep = -Infinity, lastHp = -Infinity;
   let manualUntil = 0, lootTarget = null, lootSince = 0, ownWalk = null, ownReach = null;
   let smooth = { x: 0, y: 0 }, stuck = null, stuckCount = 0, clearAt = 0, clearWorld = null, transition = false;
-  let errors = 0, lastAction = "待命", hookNote = "正在定位遊戲模組", hookUrl = "", actionAt = 0;
+  let errors = 0, lastAction = "待命", hookNote = "正在定位遊戲模組", hookUrl = "", actionAt = 0, gameplayCompatible = false;
   let retreat = null, protectedWorld = null;
   const finite = Number.isFinite, point = (p) => p && finite(p.x) && finite(p.y);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y), live = (e) => point(e) && !e.dead;
@@ -1090,7 +1090,7 @@
     return true;
   }
   // 排行榜學習：升級選卡依高手技能／被動權重，屬性點依高手配點比例；技能偏離時到阿卡拉重置（re-draft）。
-  let levelCards = null, levelHandlers = null, levelRerollCount = 0, campMenu = null, statsAt = 0, redraft = null, redraftVisits = 0;
+  let levelCards = null, levelHandlers = null, levelOfferKind = null, levelRerollCount = 0, campMenu = null, statsAt = 0, redraft = null, redraftVisits = 0;
   function hookBuild(g) {
     const hud = g.hud;
     if (!hud || hud.__d2autobotBuild === api) return;
@@ -1101,6 +1101,7 @@
       restores.push(() => { if (own) object[name] = original; else delete object[name]; });
     };
     // 實測原版 hud.showLevelUp(cards, build, handlers)：cards 為 {title, subtitle, text, rarity}；showCampMenu(npc, items) 為 {label, disabled, run}。
+    wrapOwn(g, "offerLevelUp", (original) => function (...args) { levelOfferKind = this.slotPicks?.[0] ?? null; return Reflect.apply(original, this, args); });
     wrapOwn(hud, "showLevelUp", (original) => function (...args) { levelCards = Array.isArray(args[0]) ? args[0] : null; levelHandlers = args[2] && typeof args[2] === "object" ? args[2] : null; return Reflect.apply(original, this, args); });
     wrapOwn(g, "showCampMenu", (original) => function (...args) { campMenu = { npc: args[0], items: Array.isArray(args[1]) ? args[1] : [] }; return Reflect.apply(original, this, args); });
     hud.__d2autobotBuild = api;
@@ -1112,20 +1113,41 @@
     c._passiveMap = new Map(c.passives.map((x) => [x[1].toLowerCase(), x]));
   }
   // 原版技能表（itemArt 模組匯出：技能含 maxLevel／evolution{passive,into}／synergies[{from}]；被動含 maxLevel）。
-  let SKILLS = null, PASSIVES = null, SKILL_BY_NAME = null, PASSIVE_BY_NAME = null;
+  let SKILLS = null, PASSIVES = null, SKILL_BY_NAME = null, PASSIVE_BY_NAME = null, nativeLevelChoices = null, nativeWeapon = null, nativeKeyBindings = null;
   async function loadSkillTables(gameUrl) {
     try {
-      const urls = performance.getEntriesByType("resource").map((e) => e.name).filter((u) => /\/itemArt-[\w-]+\.js/.test(u));
-      for (const u of urls.length ? urls : [new URL("itemArt-Bh8qPZQJ.js", gameUrl).href]) {
+      // 只載入已驗證版本的相依模組，避免同頁資源紀錄中的舊版模組被誤選。
+      for (const u of [new URL("itemArt-CUOhw0kt.js", gameUrl).href]) {
         const m = await import(u);
+        // 目前已辨識版本的 Di 為遊戲實際使用的鍵位讀取函式；先檢查特徵再採用。
+        if (typeof m.Di === "function" && m.Di.length === 0 && /localStorage\.getItem/.test(Function.prototype.toString.call(m.Di))) nativeKeyBindings = m.Di;
         for (const v of Object.values(m)) {
           if (!v || typeof v !== "object" || Array.isArray(v)) continue;
           if (!SKILLS && v.doubleSwing?.name && v.magicArrow?.name) { SKILLS = v; SKILL_BY_NAME = new Map(Object.entries(v).map(([k, d]) => [String(d?.name || "").toLowerCase(), k])); }
           if (!PASSIVES && v.innerSight?.name && v.criticalStrike?.name) { PASSIVES = v; PASSIVE_BY_NAME = new Map(Object.entries(v).map(([k, d]) => [String(d?.name || "").toLowerCase(), k])); }
         }
-        if (SKILLS) break;
+        if (SKILLS && PASSIVES) break;
       }
     } catch { /* 讀不到就只用排行榜權重 */ }
+    try {
+      const urls = [new URL("saveTransfer-C-ucl_ha.js", gameUrl).href];
+      for (const url of urls) {
+        const module = await import(url);
+        const matches = Object.values(module).filter((fn) => {
+          if (typeof fn !== "function" || fn.length !== 4) return false;
+          const source = Function.prototype.toString.call(fn);
+          return /\.difficulty/.test(source) && /\.type\s*!==/.test(source) && /[`'"]attribute[`'"]/.test(source);
+        });
+        if (matches.length === 1) { nativeLevelChoices = matches[0]; break; }
+      }
+      // 從同一版 Game 的選卡呼叫與 import 解析武器函式，壓縮匯出名稱每版可能不同。
+      const source = await (await fetch(gameUrl, { signal: abort.signal })).text();
+      const offer = /offerLevelUp\(\)\{[\s\S]{0,300}?=\(\)=>[\w$]+\([^,]+,[^,]+,[^,]+,([\w$]+)\(this\.world\.player\)\)/.exec(source);
+      if (offer) for (const match of source.matchAll(/import\{([^}]+)\}from["']\.\/(itemArt-[\w-]+\.js)["']/g)) {
+        const binding = match[1].split(",").map((x) => x.trim()).find((x) => x.endsWith(" as " + offer[1]));
+        if (binding) { const module = await import(new URL(match[2], gameUrl).href); const fn = module[binding.split(/\s+as\s+/)[0]]; if (typeof fn === "function") nativeWeapon = fn; break; }
+      }
+    } catch { /* 無法確認原版候選產生器時直接選卡 */ }
   }
   const idByName = (table, name) => table === SKILLS && SKILL_BY_NAME ? SKILL_BY_NAME.get(name) : table === PASSIVES && PASSIVE_BY_NAME ? PASSIVE_BY_NAME.get(name) : table && Object.keys(table).find((k) => String(table[k]?.name || "").toLowerCase() === name);
   function ladderWeight(g, name) {
@@ -1183,24 +1205,86 @@
     });
     return { best, score };
   }
+  function availableLevelChoices(g) {
+    if (!nativeLevelChoices || !nativeWeapon || !g?.build?.kit || !g.world?.player || !Array.isArray(g.build.skills) || !g.build.passives || !g.build.banished?.has || levelHandlers?.redraft || (!g.build.skills.length || levelOfferKind === "first")) return null;
+    // 原版產生器在抽樣前排序可用候選，短暫擷取排序輸入；同步執行並立即還原，不修改角色或消耗重抽。
+    const originalSort = Array.prototype.sort, originalPush = Array.prototype.push, pools = [], replacements = [];
+    try {
+      // 20261102.1 的原版先產生所有合法替換技能，再隨機挑一個加入候選池。
+      Array.prototype.push = function (...items) {
+        for (const item of items) if (item?.type === "respec" && typeof item.id === "string" && typeof item.replaces === "string" && Number.isFinite(item.level) && Number.isFinite(item.banked)) Reflect.apply(originalPush, replacements, [item]);
+        return Reflect.apply(originalPush, this, items);
+      };
+      Array.prototype.sort = function (compare) {
+        if (this.length && this.every((x) => x && typeof x === "object" && typeof x.type === "string")) pools.push(this.slice());
+        return Reflect.apply(originalSort, this, [compare]);
+      };
+      const weapon = nativeWeapon ? nativeWeapon(g.world.player) : undefined;
+      nativeLevelChoices(g.build, g.world, levelOfferKind ?? undefined, weapon);
+      if (!pools.length) return null;
+      const candidates = pools.flat();
+      // 只有一般升級且原版實際將替換卡放入抽樣池時，才補上其餘可替換選項。
+      if (levelOfferKind == null && candidates.some((x) => x.type === "respec")) Reflect.apply(originalPush, candidates, replacements);
+      return candidates;
+    } catch { return null; }
+    finally { Array.prototype.sort = originalSort; Array.prototype.push = originalPush; }
+  }
+  function shouldReroll(g, choice) {
+    if (!canReroll(g)) return false;
+    const pool = availableLevelChoices(g);
+    if (!pool || !SKILLS || !PASSIVES) return false;
+    const currentTitles = new Set((levelCards || []).map((card) => String(card?.title || "").trim().toLowerCase()));
+    return pool.some((candidate) => {
+      const def = candidate.type === "skill" || candidate.type === "respec" ? SKILLS[candidate.id] : candidate.type === "passive" || candidate.type === "mastery" ? PASSIVES[candidate.id] : null;
+      if (!def?.name || currentTitles.has(def.name.toLowerCase())) return false;
+      return ladderScore(g, def.name) >= choice.score + 10;
+    });
+  }
   function canReroll(g) {
-    if (!settings.build.autoReroll || levelRerollCount >= 10) return false;
+    const unlimited = settings.cheat.enabled && settings.cheat.infiniteRerolls;
+    if (!settings.build.autoReroll || (!unlimited && levelRerollCount >= 2)) return false;
     const rerollBtn = document.getElementById("reroll") || document.querySelector("#level-up button#reroll, #level-up .reroll, button[data-action='reroll']");
     if (rerollBtn && rerollBtn.disabled) return false;
     if (g?.build && typeof g.build.rerolls === "number" && g.build.rerolls <= 0) return false;
     return true;
   }
+  // 原版允許重新綁定選卡與重抽；沒有回呼時只使用可確認的鍵位。
+  function pulseCardAction(action, defaultCode) {
+    let code = defaultCode;
+    try {
+      if (nativeKeyBindings) {
+        const binding = nativeKeyBindings()?.[action];
+        if (!Array.isArray(binding)) return false;
+        code = binding.find((x) => typeof x === "string" && x.length > 0 && x.length < 40);
+      } else {
+        const raw = localStorage.getItem("d2s:keys");
+        if (raw !== null) {
+          const value = JSON.parse(raw), keys = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+          const defaults = { pick1: ["Digit1", "Numpad1"], pick2: ["Digit2", "Numpad2"], pick3: ["Digit3", "Numpad3"], reroll: ["KeyR"], skip: ["KeyX"], banish: ["KeyB"] };
+          const explicit = Object.keys(defaults).filter((name) => Array.isArray(keys[name]));
+          const valid = (x) => typeof x === "string" && x.length > 0 && x.length < 40 && !["Escape", "MetaLeft", "MetaRight", "OSLeft", "OSRight", "ContextMenu", "Fn", "FnLock"].includes(x);
+          const binding = explicit.includes(action) ? keys[action].slice(0, 2) : (defaults[action] || []).filter((x) => !explicit.some((name) => name !== action && keys[name].slice(0, 2).includes(x)));
+          code = binding.find(valid);
+        }
+      }
+    } catch { return false; }
+    if (!code) return false;
+    const key = /^Key[A-Z]$/.test(code) ? code.slice(3).toLowerCase() : /^Digit[0-9]$/.test(code) ? code.slice(5) : /^Numpad[0-9]$/.test(code) ? code.slice(6) : code;
+    keyPulse(code, key); return true;
+  }
+  function triggerCardPick(index) {
+    if (typeof levelHandlers?.pick === "function") {
+      try { levelHandlers.pick(index); return "picked"; } catch { return null; }
+    }
+    return pulseCardAction("pick" + (index + 1), "Digit" + (index + 1)) ? "sent" : null;
+  }
   function triggerReroll(now) {
-    levelRerollCount++;
+    let sent = false;
     if (typeof levelHandlers?.reroll === "function") {
-      try { levelHandlers.reroll(); } catch {}
-    }
-    const rerollBtn = document.getElementById("reroll") || document.querySelector("#level-up button#reroll, #level-up .reroll, button[data-action='reroll']");
-    if (rerollBtn && typeof rerollBtn.click === "function") {
-      try { rerollBtn.click(); } catch {}
-    }
-    keyPulse("KeyR", "r");
-    lastAction = "自動配技能：卡片評分低，使用重抽換一批技能卡";
+      try { levelHandlers.reroll(); sent = true; } catch {}
+    } else sent = pulseCardAction("reroll", "KeyR");
+    if (sent) levelRerollCount++;
+    lastAction = sent ? "自動配技能：嘗試使用重抽換一批技能卡" : "無法確認重抽鍵位，請手動選卡";
     actionAt = now;
   }
     // 屬性點依高手比例分配；原版 spendStatPoints(屬性, 點數)。
@@ -1381,16 +1465,24 @@
     return true;
   }
   function blocked() { return (!settings.enabled && !settings.progressEnabled) || document.hidden || !panel.hidden || window.__d2editIsOpen?.() || performance.now() < manualUntil || paused(); }
+  let goldOverride = null;
+  function restoreGoldRate() {
+    if (!goldOverride) return;
+    const { player, value, own } = goldOverride;
+    if (player.goldGain === 999999) { if (own) player.goldGain = value; else delete player.goldGain; }
+    goldOverride = null;
+  }
   // 遊戲修改：無敵、致命攻擊、一擊必殺、技能99等、怪物數量最大化、全精英、無限重抽、極限掉寶金幣
   function applyCheats(g) {
-    if (!g || !settings.cheat?.enabled) return;
-    const currentGold = g.save?.gold ?? 0;
+    if (!g || !settings.cheat?.enabled) { restoreGoldRate(); return; }
+    const currentGold = (Number.isFinite(g.save?.gold) ? g.save.gold : 0) + (Number.isFinite(g.world?.gold) ? g.world.gold : 0);
     if (settings.cheat.maxGoldRate && currentGold >= 9000000000) {
       settings.cheat.maxGoldRate = false;
       save(true);
       refreshControls();
       lastAction = "玩家金幣達到 90 億，已自動關閉金幣掉落修改保護存檔";
     }
+    if (!settings.cheat.maxGoldRate || goldOverride && goldOverride.player !== g.world?.player) restoreGoldRate();
 
     // 1. 無敵 (God Mode)
     if (settings.cheat.invincible) {
@@ -1434,6 +1526,7 @@
 
       // 掉寶與金幣倍率
       if (settings.cheat.maxGoldRate) {
+        if (!goldOverride || p.goldGain !== 999999) goldOverride = { player: p, value: p.goldGain, own: Object.hasOwn(p, "goldGain") };
         p.goldGain = 999999;
       }
       if (settings.cheat.maxDropRate) {
@@ -1442,13 +1535,6 @@
         p.rareBoost = 9999;
         p.setBoost = 9999;
       }
-    }
-
-    if (g.world && settings.cheat.maxGoldRate) {
-      if (!g.world._origGoldFn && typeof g.world.gold === "function") {
-        g.world._origGoldFn = g.world.gold;
-      }
-      g.world.gold = 999999;
     }
 
     // 4. 技能最高等級 99 等
@@ -1537,21 +1623,20 @@
     applyCheats(g);
     checkRetreat(now);
     const levelUpVisible = visible(document.getElementById("level-up"));
-    if (!levelUpVisible) levelRerollCount = 0;
+    if (!levelUpVisible) { levelRerollCount = 0; levelCards = levelHandlers = levelOfferKind = null; }
     // 依使用者要求：自動戰鬥開著時每次升級一定要選卡（不受手動讓位影響；設定面板開著時除外）；只開戰鬥輔助時選卡交給玩家。
     if (settings.progressEnabled && panel.hidden && levelUpVisible && now - actionAt > 800) {
       const cards = [...document.querySelectorAll("#choices button")].filter(visible);
       if (cards.length) {
         const choice = pickCard(g, cards);
-        if (choice.score < 25 && canReroll(g)) {
+        if (shouldReroll(g, choice)) {
           triggerReroll(now);
           release();
           return;
         }
-        levelRerollCount = 0;
         const i = choice.best;
-        keyPulse("Digit" + (i + 1), String(i + 1));
-        lastAction = "已選擇升級卡 " + (i + 1);
+        const picked = triggerCardPick(i);
+        lastAction = picked === "picked" ? "已選擇升級卡 " + (i + 1) : picked === "sent" ? "已送出升級卡按鍵 " + (i + 1) : "無法確認選卡鍵位，請手動選卡";
         actionAt = now;
         release();
         return;
@@ -1586,18 +1671,17 @@
         actionAt = now; lastAction = died ? "陣亡，返回營地整備" : "本局通關，返回營地"; void g.toMenu(); return;
       }
       // 推進時才自動選卡：進化優先，其次依排行榜高手的技能／被動權重。
-      // 實測：原版卡片有防誤觸，未經真實 pointerdown 的 click() 會被忽略，因此改按原版 1～3 鍵。
+      // 優先使用原版回呼，避免重新綁定後固定數字鍵觸發錯誤動作。
       if ((questOn() || terrorMode() !== "off") && visible(document.getElementById("level-up")) && now - actionAt > 800) {
         const cards = [...document.querySelectorAll("#choices button")].filter(visible);
         if (cards.length) {
           const choice = pickCard(g, cards);
-          if (choice.score < 25 && canReroll(g)) {
+          if (shouldReroll(g, choice)) {
             triggerReroll(now);
           } else {
-            levelRerollCount = 0;
             const i = choice.best;
-            keyPulse("Digit" + (i + 1), String(i + 1));
-            lastAction = "已選擇升級卡 " + (i + 1);
+            const picked = triggerCardPick(i);
+            lastAction = picked === "picked" ? "已選擇升級卡 " + (i + 1) : picked === "sent" ? "已送出升級卡按鍵 " + (i + 1) : "無法確認選卡鍵位，請手動選卡";
             actionAt = now;
           }
         }
@@ -1623,7 +1707,7 @@
     if (g && state.p) { if (g.hud?.skillsOpen || g.hud?.questLogOpen) release(); else navigate(after, danger, now); }
   }
   function guarded(g, now) {
-    if (!alive || now - lastStep < 50) return;
+    if (!alive || !gameplayCompatible || !g || now - lastStep < 50) return;
     lastStep = now;
     try { step(g, now); errors = 0; }
     catch (err) { release(); if (++errors >= 3) stop("連續執行錯誤，已停機：" + String(err.message || err)); }
@@ -1643,6 +1727,9 @@
       const response = await fetch(url, { signal: abort.signal }); if (!response.ok) continue;
       const source = await response.text();
       if (!signatures.every((re) => re.test(source))) { for (const m of source.matchAll(/["'`]\.\/(Game-[\w-]+\.js)["'`]/g)) queue.push(new URL(m[1], url).href); continue; }
+      if (!/\/Game-Ba9RuE4G\.js(?:\?.*)?$/.test(url) || !/["'`]\.\/itemArt-CUOhw0kt\.js["'`]/.test(source) || !/["'`]\.\/saveTransfer-C-ucl_ha\.js["'`]/.test(source)) {
+        hookUrl = url; hookNote = "目前遊戲版本不相容，已封鎖輔助與遊戲修改；請更新遊戲與工具包"; void checkGameVersion(url); return;
+      }
       // 精確沿用頁面模組 URL，讓瀏覽器回傳原模組實例；不加查詢字串、不執行修改版副本。
       const module = await import(url); if (!alive) return;
       void loadSkillTables(url);
@@ -1651,9 +1738,9 @@
       wrap(proto, "tick", (original) => function (...args) { if (alive) { game = this; guarded(this, performance.now()); } return Reflect.apply(original, this, args); });
       // 原版 steer 會為拾取目標重建 walkTarget，記住該參照才能在停止時完全放手。
       wrap(proto, "steer", (original) => function (...args) { const result = Reflect.apply(original, this, args); if (alive && this === game && ownReach && this.world?.reaching === ownReach) ownWalk = this.walkTarget; return result; });
-      hookUrl = url; hookNote = "已掛接原版 Game，等待下一幀"; void checkGameVersion(url); return;
+      gameplayCompatible = true; hookUrl = url; hookNote = "已掛接原版 Game，等待下一幀"; void checkGameVersion(url); return;
     }
-    hookNote = "簽名不相容：僅使用 HUD／藥水按鍵；走位、撿物與推進停用";
+    hookNote = "無法確認遊戲版本，已封鎖輔助與遊戲修改；請更新遊戲並重新開啟";
     void checkGameVersion("");
   }
   let versionNotice = "", versionDismissed = false, checkedGameBuild = false;
@@ -1855,10 +1942,10 @@
     status.textContent = trAuto(["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用（" + modeLabel() + "）" : "關閉"), game ? questLine(game) : "", game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n"));
   }, 200);
   const api = {
-    destroy() { if (!alive) return; alive = false; release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
+    destroy() { if (!alive) return; alive = false; restoreGoldRate(); release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
     diagnostics: () => ({ hellClears, hookUrl, hookNote, connected: !!game, state: game?.state ?? null, lastAction, storageNote, quests: (() => { try { const q = questSnapshot(game); return { line: questLine(game), done: q.done, total: q.total, pending: q.pending, cain: q.cain }; } catch { return null; } })(), gameBuild: (() => { try { return JSON.parse(localStorage.getItem(BUILD_KEY) || "null"); } catch { return null; } })() }),
     get game() { return game; },
   };
   window.__d2autobot = api;
-  connect().catch((err) => { if (alive) hookNote = "掛鉤無法載入，使用 HUD／按鍵降級：" + String(err.message || err); void checkGameVersion(""); });
+  connect().catch((err) => { if (alive) hookNote = "無法確認遊戲版本，已封鎖輔助與遊戲修改：" + String(err.message || err); void checkGameVersion(""); });
 })();
