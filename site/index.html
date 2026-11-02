@@ -969,6 +969,7 @@
         <a href="#editor">// 存檔修改器</a>
         <a href="#autobot">// 遊戲輔助器</a>
         <a href="#gallery">// 實際畫面</a>
+        <a href="#changelog">// 更新日誌</a>
         <a href="#install">// 書籤安裝</a>
         <a href="#compliance">// 合規原則</a>
         <a href="https://github.com/nojackno2-ctrl/d2-survivors-toolkit" target="_blank" rel="noopener">GitHub</a>
@@ -1301,6 +1302,56 @@
           <li>遊戲改版後可能有功能失效，畫面會提示「遊戲已更新」。</li>
           <li>建議偶爾查看狀況，長時間無人看管前請先備份存檔。</li>
         </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Changelog Section -->
+  <section class="section" id="changelog">
+    <div class="container">
+      <div class="section-title-wrap">
+        <div class="section-tag">// MODULE: CHANGELOG</div>
+        <h2 class="section-title">更新日誌</h2>
+        <p class="section-desc">完整紀錄見 <a href="https://github.com/nojackno2-ctrl/d2-survivors-toolkit/commits/main" target="_blank" rel="noopener" style="color:var(--cyan)">GitHub</a></p>
+      </div>
+      <style>
+        .log{max-width:860px;margin:0 auto;border-left:2px solid var(--cyan-glow);padding-left:22px}
+        .log-entry{position:relative;margin-bottom:28px}
+        .log-entry::before{content:"";position:absolute;left:-29px;top:6px;width:12px;height:12px;border:2px solid var(--cyan);background:#090d12;transform:rotate(45deg)}
+        .log-date{font-family:ui-monospace,Consolas,monospace;color:var(--cyan);font-size:.9rem;letter-spacing:.05em}
+        .log-ver{display:inline-block;margin-left:8px;padding:1px 8px;border:1px solid var(--amber);color:var(--amber);font-family:ui-monospace,Consolas,monospace;font-size:.75rem}
+        .log-entry ul{margin:8px 0 0;padding-left:1.2em;line-height:1.75;color:#c9d4df}
+        .log-entry b{color:#e6edf3}
+      </style>
+      <div class="log">
+        <div class="log-entry">
+          <div class="log-date">2026-11-02</div>
+          <ul>
+            <li><b>改名</b>：專案改名為「D2倖存者工具包」，網頁版網址改為 <code>/d2-survivors-toolkit/</code>（舊書籤需重新複製）。</li>
+            <li><b>修改器</b>：反修改偵測不再把遊戲賭博商店清單裡的普通戒指／護身符誤判為不合規。</li>
+            <li><b>輔助器</b>：任務狀態檢測與自動交任務；回營地優先向凱恩回報；優先攻擊任務頭目（樹頭木拳、拉卡尼休）；任務目標優先於通關傳送門。</li>
+            <li><b>輔助器</b>：固定關卡模式獨立；任務模式達成（18 項任務且 99 級）自動改刷地獄。</li>
+            <li><b>輔助器</b>：重新整理後總開關預設關閉；自動戰鬥包含戰鬥輔助；手動停止會存成關閉。</li>
+            <li><b>書籤載入</b>：改用瀏覽器快取、並行載入，手機不再讀到舊版。</li>
+          </ul>
+        </div>
+        <div class="log-entry">
+          <div class="log-date">2026-11-01</div>
+          <ul>
+            <li><b>修改器</b>：合規檢查（稀有最多一條職業 +技能、屬性點上限）；解除限制後製作不設限；訂製裝備前綴／後綴分區並顯示可加數量；恰西升級單次花費上限 100 億；新增「金色光芒」勾選。</li>
+            <li><b>輔助器</b>：依排行榜高手配法選卡、配點、換裝；升級一定選卡；全圖走位與閃避（重擊飛彈橫移、精英／王繞圈）；死亡保護自動繼續。</li>
+            <li><b>輔助器</b>：營地整備（收藏、存倉庫、賣裝、買藥、恰西升級）；撿寶與寶箱、背包滿自動賣裝；護符自動挑選；全圖吸經驗。</li>
+            <li><b>輔助器</b>：任務模式／天梯模式；打不上去自動回低難度；35 個存檔長跑實戰調整。</li>
+            <li><b>其他</b>：遊戲版本驗證（20261101.1）；書籤載入進度條；底材與狀態列全面繁中。</li>
+          </ul>
+        </div>
+        <div class="log-entry">
+          <div class="log-date">2026-10-31 <span class="log-ver">v1.0.1</span></div>
+          <ul>
+            <li><b>修改器</b>：訂製裝備與裝備庫；物品頁與製作頁共用屬性範圍資料庫，新增屬性預設最大值。</li>
+            <li><b>手機</b>：移除清單與區塊內部捲動。</li>
+          </ul>
+        </div>
       </div>
     </div>
   </section>
