@@ -411,6 +411,9 @@
     const stones = search?.stones?.logic;
     if (Array.isArray(stones?.spots) && !stones.done) {
       const i = Array.isArray(stones.lit) ? stones.lit.findIndex((x) => !x) : -1;
+    // 依使用者要求：掉落的任務物品（伊尼弗斯卷軸等）要撿；列為任務目標，優先於精英與通關傳送門，不受一般撿取的安全條件限制。
+    const questDrop = s.pickups.filter((e) => !e.dead && e.item?.type === "quest" && accepts(e) && point(e)).sort((a, b) => dist(a, s.p) - dist(b, s.p))[0];
+    if (questDrop) return { x: questDrop.x, y: questDrop.y, kind: "loot", target: questDrop, quest: true };
       if (i >= 0 && point(stones.spots[i])) return { ...stones.spots[i], kind: "任務石陣" };
     }
     if (point(search?.portalSpot)) return { x: search.portalSpot.x, y: search.portalSpot.y, kind: "任務傳送門" };
@@ -596,7 +599,7 @@
     // 依使用者要求：精英怪與王才會掉裝備與寶箱，生命過半時先追 900 內的精英／王，打倒後再撿掉落物。
     // 依使用者要求：配合劇情推進，任務目標（石陣、牢籠、任務頭目、任務物品）最優先；其次精英／王，最後撿物。
     // 依實測：石塊陣開門後一般通關傳送門也出現，原本 portalDue 會略過任務目標，角色離開該局、石陣進度重置；石陣／任務傳送門／牢籠仍優先；依使用者要求，任務頭目沒打倒就繼續打，不走出口。
-    if (!goal && questOn()) { const q = questGoal(s); if (q && (!portalDue || /石陣|任務傳送門|牢籠|任務頭目/.test(q.kind))) goal = q; }
+    if (!goal && questOn()) { const q = questGoal(s); if (q && (!portalDue || q.quest || /石陣|任務傳送門|牢籠|任務頭目/.test(q.kind))) goal = q; }
     const hunt = !goal && m.enabled && progressing && !portalDue && ratio > 0.35 ? nearestElite(s) : null;
     if (hunt) goal = battleGoal(hunt, s.p, "精英");
     if (!goal) goal = free && danger.damage < s.hp.now && !portalDue ? lootGoal(s, now) : null;
@@ -739,15 +742,20 @@
     const farm = opened.length > 1 && (failStreak[opened[0].difficulty] || 0) >= 3 && !noXpAt(g.kit.id, opened[1].difficulty, g.world?.player?.level ?? 0) && !lowLevelUseless(opened[1].difficulty, g.world?.player?.level ?? 0);
     // 固定重複刷：使用者指定的難度已開放就一直開那個難度。
     const fixed = opened.find((s) => s.difficulty === settings.quest.farmDifficulty);
-    const fresh = fixed || (farm ? opened[1] : opened[0]);
+    // 依實測：原版只在第一幕隨機精英剛好是樹頭木拳／拉卡尼休時推進尋找凱恩（約十分之一），普通只過一次第一幕就進惡夢，任務永遠解不到。
+    // 依使用者要求：較低難度的尋找凱恩未完成、且等級未超過該難度可得經驗上限時，回那個難度重打；超過上限就不回去。
+    const heroLv = g.world?.player?.level ?? g.save?.heroes?.[g.kit.id]?.level ?? 0, cq = g.save?.cain?.quests?.[g.kit.id] || {};
+    const questBack = autoMode() === "quest" && opened.length > 1 ? [...opened].reverse().find((s) => s !== opened[0] && cq[QUEST_DIFF[s.difficulty] + "1"] == null && !lowLevelUseless(s.difficulty, heroLv) && !noXpAt(g.kit.id, s.difficulty, heroLv)) : null;
+    const fresh = fixed || questBack || (farm ? opened[1] : opened[0]);
     if (farm) failStreak[opened[0].difficulty] = 0;
     // 上次進度是較低難度的局（回刷中離場）時不再續玩，直接開最高難度。
     // 原版保留角色的難度在 save.heroes[職業].kept.difficulty；優先用它，沒有才用自己記住的上一局難度。
     const resumeDiff = resume ? resume.difficulty ?? g.save?.heroes?.[g.kit.id]?.kept?.difficulty ?? lastRunDiff : null;
-    const lowerResume = resume && opened[0] && resumeDiff && order.indexOf(resumeDiff) < order.indexOf(opened[0].difficulty) && settings.quest.farmDifficulty === "off";
-    if (resume && !farm && !lowerResume && (settings.quest.farmDifficulty === "off" || resume.difficulty === settings.quest.farmDifficulty) && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; runStart = { diff: resumeDiff, lv: g.world?.player?.level, at: now }; void g.continueRun(g.kit, "hero"); return true; }
+    const lowerResume = resume && opened[0] && resumeDiff && order.indexOf(resumeDiff) < order.indexOf(opened[0].difficulty) && settings.quest.farmDifficulty === "off" && resumeDiff !== questBack?.difficulty;
+    const higherResume = questBack && resume && resumeDiff && resumeDiff !== questBack.difficulty;
+    if (resume && !farm && !lowerResume && !higherResume && (settings.quest.farmDifficulty === "off" || resume.difficulty === settings.quest.farmDifficulty) && typeof g.continueRun === "function") { lastAction = "從營地繼續上次進度"; runStart = { diff: resumeDiff, lv: g.world?.player?.level, at: now }; void g.continueRun(g.kit, "hero"); return true; }
     if (!fresh || typeof g.startRun !== "function") return false;
-    lastAction = (fixed ? "重複刷難度：" : farm ? "最高難度打不上去，回低難度刷：" : "從營地開新局：") + fresh.difficulty; runStart = { diff: fresh.difficulty, lv: g.world?.player?.level, at: now }; void g.startRun(g.kit, fresh.difficulty);
+    lastAction = (fixed ? "重複刷難度：" : questBack ? "尋找凱恩未完成，回此難度重打：" : farm ? "最高難度打不上去，回低難度刷：" : "從營地開新局：") + fresh.difficulty; runStart = { diff: fresh.difficulty, lv: g.world?.player?.level, at: now }; void g.startRun(g.kit, fresh.difficulty);
     return true;
   }
   // 以原版角色數值（傷害、生命、減傷、抗性）比較背包裝備，再走原版穿戴流程。
