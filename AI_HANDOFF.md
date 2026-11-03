@@ -1,5 +1,7 @@
 # 交接紀錄
 
+- 2026-11-04｜Claude：存檔檢查提示文字去掉「與原版暗黑2不同」，改為「額外的詞綴規則檢查（以遊戲為準，僅供參考）」；更新日誌新增 2026-11-04 條目（存檔檢查改名與問題明細、判定結果與關閉排行榜上傳、正常裝備誤判修正），同步 editor/index.html、editor/editor.html 與 web/site/index.html（介紹網頁），未升版號（維持 v1.0.5，避免觸發更新提示）。已重建 web（version.json note 已還原）。語法檢查通過，未實機驗證。
+
 - 2026-11-04｜Claude：存檔檢查的合法性改以遊戲自己的資料與檢查（faults）為準。原因：遊戲數值與原版暗黑2不同，正常打到的裝備被 itemstats 規則（validateItems）判為不合規，且「一鍵全部規避」會把它們重新產生。改動：detect() 中「原版屬性規則」一項改為僅供參考（ok:true、advisory），renderDetails() 將差異列在「僅供參考」區，不計入問題數與判定。未改：寫入前的 assertLegal（編輯限制）仍用原版規則。重建 web（重建會清空 version.json note，已還原）。語法檢查通過，未用真實存檔實機驗證。
 
 - 2026-11-04｜Claude：「反修改偵測」頁改名「存檔檢查」並加強顯示（只做「問題明細」與「判定結果」兩項）。①新增 itemsWithWhere()＋renderDetails()：逐項列出問題的位置（職業→背包／倉庫分頁／身上裝備欄位（中文，SLOT_ZH）／傭兵／商店等）、原因（沿用 problemText 與遊戲物品引擎 validateItems／faults）與修正方式，不截斷；欄位類問題（金幣、等級、屬性點、簽章、標記）同表列出。②頁首判定「沒有發現問題」或「已編輯／有問題，不會上傳排行榜」，有問題且排行榜開啟時出現「關閉排行榜上傳」按鈕（設 save.leaderboard.off，需寫入存檔）。③原有的清除外部修改標記、清除匯入／檢查紀錄、重新產生排行榜識別碼、刪除匯入痕跡四項依使用者決定保留原樣，本次未擴充、之後也不應再加強規避伺服器偵測的功能。已同步 editor/index.html、editor/editor.html，並以 build-web.js 重建 web（網址 https://nojackno2-ctrl.github.io/d2-survivors-toolkit/；重建會清空 version.json 的 note，已還原）。腳本語法檢查通過、build-web／weapon-sets 等測試通過；未在真實存檔實機開頁面驗證。autobot／version-gate-web／weapon-sets-ui 測試需在 Electron 內執行，用 node 直接跑會失敗（與本次無關）。
