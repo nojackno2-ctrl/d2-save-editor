@@ -151,7 +151,7 @@
   <button data-page="craft">製作裝備</button>
   <button data-page="library">裝備庫</button>
   <button data-page="hero">帳號 / 強化</button>
-  <button data-page="guard">反修改偵測</button>
+  <button data-page="guard">存檔檢查</button>
   <button data-page="saves">存檔管理</button>
   <button data-page="raw">原始存檔資料</button>
   <button data-page="settings">設定</button>
@@ -295,7 +295,12 @@
 
 <div class="page" id="guard">
   <section>
-    <h2>偵測結果</h2>
+    <h2>存檔檢查</h2>
+    <p id="verdict" style="font-weight:600"></p>
+    <div class="bar"><button id="lbOff" hidden>關閉排行榜上傳</button></div>
+    <h3>問題明細</h3>
+    <table><thead><tr><th style="width:30%">位置</th><th>問題</th><th style="width:26%">怎麼修正</th></tr></thead><tbody id="details"></tbody></table>
+    <h2 style="margin-top:16px">偵測結果</h2>
     <p class="dim">依照遊戲本身的檢查規則（金幣上限、光之碎片、物品合法性、角色等級、簽章、標記與匯入痕跡）掃描目前的存檔內容。</p>
     <div class="bar"><button id="scan">重新掃描</button><button class="primary" id="fixAll">一鍵全部規避</button></div>
     <table style="margin-top:8px"><thead><tr><th style="width:70px">狀態</th><th>項目</th><th style="width:140px"></th></tr></thead><tbody id="issues"></tbody></table>
@@ -1629,6 +1634,23 @@ function allItems(s) {
     ...Object.values(s.mercs ?? {}).flatMap(m => Object.values(m?.hired ?? {}).flatMap(h => Object.values(h?.worn ?? {}))),
     ...Object.values(s.imbueByClass ?? {})].filter(it => it && typeof it === "object");
 }
+// 與 allItems 同範圍，但附上位置說明，讓玩家知道問題物品在哪裡
+function itemsWithWhere(s) {
+  const out = [], cz = (c) => CLASS_ZH[c] ?? c;
+  const add = (where, list) => { for (const it of list ?? []) if (it && typeof it === "object") out.push({ item: it, where }); };
+  for (const [t, v] of Object.entries(s.stashTabs ?? {})) add(`共用倉庫 → 分頁 ${t}`, v);
+  add("暗金收藏庫", s.uniques);
+  for (const [c, v] of Object.entries(s.inventoryByClass ?? {})) add(`${cz(c)} → 背包`, v);
+  for (const [c, v] of Object.entries(s.charmsByClass ?? {})) add(`${cz(c)} → 護身符欄`, v);
+  for (const [c, v] of Object.entries(s.stockByClass ?? {})) add(`${cz(c)} → 恰西商店`, v);
+  for (const [c, v] of Object.entries(s.gambleByClass ?? {})) add(`${cz(c)} → 賭博商店`, v);
+  for (const [c, v] of Object.entries(s.akaraByClass ?? {})) add(`${cz(c)} → 阿卡拉商店`, v);
+  for (const [c, o] of Object.entries(s.equippedByClass ?? {})) for (const [slot, it] of Object.entries(o ?? {})) add(`${cz(c)} → 身上裝備 → ${SLOT_ZH[slot] ?? slot}`, [it]);
+  add("備用武器", alternateWeaponItems(s));
+  for (const [c, m] of Object.entries(s.mercs ?? {})) for (const h of Object.values(m?.hired ?? {})) for (const [slot, it] of Object.entries(h?.worn ?? {})) add(`${cz(c)} → 傭兵 → ${SLOT_ZH[slot] ?? slot}`, [it]);
+  for (const [c, it] of Object.entries(s.imbueByClass ?? {})) add(`${cz(c)} → 附魔欄`, [it]);
+  return out;
+}
 // 遊戲對「暗金／符文之語且沒有 stats」的物品直接略過檢查；其他品質沒有 roll（種子）就會被判定不合法
 const riskyItem = (it) => it.type !== "quest" && !((it.rarity === "unique" || it.rarity === "runeword") && !it.stats) && !it.roll;
 // 依遊戲 Ci／wi／Ti 與角色保存的最高 Tome 進度檢查。
@@ -1706,11 +1728,33 @@ async function renderGuard() {
   $("#issues").innerHTML = list.map((x, i) => `<tr><td class="${x.unknown ? "dim" : x.ok ? "ok" : "bad"}">${x.unknown ? "未驗證" : x.ok ? "✔ 安全" : "✖ 會被偵測"}</td><td>${esc(x.text)}${x.note ? ` <span class="dim">（${x.note}）</span>` : ""}</td>
     <td>${x.fix ? `<button data-fix="${i}">${x.fixText}</button>` : ""}</td></tr>`).join("");
   for (const b of document.querySelectorAll("[data-fix]")) b.onclick = async () => { await list[b.dataset.fix].fix(); renderGuard(); status("已規避（記得寫入存檔）", "ok"); };
+  renderDetails(list);
   const lb = save.leaderboard ?? {}, row = (k, v) => `<tr><td class="dim" style="width:160px">${k}</td><td>${esc(v ?? "—")}</td></tr>`;
   $("#ids").innerHTML = row("排行榜識別碼", lb.id) + row("排行榜名稱", lb.name) + row("排行榜", lb.off ? "已關閉（不上傳）" : "開啟")
     + Object.entries(save.climbs ?? {}).map(([c, v]) => row(`${CLASS_ZH[c] ?? c} 角色識別碼`, v.hero)).join("")
     + row("存檔建立時間", save.born ? new Date(save.born * 1000).toLocaleString(LOCALE) : null);
 }
+// 詳細問題清單：列出每個問題的位置與原因，不截斷
+function renderDetails(list) {
+  const rows = [];
+  for (const x of list) if (!x.ok && !x.unknown && !/物品|原版屬性規則/.test(x.text)) rows.push({ where: "存檔欄位", what: x.text, fix: x.fixText ?? "" });
+  const gamble = new Set(Object.values(save.gambleByClass ?? {}).flatMap(v => v ?? []));
+  const where = new Map(itemsWithWhere(save).map(w => [w.item, w.where]));
+  for (const x of ruleBad ?? []) {
+    if (gamble.has(x.item)) continue;
+    for (const p of x.problems) rows.push({ where: where.get(x.item) ?? "（位置不明）", what: `「${(x.item.name && nameZh(x.item)) || baseZh(x.item)}」：${problemText(p)}`, fix: ["unique", "set", "runeword"].includes(x.item.rarity) ? "可用上方按鈕重新產生為合法物品" : "手動修改該屬性，或刪除此物品" });
+  }
+  for (const it of faultyItems ?? []) if (!(ruleBad ?? []).some(x => x.item === it))
+    rows.push({ where: where.get(it) ?? "（位置不明）", what: `「${(it.name && nameZh(it)) || baseZh(it)}」：缺少遊戲需要的隨機種子（roll），遊戲會判定不合法`, fix: "重新產生為合法物品" });
+  const lb = save.leaderboard ?? {};
+  const edited = rows.length > 0 || lb.edited;
+  $("#verdict").innerHTML = edited
+    ? `<span class="bad">✖ 已編輯／有問題，不會上傳排行榜</span>　共 ${rows.length} 項待處理${lb.off ? "（排行榜上傳目前已關閉）" : "（排行榜上傳目前開啟，建議關閉）"}`
+    : `<span class="ok">✔ 沒有發現問題</span>`;
+  $("#lbOff").hidden = !edited || !!lb.off;
+  $("#details").innerHTML = rows.length ? rows.map(r => `<tr><td>${esc(r.where)}</td><td>${esc(r.what)}</td><td class="dim">${esc(r.fix)}</td></tr>`).join("") : `<tr><td colspan="3" class="dim">沒有問題</td></tr>`;
+}
+function lbTurnOff() { save.leaderboard = { ...save.leaderboard, off: true }; renderGuard(); status("已關閉排行榜上傳（記得寫入存檔）", "ok"); }
 async function fixAll() {
   for (const x of detect()) if (!x.ok && x.fix) await x.fix();
   await renderGuard(); status("已全部規避（記得寫入存檔）", "ok");
@@ -1847,6 +1891,7 @@ $("#write").onclick = write;
 $("#backups").onclick = () => window.api.openBackups();
 $("#scan").onclick = renderGuard;
 $("#fixAll").onclick = fixAll;
+$("#lbOff").onclick = lbTurnOff;
 $("#newLbId").onclick = newLeaderboardId;
 $("#snap").onclick = async () => { const r = await window.api.snapshot(save, $("#snapName").value || "快照"); if (r.error) return status(r.error, "bad"); $("#snapName").value = ""; renderSaves(); status("已建立快照", "ok"); };
 $("#export").onclick = async () => { const r = await window.api.exportSave(save); if (r.error) return status(r.error, "bad"); if (!r.canceled) status("已匯出：" + r.path, "ok"); };
