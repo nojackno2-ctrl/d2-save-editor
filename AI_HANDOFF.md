@@ -1,5 +1,11 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：依使用者要求發布複合詞綴自動新增及提示；發布前 `tests/craft-affix-audit.cjs` 708 筆、0 失敗，`tests/craft-affix-composite.cjs`、`tests/craft-limits.cjs`、隔離 Electron `tests/craft-companion-ui.cjs`、語法及 `git diff --check` 通過；提交後待確認 GitHub Pages 部署。
+
+- 2026-11-03｜Codex：製作頁選擇可唯一確定配套的複合詞綴時，自動加入其他屬性列並顯示提示；移除或更換原列時移除未被使用者修改的自動配套列，有不同詞綴可能時提示確認而不猜測。修正分區下拉建議值未寫入選項的問題。同步桌面來源；隔離 Electron `tests/craft-companion-ui.cjs` 驗證巨魔護手自動加準確率 +5、提示、刪除及歧義不猜測，通過；`tests/craft-affix-audit.cjs`（708 筆、0 失敗）、`tests/craft-affix-composite.cjs`、`tests/craft-limits.cjs`、`tests/test_lang.cjs`、桌面 `runeword-class-base.cjs` 與語法、`git diff --check` 通過。未在真實遊戲存檔驗收，未發布網頁或封裝桌面。
+
+- 2026-11-03｜Codex：前後綴修正已發布提交 `2451af8`；GitHub Pages 工作 `41561572337` 成功，公開 `editor.html` 與 `engine-page.js` 加入快取避開參數下載後，Git 雜湊均與提交一致。未發布桌面版，未進行真實遊戲存檔驗收。
+
 - 2026-11-03｜Codex：依使用者要求發布前後綴及複合詞綴修正；發布前重跑 `tests/craft-affix-audit.cjs`（708 筆、0 失敗）、`tests/craft-affix-composite.cjs`、`tests/craft-limits.cjs`、`tests/test_lang.cjs`、隔離 Electron `tests/craft-affix-ui.cjs` 及 `git diff --check` 均通過；GitHub Pages 部署待提交後核對，未發布桌面版。
 
 - 2026-11-03｜Codex：逐筆稽核擷取的 708 筆詞綴（411 前綴、297 後綴，181 筆複合），以獨立模擬底材驗證每筆分類範圍、最高值完整組合與逐項補入，對 alike 數值可變者另測最低值；`node tests/craft-affix-audit.cjs` 708 筆、0 失敗。發現並修正 alike 屬性必須等值時，部分組合及建議值未遵守等值的問題；介面使用候選建議值。`tests/craft-affix-composite.cjs`、隔離 Electron `tests/craft-affix-ui.cjs`、`tests/craft-limits.cjs`、`tests/test_lang.cjs`、桌面 `runeword-class-base.cjs` 均通過，已同步桌面來源。稽核為單詞綴模擬，不代表窮舉全部底材與多詞綴組合；未發布網頁、未封裝桌面，未做真實遊戲存檔驗收。

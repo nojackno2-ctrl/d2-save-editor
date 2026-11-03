@@ -249,6 +249,7 @@
       <span>底材</span><select id="xBase"></select>
       <span>品質</span><select id="xRar"></select>
     </div>
+    <p id="c-companion-note" class="note" hidden></p>
     <div id="c-affix-total" class="bar" style="margin:10px 0 4px;font-weight:bold" hidden></div>
     <div id="c-sec-pre" style="margin-top:10px" hidden>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
@@ -858,19 +859,26 @@ async function renderCraft() {
     $("#xAddSuf").onclick = () => { $("#cmods-suf tbody").insertAdjacentHTML("beforeend", craftModRow("suffix")); updateCraftRanges(); };
     $("#xAddImp").onclick = () => { $("#cmods-imp tbody").insertAdjacentHTML("beforeend", craftModRow("imp")); updateCraftRanges(); };
     $("#xBase").onchange = $("#xRar").onchange = updateCraftRanges;
-    const onCraftInput = (e) => {
+    const onCraftInput = async (e) => {
       const tr = e.target.closest("tr"); if (!tr) return;
       if (e.target.classList.contains("val")) delete tr.dataset.auto;
+      if (tr.dataset.companionOwner && (e.target.classList.contains("stat") || e.target.classList.contains("val"))) delete tr.dataset.companionOwner;
       const v = tr.querySelector(".val").value;
       if (e.target.classList.contains("stat")) syncImp(tr);
       tr.querySelector(".zh").textContent = modZh({ stat: tr.querySelector(".stat").value.trim(), value: isNaN(v) || v === "" ? v : Number(v), implicit: tr.querySelector(".imp").checked });
+      if (e.type === "change" && e.target.classList.contains("val") && tr.dataset.companionId) await addCraftCompanions(tr);
+      if (e.type === "change" && e.target.classList.contains("stat")) {
+        const suggested = e.target.selectedOptions[0]?.dataset.value;
+        if (tr.dataset.auto && suggested !== undefined && suggested !== "") tr.querySelector(".val").value = suggested;
+        await addCraftCompanions(tr);
+      }
       if (e.type === "change" || e.target.classList.contains("val")) updateCraftRanges();
     };
     for (const id of ["#cmods", "#cmods-pre", "#cmods-suf", "#cmods-imp"]) {
       const tbl = $(id);
       if (tbl) {
         tbl.onchange = tbl.oninput = onCraftInput;
-        tbl.onclick = (e) => { if (e.target.classList.contains("rm")) { e.target.closest("tr").remove(); updateCraftRanges(); } };
+        tbl.onclick = (e) => { if (e.target.classList.contains("rm")) { const tr = e.target.closest("tr"); removeCraftCompanions(tr); tr.remove(); updateCraftRanges(); } };
       }
     }
     $("#xMake").onclick = async () => {
@@ -977,6 +985,50 @@ function statOptions() {
 }
 const craftModRow = (kind = "") => `<tr data-auto="1"${kind ? ` data-kind="${kind}"` : ""}><td class="zh"></td><td><select class="stat" style="max-width:320px">${statOptions()}</select></td>
   <td><input class="val" value="0"><small class="limit"></small></td><td><input type="checkbox" class="imp"${kind === "imp" ? " checked" : ""}></td><td><button class="rm danger">✕</button></td></tr>`;
+// 僅在目前數值對應唯一配套組合時，自動補入複合詞綴；有歧義時提示，不猜測。
+let craftCompanionId = 0;
+function removeCraftCompanions(tr) {
+  tr.dataset.companionRequest = String((Number(tr.dataset.companionRequest) || 0) + 1);
+  const id = tr.dataset.companionId;
+  if (id) for (const row of document.querySelectorAll("#craft tr[data-companion-owner]")) if (row.dataset.companionOwner === id) row.remove();
+}
+async function addCraftCompanions(tr) {
+  removeCraftCompanions(tr);
+  const section = tr.closest("#cmods-pre") ? "prefix" : tr.closest("#cmods-suf") ? "suffix" : null;
+  if (!section || unlocked() || tr.querySelector(".imp").checked) return;
+  const stat = tr.querySelector(".stat").value, value = Number(tr.querySelector(".val").value);
+  if (!stat || !Number.isFinite(value)) return;
+  const request = tr.dataset.companionRequest, base = $("#xBase").value, rarity = $("#xRar").value;
+  let info; try { info = await window.api.engine("affixInfo", base, rarity); } catch (_) { return; }
+  if (!tr.isConnected || request !== tr.dataset.companionRequest || base !== $("#xBase").value || rarity !== $("#xRar").value || stat !== tr.querySelector(".stat").value || value !== Number(tr.querySelector(".val").value)) return;
+  const plans = [];
+  for (const a of info?.combinations ?? []) {
+    if (a.kind !== section) continue;
+    const same = [a.stat, ...(a.alike ?? [])], parts = same.map(s => ({ stat: s, min: a.min, max: a.max, same: true }));
+    if (a.also) parts.push({ stat: a.also.stat, min: a.also.min, max: a.also.max, same: false });
+    if (!parts.some(p => p.stat === stat && value >= p.min && value <= p.max)) continue;
+    const linkedValue = same.includes(stat) ? value : a.max;
+    const other = parts.filter(p => p.stat !== stat).map(p => ({ stat: p.stat, value: p.same ? linkedValue : p.max }));
+    plans.push(other);
+  }
+  if (!plans.length) return;
+  const keys = [...new Set(plans.map(p => JSON.stringify(p)))];
+  const note = $("#c-companion-note");
+  if (keys.length !== 1) { note.hidden = false; note.textContent = "此屬性可能屬於不同詞綴，請確認配套屬性。"; return; }
+  const needed = plans[0]; if (!needed.length) return;
+  const table = tr.closest("table"), rows = [...table.querySelectorAll("tbody tr")];
+  const id = tr.dataset.companionId ||= String(++craftCompanionId), added = [];
+  for (const part of needed) {
+    if (rows.some(row => row !== tr && row.querySelector(".stat").value === part.stat && Number(row.querySelector(".val").value) === part.value)) continue;
+    table.querySelector("tbody").insertAdjacentHTML("beforeend", craftModRow(section));
+    const row = table.querySelector("tbody").lastElementChild, sel = row.querySelector(".stat");
+    if (![...sel.options].some(o => o.value === part.stat)) sel.add(new Option(modZh({ stat: part.stat, value: "#" }), part.stat));
+    sel.value = part.stat; row.querySelector(".val").value = part.value; delete row.dataset.auto;
+    row.dataset.companionOwner = id; row.querySelector(".zh").textContent = modZh({ stat: part.stat, value: part.value });
+    rows.push(row); added.push(modZh({ stat: part.stat, value: part.value }));
+  }
+  if (added.length) { note.hidden = false; note.textContent = `此詞綴需要配套屬性，已自動新增：${added.join("、")}。`; }
+}
 // 在單一表格與前後綴分開區塊之間同步列
 let lastCraftSplit = null;
 function syncCraftTables(toSplit, kinds = {}) {
@@ -1081,7 +1133,7 @@ async function filterCraftSplit(item, kinds, db) {
       .sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
     const isCur = (a) => a.stat === cur.stat && !!a.implicit === !!cur.implicit;
     const extra = cur.stat && !list.some(isCur) ? `<option value="${esc(cur.stat)}" data-imp="${cur.implicit ? 1 : 0}" selected>${esc(modZh({ stat: cur.stat, value: "#", implicit: cur.implicit }))}（不符合原版規則）</option>` : "";
-    sel.innerHTML = '<option value="">（請選擇屬性）</option>' + extra + list.map(a => `<option value="${esc(a.stat)}" data-imp="${a.implicit ? 1 : 0}" ${isCur(a) ? "selected" : ""}>${esc(a.label)}</option>`).join("");
+    sel.innerHTML = '<option value="">（請選擇屬性）</option>' + extra + list.map(a => `<option value="${esc(a.stat)}" data-imp="${a.implicit ? 1 : 0}" data-value="${esc(a.value)}" ${isCur(a) ? "selected" : ""}>${esc(a.label)}</option>`).join("");
     if (!cur.stat && !list.length) tr.querySelector(".limit").textContent = "依原版規則已無法再加入屬性";
   });
 }

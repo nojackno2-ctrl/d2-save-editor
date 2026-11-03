@@ -488,7 +488,8 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
         for (const stat of a.d2?.alike ?? []) add(stat, a.min, a.max, a.kind);
         if (a.d2?.also) add(a.d2.also.stat, a.d2.also.min, a.d2.also.max, a.kind);
       }
-      return { ranges, byKind };
+      const combinations = affixes.map(a => ({ kind: a.kind, stat: a.stat, min: a.min, max: a.max, alike: a.d2?.alike ?? [], also: a.d2?.also ?? null }));
+      return { ranges, byKind, combinations };
     },
     // 統一的屬性範圍資料庫：固定品質物品用遊戲產生器的上下限，其餘依底材可用詞綴。
     // 回傳 { fixed: { "implicit:stat": [[min,max],...] } | null, affix: { stat: [[min,max],...] } }
