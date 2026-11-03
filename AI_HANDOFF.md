@@ -1,5 +1,7 @@
 # 交接紀錄
 
+- 2026-11-03｜Claude Code：使用者決定 Cloudflare 公告站統一由 Cloudflare 自行抓取 GitHub 儲存庫部署（`wrangler.jsonc` 資產目錄 `./site`），不再手動部署，也不需 API Token；先前「Cloudflare 公告站未部署」之待辦改為已過時。公告頁改寫已提交 `8444277`（位於分支 `claude/announcement-page`，原為分離 HEAD），尚未推送；需合入 main 並推送後 Cloudflare 才會更新。
+
 - 2026-11-03｜Claude Code：依使用者要求改寫公告網頁 `site/index.html`，保留原深色風格與更新日誌內容：新增快速導覽、修改器 8 個分頁細項、輔助器三分頁（戰鬥輔助／自動戰鬥／遊戲修改）可切換說明、停止與關閉四種方式對照表、遊戲繁中化、各平台安裝（含 Windows 版）、常見問題、回到頂端；修正截圖編號重複，截圖改為可鍵盤操作按鈕。內容依 README、autobot.js 面板欄位與本檔紀錄撰寫。驗證：Playwright 1280／390 寬無水平捲動、分頁切換與截圖放大正常、無頁面錯誤，`git diff --check` 通過。未部署 Cloudflare 公告站（需 API Token），未推送。
 
 - 2026-11-03｜Codex：補齊公告頁與網頁／桌面修改器的更新日誌，加入翻譯、撿寶、選卡及載入效能與手機介面變更。`node tests/test_lang.cjs`、`node ../editor/tests/build-web.cjs`、網頁與桌面日誌比對及 `git diff --check` 通過；未發布或重新封裝，保留既有輔助器未提交變更。
