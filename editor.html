@@ -1035,7 +1035,7 @@ async function filterStats(table, item) {
       .sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
     const isCur = (a) => a.stat === cur.stat && !!a.implicit === !!cur.implicit;
     const extra = cur.stat && !list.some(isCur) ? `<option value="${esc(cur.stat)}" data-imp="${cur.implicit ? 1 : 0}" selected>${esc(modZh({ stat: cur.stat, value: "#", implicit: cur.implicit }))}（不符合原版規則）</option>` : "";
-    sel.innerHTML = '<option value="">（請選擇屬性）</option>' + extra + list.map(a => `<option value="${esc(a.stat)}" data-imp="${a.implicit ? 1 : 0}" ${isCur(a) ? "selected" : ""}>${esc(a.label)}</option>`).join("");
+    sel.innerHTML = '<option value="">（請選擇屬性）</option>' + extra + list.map(a => `<option value="${esc(a.stat)}" data-imp="${a.implicit ? 1 : 0}" data-value="${esc(a.value)}" ${isCur(a) ? "selected" : ""}>${esc(a.label)}</option>`).join("");
     if (!cur.stat && !list.length) tr.querySelector(".limit").textContent = "依原版規則已無法再加入屬性";
   });
 }
@@ -1061,11 +1061,11 @@ async function filterCraftSplit(item, kinds, db) {
 
   if (!allRows.length) return;
   const num = (v) => (v.trim() !== "" && !isNaN(v) ? Number(v) : v);
-  const mods = allRows.map(tr => ({ stat: tr.querySelector(".stat").value, value: num(tr.querySelector(".val").value), ...(tr.querySelector(".imp").checked && { implicit: true }),
+  const mods = allRows.map(tr => ({ stat: tr.querySelector(".stat").value, value: num(tr.querySelector(".val").value), ...(tr.closest("#cmods-pre") ? { kind: "prefix" } : tr.closest("#cmods-suf") ? { kind: "suffix" } : {}), ...(tr.querySelector(".imp").checked && { implicit: true }),
     ...JSON.parse(tr.dataset.original || "{}").length !== undefined && JSON.parse(tr.dataset.original).stat === tr.querySelector(".stat").value && { length: JSON.parse(tr.dataset.original).length } }));
   const seq = filterSeq["#craft"] = (filterSeq["#craft"] ?? 0) + 1;
   let r;
-  try { r = await window.api.engine("allowedStatsMany", item, allRows.map((_, i) => mods.filter((m, j) => j !== i && m.stat))); } catch { return; }
+  try { r = await Promise.all(allRows.map((tr, i) => window.api.engine("allowedStatsMany", { ...item, ...(tr.closest("#cmods-pre") ? { requestKind: "prefix" } : tr.closest("#cmods-suf") ? { requestKind: "suffix" } : {}) }, [mods.filter((m, j) => j !== i && m.stat)]).then(x => x?.[0]))); } catch { return; }
   if (seq !== filterSeq["#craft"] || !Array.isArray(r)) return;
   allRows.forEach((tr, i) => {
     let allowed = r[i];
@@ -1139,11 +1139,16 @@ async function updateCraftRanges() {
     const totalLimitStr = slots.limit.max === 0 ? "此底材不能製作稀有品質" : item.rarity === "magic" ? "1～2" : `2～${slots.limit.max}`;
     $("#c-affix-total").textContent = `合計上限：${totalLimitStr}（目前已用 ${totalUsed}）`;
     $("#c-pre-slots").textContent = `已用 ${slots.used.pre} / 上限 ${slots.limit.pre}`;
-    const preFull = slots.used.pre >= slots.limit.pre || totalUsed >= slots.limit.max;
+    let extra = [];
+    if (slots.limit.max > 0 && currentMods.every(m => m.stat)) {
+      try { extra = await Promise.all(["prefix", "suffix"].map(kind => window.api.engine("allowedStatsMany", { ...item, requestKind: kind }, [currentMods]).then(r => r?.[0] ?? []))); } catch (_) {}
+      if (request !== craftRangeRequest) return;
+    }
+    const preFull = (slots.used.pre >= slots.limit.pre || totalUsed >= slots.limit.max) && !extra[0]?.some(a => !a.implicit);
     $("#xAddPre").disabled = preFull;
     $("#c-pre-tip").textContent = preFull ? (slots.used.pre >= slots.limit.pre ? "前綴數量已達上限" : "詞綴總數已達上限") : "";
     $("#c-suf-slots").textContent = `已用 ${slots.used.suf} / 上限 ${slots.limit.suf}`;
-    const sufFull = slots.used.suf >= slots.limit.suf || totalUsed >= slots.limit.max;
+    const sufFull = (slots.used.suf >= slots.limit.suf || totalUsed >= slots.limit.max) && !extra[1]?.some(a => !a.implicit);
     $("#xAddSuf").disabled = sufFull;
     $("#c-suf-tip").textContent = sufFull ? (slots.used.suf >= slots.limit.suf ? "後綴數量已達上限" : "詞綴總數已達上限") : "";
   }
@@ -1304,18 +1309,18 @@ function renderEditor() {
 async function loadStatRanges(item) {
   try { const r = await window.api.engine("statRanges", item); return r && !r.error ? r : null; } catch (_) { return null; }
 }
-function rangeText(db, stat, implicit, index) {
+function rangeText(db, stat, implicit, index, kind) {
   const fixed = db?.fixed?.[`${implicit ? "1" : "0"}:${stat}`]?.[index];
   if (fixed) return `範圍：${fixed[0]}～${fixed[1]}`;
   if (implicit && db?.implicit?.[stat]) return `底材取樣範圍：${db.implicit[stat].join("～")}`;
-  const list = !implicit && db?.affix?.[stat];
+  const list = !implicit && (kind ? db?.affixByKind?.[kind]?.[stat] : db?.affix?.[stat]);
   return list?.length ? `可用詞綴範圍：${[...new Set(list.map(r => r.join("～")))].join("、")}` : "範圍：未提供";
 }
-function rangeMax(db, stat, implicit, index) {
+function rangeMax(db, stat, implicit, index, kind) {
   const fixed = db?.fixed?.[`${implicit ? "1" : "0"}:${stat}`]?.[index];
   if (fixed) return fixed[1];
   if (implicit && db?.implicit?.[stat]) return db.implicit[stat][1];
-  const list = !implicit && db?.affix?.[stat];
+  const list = !implicit && (kind ? db?.affixByKind?.[kind]?.[stat] : db?.affix?.[stat]);
   return list?.length ? Math.max(...list.map(r => r[1])) : null;
 }
 function showRanges(table, db) {
@@ -1323,8 +1328,10 @@ function showRanges(table, db) {
   for (const tr of document.querySelectorAll(`${table} tbody tr`)) {
     const stat = tr.querySelector(".stat").value, implicit = tr.querySelector(".imp").checked, key = `${implicit ? 1 : 0}:${stat}`;
     const index = seen[key] ?? 0; seen[key] = index + 1;
-    tr.querySelector(".limit").textContent = stat ? rangeText(db, stat, implicit, index) : "";
-    const max = stat && tr.dataset.auto ? rangeMax(db, stat, implicit, index) : null;
+    const kind = table === "#cmods-pre" ? "prefix" : table === "#cmods-suf" ? "suffix" : null;
+    tr.querySelector(".limit").textContent = stat ? rangeText(db, stat, implicit, index, kind) : "";
+    const suggested = tr.querySelector(".stat").selectedOptions[0]?.dataset.value;
+    const max = stat && tr.dataset.auto ? (kind && suggested !== undefined && suggested !== "" && Number.isFinite(Number(suggested)) ? Number(suggested) : rangeMax(db, stat, implicit, index, kind)) : null;
     if (max !== null && Number.isFinite(max)) { tr.querySelector(".val").value = max; tr.querySelector(".zh").textContent = modZh({ stat, value: max, implicit }); }
   }
 }

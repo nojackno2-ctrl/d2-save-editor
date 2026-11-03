@@ -1,5 +1,15 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：依使用者要求發布前後綴及複合詞綴修正；發布前重跑 `tests/craft-affix-audit.cjs`（708 筆、0 失敗）、`tests/craft-affix-composite.cjs`、`tests/craft-limits.cjs`、`tests/test_lang.cjs`、隔離 Electron `tests/craft-affix-ui.cjs` 及 `git diff --check` 均通過；GitHub Pages 部署待提交後核對，未發布桌面版。
+
+- 2026-11-03｜Codex：逐筆稽核擷取的 708 筆詞綴（411 前綴、297 後綴，181 筆複合），以獨立模擬底材驗證每筆分類範圍、最高值完整組合與逐項補入，對 alike 數值可變者另測最低值；`node tests/craft-affix-audit.cjs` 708 筆、0 失敗。發現並修正 alike 屬性必須等值時，部分組合及建議值未遵守等值的問題；介面使用候選建議值。`tests/craft-affix-composite.cjs`、隔離 Electron `tests/craft-affix-ui.cjs`、`tests/craft-limits.cjs`、`tests/test_lang.cjs`、桌面 `runeword-class-base.cjs` 均通過，已同步桌面來源。稽核為單詞綴模擬，不代表窮舉全部底材與多詞綴組合；未發布網頁、未封裝桌面，未做真實遊戲存檔驗收。
+
+- 2026-11-03｜Codex：已修正製作頁前後綴範圍混用及達上限時無法補上複合詞綴的問題；分類範圍與候選依前綴／後綴分開，已滿時只在仍有合法可補屬性時允許增加列，完整組合仍由原規則檢查。`tests/craft-affix-composite.cjs` 使用擷取的遊戲詞綴重現巨魔護手並驗證補齊後 3 前綴／3 後綴，`tests/craft-affix-ui.cjs` 在隔離 Electron 驗證前綴照亮範圍預設 +2、後綴已滿時可加 attackRating +5；兩項及 `tests/craft-limits.cjs`、`tests/craft-diagnostic-ui.cjs`、`tests/test_lang.cjs`、`editor/tests/runeword-class-base.cjs`、語法與 `git diff --check` 均通過。同步桌面來源，未發布網頁或封裝桌面，未在真實遊戲存檔驗收。
+
+- 2026-11-03｜Codex：分析使用者提供的巨魔護手診斷。`裝備屬性分析/魔法稀有詞綴.json` 顯示照亮範圍前綴 Glimmering／Glowing 分別為 +1／+2、同屬 group 112；+5 屬後綴 of the Sun（group 25），並伴隨 attackRating +5。兩列 +5 皆放前綴且未含複合屬性，無法組成合法詞綴。製作頁 `affixInfo` 的範圍按屬性匯總、不區分前後綴，可能把後綴 +5 顯示及自動套用至前綴；`affixSlots` 可顯示數量但不代表組合有效。待修正依區域顯示及預設值，並以遊戲資料測試。
+
+- 2026-11-03｜Codex：網頁版已發布提交 `d457c13`；GitHub Pages 工作 `41559785646` 完成成功，公開 `editor.html`、`engine-page.js`、`i18n.js` 以快取避開參數下載後，Git 內容雜湊均與該提交一致。未進行真實遊戲存檔驗收，未發布桌面版。
+
 - 2026-11-03｜Codex：依使用者要求發布上述製作裝備更新至 GitHub Pages；發布前重新執行 `tests/craft-limits.cjs`、`tests/test_lang.cjs`、隔離 Electron `tests/craft-diagnostic-ui.cjs` 及 `git diff --check` 均通過。部署狀態與公開內容待提交後核對；不涉及桌面執行檔發布。
 
 - 2026-11-03｜Codex：製作裝備新增「輸出裝備設定」與複製按鈕，輸出表單屬性、原版檢查、名稱判定、詞綴數量及相同設定的上次製作結果；不擷取存檔資料，複製失敗時可手動選取。同步網頁與桌面來源。隔離 Electron 假後端 `tests/craft-diagnostic-ui.cjs` 通過，確認資料與測試存檔金幣未輸出；`tests/craft-limits.cjs`、`tests/test_lang.cjs`、內嵌 JavaScript 語法及 `git diff --check` 通過。Electron 測試產生 GPU 診斷訊息但結束碼為 0；未於真實遊戲或已封裝版本驗收，未發布。

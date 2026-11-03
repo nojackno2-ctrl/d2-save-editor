@@ -199,9 +199,9 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
     const matches = [];
     for (const a of list) {
       const d = a.d2 ?? {}, parts = [[a.stat, a.min, a.max, d.length], ...(d.alike ?? []).map(s => [s, a.min, a.max]), ...(d.also ? [[d.also.stat, d.also.min, d.also.max]] : [])];
-      const opts = parts.map(([s, lo, hi, len]) => [-1, ...mods.map((m, i) => i).filter(i => mods[i].stat === s && typeof mods[i].value === "number" && mods[i].value >= lo && mods[i].value <= hi && (len === undefined || mods[i].length === undefined || mods[i].length === len))]);
+      const opts = parts.map(([s, lo, hi, len]) => [-1, ...mods.map((m, i) => i).filter(i => mods[i].stat === s && (!mods[i].kind || mods[i].kind === a.kind) && typeof mods[i].value === "number" && mods[i].value >= lo && mods[i].value <= hi && (len === undefined || mods[i].length === undefined || mods[i].length === len))]);
       const walk = (k, used) => {
-        if (k === parts.length) { const u = used.filter(i => i >= 0); if (u.length && new Set(u).size === u.length) matches.push({ affix: a, used: u }); return; }
+        if (k === parts.length) { const u = used.filter(i => i >= 0); const equal = used.slice(0, 1 + (d.alike?.length ?? 0)).filter(i => i >= 0).map(i => mods[i].value); if (u.length && new Set(u).size === u.length && new Set(equal).size <= 1) matches.push({ affix: a, used: u }); return; }
         for (const i of opts[k]) walk(k + 1, [...used, i]);
       };
       walk(0, []);
@@ -277,7 +277,8 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
       const walk = (k, used) => {
         if (k === parts.length) {
           const u = used.filter(i => i >= 0);
-          if (u.length && new Set(u).size === u.length) matches.push({ affix: a, used: u });
+          const equal = used.slice(0, 1 + (d.alike?.length ?? 0)).filter(i => i >= 0).map(i => withStat[i].value);
+          if (u.length && new Set(u).size === u.length && new Set(equal).size <= 1) matches.push({ affix: a, used: u });
           return;
         }
         for (const i of opts[k]) walk(k + 1, [...used, i]);
@@ -356,10 +357,12 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
     if (!AFFIX_LIMIT[item.rarity]) return out;
     const free = mods.filter(m => !m.implicit && !m.auto);
     if (!partialFeasible(base, item.rarity, free)) return out;
-    for (const a of G.__affixes.filter(a => G.__affixApplies(a, base, a.cls) && !(item.rarity === "rare" && a.d2?.magicOnly))) {
+    for (const a of G.__affixes.filter(a => G.__affixApplies(a, base, a.cls) && !(item.rarity === "rare" && a.d2?.magicOnly) && (!item.requestKind || a.kind === item.requestKind))) {
       const d = a.d2 ?? {};
-      for (const [stat, value, len] of [[a.stat, a.max, d.length], ...(d.alike ?? []).map(s => [s, a.max]), ...(d.also ? [[d.also.stat, d.also.max]] : [])]) {
-        if (partialFeasible(base, item.rarity, [...free, { stat, value, ...(len !== undefined && { length: len }) }])) add(stat, false, value, len);
+      for (const [stat, max, len] of [[a.stat, a.max, d.length], ...(d.alike ?? []).map(s => [s, a.max]), ...(d.also ? [[d.also.stat, d.also.max]] : [])]) {
+        const linked = [a.stat, ...(d.alike ?? [])];
+        const values = linked.includes(stat) ? [max, ...free.filter(m => linked.includes(m.stat) && m.value >= a.min && m.value <= a.max).map(m => m.value)] : [max];
+        for (const value of new Set(values)) if (partialFeasible(base, item.rarity, [...free, { stat, value, ...(item.requestKind && { kind: item.requestKind }), ...(len !== undefined && { length: len }) }])) add(stat, false, value, len);
       }
     }
     return out;
@@ -474,17 +477,18 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
       const base = bases.get(baseName);
       if (!base || !G.__affixes || !G.__affixApplies) return null;
       const affixes = G.__affixes.filter(a => G.__affixApplies(a, base, a.cls) && !(rarity === "rare" && a.d2?.magicOnly));
-      const ranges = {};
-      const add = (stat, min, max) => {
+      const ranges = {}, byKind = { prefix: {}, suffix: {} };
+      const add = (stat, min, max, kind) => {
         if (!stat || !Number.isFinite(min) || !Number.isFinite(max)) return;
         (ranges[stat] ??= []).push([min, max]);
+        if (byKind[kind]) (byKind[kind][stat] ??= []).push([min, max]);
       };
       for (const a of affixes) {
-        add(a.stat, a.min, a.max);
-        for (const stat of a.d2?.alike ?? []) add(stat, a.min, a.max);
-        if (a.d2?.also) add(a.d2.also.stat, a.d2.also.min, a.d2.also.max);
+        add(a.stat, a.min, a.max, a.kind);
+        for (const stat of a.d2?.alike ?? []) add(stat, a.min, a.max, a.kind);
+        if (a.d2?.also) add(a.d2.also.stat, a.d2.also.min, a.d2.also.max, a.kind);
       }
-      return { ranges };
+      return { ranges, byKind };
     },
     // 統一的屬性範圍資料庫：固定品質物品用遊戲產生器的上下限，其餘依底材可用詞綴。
     // 回傳 { fixed: { "implicit:stat": [[min,max],...] } | null, affix: { stat: [[min,max],...] } }
@@ -495,7 +499,7 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
       const base = bases.get(item?.base);
       let implicit = {};
       if (base && G.__makeAffix) { try { implicit = baseImplicits(base); } catch (_) {} }
-      return { fixed, implicit, affix: info?.ranges ?? {} };
+      return { fixed, implicit, affix: info?.ranges ?? {}, affixByKind: info?.byKind ?? {} };
     },
     // 依遊戲的詞綴組合規則推導名稱；無法唯一確定時不猜測。
     resolveName(item) {
