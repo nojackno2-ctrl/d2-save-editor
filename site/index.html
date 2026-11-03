@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>D2倖存者工具包 (D2 Survivors Toolkit) - 存檔修改器與全自動戰鬥輔助器</title>
-  <meta name="description" content="專為《D2 Survivors》(d2survivors.lol) 打造的強大非官方存檔修改器與遊戲輔助工具。支援合法詞綴製作、裝備庫、排行榜合規檢查，以及全自動走位喝水、任務升級與天梯推關。">
+  <title>D2倖存者工具包</title>
+  <meta name="description" content="專為《D2 Survivors》(d2survivors.lol) 打造的強大非官方存檔修改器與遊戲輔助工具。支援合法詞綴製作、裝備庫、排行榜合規檢查、遊戲繁體中文化，以及全自動走位喝水、任務升級與天梯推關。">
+  <meta name="color-scheme" content="dark">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <style>
     :root {
@@ -980,6 +981,385 @@
         padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
       }
     }
+
+    /* ===== 詳細說明擴充元件 ===== */
+    a { color: var(--cyan); }
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      background: var(--bg-code);
+      border: 1px solid var(--border-dim);
+      border-radius: 3px;
+      padding: 1px 5px;
+      color: var(--cyan);
+      word-break: break-all;
+    }
+    kbd {
+      font-family: var(--font-mono);
+      font-size: 0.8em;
+      border: 1px solid var(--border-bright);
+      border-bottom-width: 2px;
+      border-radius: 3px;
+      padding: 0 5px;
+      color: var(--text-bright);
+      background: var(--bg-inner);
+    }
+
+    /* 快速導覽 */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+      text-align: left;
+    }
+    .quick-card {
+      display: block;
+      text-decoration: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-dim);
+      border-left: 3px solid var(--cyan);
+      border-radius: 4px;
+      padding: 14px 16px;
+      transition: all 0.2s ease;
+    }
+    .quick-card:hover {
+      background: var(--bg-card);
+      border-color: var(--border-subtle);
+      border-left-color: var(--cyan);
+      transform: translateY(-2px);
+    }
+    .quick-card.amber { border-left-color: var(--amber); }
+    .quick-card h3 {
+      color: #fff;
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+    .quick-card p {
+      color: var(--text-muted);
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
+    .quick-card .go {
+      display: inline-block;
+      margin-top: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--cyan);
+      letter-spacing: 0.5px;
+    }
+    .quick-card.amber .go { color: var(--amber-light); }
+
+    /* 卡片內細項清單 */
+    .detail-list {
+      list-style: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border-dim);
+      display: grid;
+      gap: 7px;
+    }
+    .detail-list li {
+      position: relative;
+      padding-left: 16px;
+      font-size: 0.85rem;
+      color: #c4cfdb;
+      line-height: 1.55;
+    }
+    .detail-list li::before {
+      content: "▸";
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--cyan);
+      font-size: 0.8rem;
+    }
+    .detail-list li b { color: #fff; font-weight: 600; }
+    .card-foot {
+      margin-top: 12px;
+      font-size: 0.78rem;
+      color: var(--amber-light);
+      background: var(--amber-tint);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 3px;
+      padding: 6px 10px;
+      line-height: 1.5;
+    }
+
+    /* 子標題 */
+    .sub-title {
+      font-size: 1.2rem;
+      color: #fff;
+      margin: 40px 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+    }
+    .sub-title::before {
+      content: "";
+      width: 4px;
+      height: 1.1em;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan-glow);
+    }
+    .sub-desc {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    /* 分頁 */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      flex: none;
+      background: transparent;
+      border: 1px solid transparent;
+      border-bottom: none;
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: #fff; }
+    .tab-btn[aria-selected="true"] {
+      color: var(--cyan);
+      background: var(--bg-card);
+      border-color: var(--border-subtle);
+      border-bottom: 1px solid var(--bg-card);
+    }
+    .tab-btn:focus-visible, .faq summary:focus-visible, .quick-card:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+    .tab-pane {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      padding: 22px;
+    }
+    .tab-pane[hidden] { display: none; }
+    .pane-intro {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 18px;
+    }
+    .setting-groups {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .setting-group {
+      background: var(--bg-inner);
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      padding: 14px 16px;
+    }
+    .setting-group h4 {
+      font-size: 0.95rem;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .setting-group .detail-list {
+      margin-top: 8px;
+      padding-top: 8px;
+    }
+
+    /* 開關標籤 */
+    .pill {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0 6px;
+      border-radius: 2px;
+      margin-left: 4px;
+      vertical-align: 1px;
+      white-space: nowrap;
+    }
+    .pill.on { color: var(--cyan); border: 1px solid rgba(62, 230, 176, 0.35); background: var(--cyan-tint); }
+    .pill.off { color: var(--text-muted); border: 1px solid var(--border-bright); }
+    .pill.warn { color: var(--amber-light); border: 1px solid rgba(245, 158, 11, 0.4); background: var(--amber-tint); }
+
+    /* 表格 */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      background: var(--bg-surface);
+    }
+    .ctl-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.87rem;
+      min-width: 760px;
+    }
+    .ctl-table th, .ctl-table td {
+      text-align: left;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border-dim);
+      vertical-align: top;
+      line-height: 1.55;
+    }
+    .ctl-table th {
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      letter-spacing: 1px;
+      background: var(--bg-inner);
+      font-weight: 700;
+    }
+    .ctl-table td { color: #c4cfdb; }
+    .ctl-table th, .ctl-table td:nth-child(-n+5) { white-space: nowrap; }
+    .ctl-table td:first-child { color: #fff; font-weight: 600; }
+    .ctl-table tr:last-child td { border-bottom: none; }
+    .yes { color: var(--cyan); font-weight: 700; }
+    .no { color: var(--text-dim); }
+
+    /* 流程步驟 */
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 0.82rem;
+    }
+    .flow span.step {
+      background: var(--bg-inner);
+      border: 1px solid var(--border-subtle);
+      border-radius: 3px;
+      padding: 3px 9px;
+      color: #dbe4ee;
+    }
+    .flow span.arrow { color: var(--cyan); font-family: var(--font-mono); }
+
+    /* 平台安裝 */
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .platform-grid ol {
+      padding-left: 1.3em;
+      margin-top: 8px;
+      font-size: 0.86rem;
+      color: #c4cfdb;
+      line-height: 1.75;
+    }
+
+    /* 常見問題 */
+    .faq {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      gap: 10px;
+    }
+    .faq details {
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      transition: border-color 0.2s;
+    }
+    .faq details[open] { border-color: var(--border-bright); }
+    .faq summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 14px 18px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary::after {
+      content: "+";
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      font-size: 1.1rem;
+      flex: none;
+    }
+    .faq details[open] summary::after { content: "−"; }
+    .faq .answer {
+      padding: 0 18px 16px;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      line-height: 1.7;
+    }
+    .faq .answer p + p { margin-top: 6px; }
+
+    .alert-card p {
+      font-size: 0.88rem;
+      color: #cbd5e1;
+      line-height: 1.7;
+    }
+    .alert-card p + p { margin-top: 8px; }
+    .alert-card.info {
+      background: var(--cyan-tint);
+      border-color: rgba(62, 230, 176, 0.3);
+      border-left-color: var(--cyan);
+    }
+    .alert-card.info .alert-card-title { color: var(--cyan); }
+
+    .back-top {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      z-index: 90;
+      width: 42px;
+      height: 42px;
+      border-radius: 4px;
+      border: 1px solid var(--border-bright);
+      background: rgba(15, 22, 32, 0.92);
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .back-top.show { opacity: 1; pointer-events: auto; }
+
+    @media (max-width: 768px) {
+      .tab-pane { padding: 16px; }
+      .tab-btn { padding: 9px 12px; font-size: 0.86rem; }
+      .grid-cards { grid-template-columns: 1fr; }
+      .sub-title { font-size: 1.08rem; }
+    }
+    .nav-links a, .brand-title, .brand-sub { white-space: nowrap; }
+    @media (max-width: 1180px) and (min-width: 769px) {
+      .nav-inner { flex-wrap: wrap; gap: 6px; }
+      .nav-links { width: 100%; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+      .nav-links::-webkit-scrollbar { display: none; }
+      .nav-links a { font-size: 0.8rem; padding: 3px 7px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+
+    button.gallery-img-wrap { padding: 0; font: inherit; color: inherit; }
+    button.gallery-img-wrap:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
   </style>
 </head>
 <body>
@@ -987,19 +1367,21 @@
   <!-- Header -->
   <header>
     <div class="container nav-inner">
-      <a href="#" class="brand">
+      <a href="#top" class="brand">
         <img src="favicon.svg" alt="Logo">
         <div class="brand-meta">
           <span class="brand-title">D2倖存者工具包</span>
           <span class="brand-sub">SURVIVOR TOOLKIT HUD</span>
         </div>
       </a>
-      <nav class="nav-links">
+      <nav class="nav-links" aria-label="頁面導覽">
         <a href="#editor">// 存檔修改器</a>
         <a href="#autobot">// 遊戲輔助器</a>
+        <a href="#lang">// 繁體中文化</a>
         <a href="#gallery">// 實際畫面</a>
+        <a href="#install">// 安裝教學</a>
+        <a href="#faq">// 常見問題</a>
         <a href="#changelog">// 更新日誌</a>
-        <a href="#install">// 書籤安裝</a>
         <a href="#compliance">// 合規原則</a>
         <a href="https://github.com/nojackno2-ctrl/d2-survivors-toolkit" target="_blank" rel="noopener">GitHub</a>
       </nav>
@@ -1007,16 +1389,16 @@
   </header>
 
   <!-- Hero Section -->
-  <section class="hero">
+  <section class="hero" id="top">
     <div class="container">
       <div class="tag-mono">
         <span class="dot"></span>
         <span>SYS.STATUS: OPERATIONAL // UNOFFICIAL TOOLKIT</span>
       </div>
       <h1 class="hero-title">D2倖存者工具包<br><span>D2 Survivors Toolkit</span></h1>
-      <p class="hero-subtitle">為《D2 Survivors》(d2survivors.lol) 打造的強大存檔修改器與全自動輔助器</p>
+      <p class="hero-subtitle">為《D2 Survivors》(d2survivors.lol) 打造的存檔修改器、遊戲輔助器與繁體中文化</p>
       <p class="hero-desc">
-        依原版規則產生合法裝備、把關排行榜合規標準；內建智慧走位、全自動換裝與天梯推關輔助，支援電腦與手機跨平台無痕注入。
+        物品直接使用遊戲本身的產生器製作，數值範圍與遊戲一致；預設依原版規則把關，並可掃描存檔找出排行榜可能拒絕的項目。輔助器只使用遊戲原版的操作與流程，提供自動喝水、走位閃避、撿寶、任務推進與天梯推關。電腦與手機瀏覽器以書籤載入即可使用，另有 Windows 可攜版。
       </p>
 
       <div class="btn-group">
@@ -1041,12 +1423,36 @@
             <span class="hud-stat-divider">|</span>
             <span class="hud-stat-item">關卡: <strong>地獄 第二幕</strong></span>
             <span class="hud-stat-divider">|</span>
-            <span class="hud-stat-item">威脅預判: <strong>低 (SAFE)</strong></span>
+            <span class="hud-stat-item">動作: <strong>回營地交任務</strong></span>
           </div>
           <div class="hud-status-right">
-            [HUD MON: ACTIVE]
+            [示意畫面]
           </div>
         </div>
+      </div>
+
+      <!-- Quick Overview -->
+      <div class="quick-grid">
+        <a class="quick-card" href="#editor">
+          <h3>🗡️ 存檔修改器</h3>
+          <p>8 個分頁：物品、製作裝備、裝備庫、帳號強化、反修改偵測、存檔管理、原始資料、設定。</p>
+          <span class="go">查看 8 個分頁 →</span>
+        </a>
+        <a class="quick-card" href="#autobot">
+          <h3>🤖 遊戲輔助器</h3>
+          <p>戰鬥輔助、自動戰鬥、遊戲修改三個分頁；任務、固定關卡、天梯三種自動模式。</p>
+          <span class="go">查看所有設定 →</span>
+        </a>
+        <a class="quick-card" href="#lang">
+          <h3>🌐 遊戲繁體中文化</h3>
+          <p>遊戲介面、畫布文字、物品名稱即時翻譯，繁中與 English 不必重新整理即可切換。</p>
+          <span class="go">翻譯範圍 →</span>
+        </a>
+        <a class="quick-card amber" href="#install">
+          <h3>📲 三步驟開始使用</h3>
+          <p>複製書籤程式碼、加入書籤、在遊戲頁點書籤；電腦、Android、iPhone 分別說明。</p>
+          <span class="go">安裝教學 →</span>
+        </a>
       </div>
     </div>
   </section>
@@ -1056,75 +1462,126 @@
     <div class="container">
       <div class="section-title-wrap">
         <div class="section-tag">// MODULE: SAVE_EDITOR</div>
-        <h2 class="section-title">存檔修改器功能</h2>
-        <p class="section-desc">數值資料庫與遊戲邏輯完全同步，支援瀏覽、客製訂製與快照備份</p>
+        <h2 class="section-title">存檔修改器：8 個分頁詳解</h2>
+        <p class="section-desc">在遊戲暫停畫面左上角點「修改器」開啟；修改後按「寫入存檔」再「關閉」，遊戲會重新載入並套用</p>
       </div>
 
       <div class="grid-cards">
         <div class="hud-card">
           <div class="card-header-line">
             <span class="card-icon">🗡️</span>
-            <span class="card-badge-mono">INSPECT</span>
+            <span class="card-badge-mono">PAGE 01 // ITEMS</span>
           </div>
-          <h3 class="card-title">物品瀏覽與自訂</h3>
-          <p class="card-text">
-            即時檢視角色、傭兵、倉庫、背包與護身符欄。可直接編輯裝備底材、品質與數值屬性，完整顯示各屬性的遊戲正常數值範圍。
-          </p>
+          <h3 class="card-title">物品</h3>
+          <p class="card-text">瀏覽並編輯存檔裡所有位置的物品，點選即可看到完整屬性與遊戲數值範圍。</p>
+          <ul class="detail-list">
+            <li><b>五個位置</b>：角色身上、傭兵、倉庫、背包、護身符欄。</li>
+            <li><b>可編輯</b>：底材、品質與每一條屬性數值；也可複製或移動物品。</li>
+            <li><b>數值範圍</b>：每條屬性旁顯示遊戲正常範圍，暗金／套裝／符文之語取產生器上下限，魔法／稀有取底材可用詞綴的範圍。</li>
+            <li><b>名稱判定</b>：自訂屬性若無法唯一對應遊戲名稱會提示，不會猜測。</li>
+          </ul>
         </div>
 
         <div class="hud-card">
           <div class="card-header-line">
             <span class="card-icon">⚒️</span>
-            <span class="card-badge-mono">AFFIX_CRAFT</span>
+            <span class="card-badge-mono">PAGE 02 // CRAFT</span>
           </div>
-          <h3 class="card-title">裝備精工訂製</h3>
-          <p class="card-text">
-            魔法／稀有裝備清晰劃分「前綴」、「後綴」與「固有屬性」三區，嚴格計算詞綴上限。新增詞綴預設帶出最大合法值，名稱遵循原版詞綴規律。
-          </p>
+          <h3 class="card-title">製作裝備</h3>
+          <p class="card-text">自選底材、品質與屬性訂製魔法／稀有裝備，詞綴規則與原版一致。</p>
+          <ul class="detail-list">
+            <li><b>裝備分類</b>：先選分類，底材清單只列出該分類的底材。</li>
+            <li><b>三區劃分</b>：「前綴」「後綴」「固有屬性」分開，各區即時顯示已用／上限。</li>
+            <li><b>前後綴範圍分開</b>：同一屬性在前綴與後綴的範圍不同時分別顯示，新增時預設帶入該區最大合法值。</li>
+            <li><b>複合詞綴</b>：一個詞綴帶多條屬性（例如照亮範圍＋準確率）時，可唯一判定就自動補入配套屬性並同欄顯示；有多種可能時提示確認，不猜測。</li>
+            <li><b>輸出裝備設定</b>：一鍵複製表單內容、原版檢查與名稱判定結果供回報問題，不含存檔資料。</li>
+          </ul>
+          <p class="card-foot">詞綴上限：魔法 1 前綴＋1 後綴；稀有 2～6 個（前後綴各最多 3）；稀有珠寶最多 4；護身符不可為稀有。</p>
         </div>
 
         <div class="hud-card">
           <div class="card-header-line">
             <span class="card-icon">👑</span>
-            <span class="card-badge-mono">UNIQUE_DB</span>
+            <span class="card-badge-mono">PAGE 03 // LIBRARY</span>
           </div>
-          <h3 class="card-title">全裝備庫製作</h3>
-          <p class="card-text">
-            一鍵查閱全遊戲暗金、綠色套裝與符文之語，支援多件製作與一鍵頂標（暗金／套裝／符文之語製作需開啟解除限制開關）。
-          </p>
+          <h3 class="card-title">裝備庫</h3>
+          <p class="card-text">從遊戲全部暗金、套裝與符文之語中挑選並直接製作。</p>
+          <ul class="detail-list">
+            <li><b>全收錄</b>：資料取自遊戲本身，含職業專屬底材的符文之語。</li>
+            <li><b>批次製作</b>：可一次製作多件。</li>
+            <li><b>取最高數值</b>：一鍵把可變屬性設為產生器上限。</li>
+          </ul>
+          <p class="card-foot">⚠️ 暗金、套裝、符文之語需先在「設定」開啟「解除修改限制」才能製作。</p>
         </div>
 
         <div class="hud-card">
           <div class="card-header-line">
             <span class="card-icon">💰</span>
-            <span class="card-badge-mono">CHAR_UPGRADE</span>
+            <span class="card-badge-mono">PAGE 04 // HERO</span>
           </div>
-          <h3 class="card-title">帳號與強化調整</h3>
-          <p class="card-text">
-            安全調整金幣、光之碎片、傭兵欄解鎖、恰西永久與額外強化，以及全角色技能等級、技能重置次數與恐怖區域設定。
-          </p>
+          <h3 class="card-title">帳號 / 強化</h3>
+          <p class="card-text">調整帳號資源與各角色的成長設定。</p>
+          <ul class="detail-list">
+            <li><b>帳號資源</b>：金幣、光之碎片、傭兵欄解鎖。</li>
+            <li><b>恰西強化</b>：永久強化與額外強化等級。</li>
+            <li><b>角色</b>：各職業技能等級、技能重置次數、恐怖區域設定。</li>
+            <li><b>金色光芒</b>：各職業英雄光芒開關。</li>
+          </ul>
+          <p class="card-foot">未解除限制時：金幣不超過 100 億，恰西單次升級花費不超過 100 億。</p>
         </div>
 
         <div class="hud-card">
           <div class="card-header-line">
             <span class="card-icon">🛡️</span>
-            <span class="card-badge-mono">COMPLIANCE</span>
+            <span class="card-badge-mono">PAGE 05 // GUARD</span>
           </div>
-          <h3 class="card-title">反修改偵測與合規檢查</h3>
-          <p class="card-text">
-            掃描存檔中的金幣上限、詞綴數、稀有+技能規則、等級點數匹配度與簽章，主動抓出可能被排行榜拒絕的異常項目。
-          </p>
+          <h3 class="card-title">反修改偵測</h3>
+          <p class="card-text">依遊戲本身的規則掃描整份存檔，標出可能被排行榜拒絕的項目。</p>
+          <ul class="detail-list">
+            <li><b>資源</b>：金幣上限。</li>
+            <li><b>物品合法性</b>：詞綴數量、稀有物品最多一條職業／技能樹 +技能（遊戲 10/20 起的規則）。</li>
+            <li><b>角色</b>：角色等級與屬性點是否符合等級上限。</li>
+            <li><b>存檔</b>：簽章與匯入痕跡。</li>
+          </ul>
+          <p class="card-foot">修改套裝、魔法、稀有屬性後若遊戲顯示「Not legit」（只影響排行榜），可在此頁處理。</p>
         </div>
 
         <div class="hud-card">
           <div class="card-header-line">
             <span class="card-icon">💾</span>
-            <span class="card-badge-mono">BACKUP_IO</span>
+            <span class="card-badge-mono">PAGE 06 // SAVES</span>
           </div>
-          <h3 class="card-title">存檔管理與原始 JSON</h3>
-          <p class="card-text">
-            支援多槽位快照備份、即時還原及建立新存檔；內建高階 JSON 編輯器供資深玩家直接檢視微調資料。
-          </p>
+          <h3 class="card-title">存檔管理</h3>
+          <p class="card-text">修改前的安全網。</p>
+          <ul class="detail-list">
+            <li><b>快照備份</b>：建立多個快照，隨時還原。</li>
+            <li><b>建立新存檔</b>：從零開始新存檔。</li>
+            <li><b>桌面版</b>：每次寫入前自動備份。</li>
+          </ul>
+        </div>
+
+        <div class="hud-card">
+          <div class="card-header-line">
+            <span class="card-icon">🧾</span>
+            <span class="card-badge-mono">PAGE 07 // RAW</span>
+          </div>
+          <h3 class="card-title">原始存檔資料</h3>
+          <p class="card-text">直接以 JSON 檢視與編輯存檔內容，適合熟悉資料結構的玩家；修改錯誤可能讓存檔無法讀取，請先建立快照。</p>
+        </div>
+
+        <div class="hud-card">
+          <div class="card-header-line">
+            <span class="card-icon">⚙️</span>
+            <span class="card-badge-mono">PAGE 08 // SETTINGS</span>
+          </div>
+          <h3 class="card-title">設定與更新日誌</h3>
+          <p class="card-text">修改器的全域選項。</p>
+          <ul class="detail-list">
+            <li><b>介面語言</b>：依系統自動選擇繁體中文或 English。</li>
+            <li><b>解除修改限制</b><span class="pill off">預設關閉</span>：開啟後不再受原版詞綴、數量與品質限制（見<a href="#compliance">合規原則</a>）。</li>
+            <li><b>診斷資訊</b>：記錄物品引擎各步驟耗時與遊戲版本，回報載入慢或異常時請附上。</li>
+            <li><b>更新日誌</b>：修改器內也可查看版本變更。</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -1135,71 +1592,221 @@
     <div class="container">
       <div class="section-title-wrap">
         <div class="section-tag">// MODULE: AUTONOMOUS_BOT</div>
-        <h2 class="section-title">遊戲輔助器與三大自動模式</h2>
-        <p class="section-desc">不修改遊戲底層記憶體或任務旗標，僅模擬原版操作與輸入，安全又聰明</p>
+        <h2 class="section-title">遊戲輔助器</h2>
+        <p class="section-desc">遊戲暫停時左上角點「輔助」開啟設定面板；戰鬥輔助與自動戰鬥只使用原版輸入與流程，「遊戲修改」另可變更遊戲數值</p>
       </div>
 
-      <!-- 3 Autobot Modes -->
-      <div class="modes-container">
-        <div class="mode-card">
-          <span class="mode-badge">MODE 01 // QUEST</span>
-          <h3 class="mode-title">任務模式</h3>
-          <p class="mode-desc">
-            自動檢測任務進度並完成所有主線（如尋找卷軸、石塊陣救凱恩），打完巴爾回營地整備並循序開啟惡夢與地獄難度；18 項任務通關且升至 99 級後，無縫轉為固定地獄刷寶。
-          </p>
-        </div>
+      <div class="alert-card info" style="margin-top:0;margin-bottom:22px">
+        <h3 class="alert-card-title">🔌 兩個總開關的關係</h3>
+        <p><b>只開「戰鬥輔助」</b>：幫你喝水、走位、閃避、撿寶，但不會自動開局或推進。<b>開「自動戰鬥」</b>：自動推進關卡，且已包含戰鬥輔助的所有動作。</p>
+        <p>重新整理遊戲或重新開啟後再點書籤，兩個總開關一律預設關閉，避免一進遊戲就自動操作；同一頁面內重新點書籤則沿用原狀態。其他細部設定會儲存沿用。手動操作時輔助器會暫時讓出控制權；背景分頁、設定面板、修改器開啟或遊戲暫停時也會停止動作。</p>
+      </div>
 
-        <div class="mode-card">
-          <span class="mode-badge">MODE 02 // FARMING</span>
-          <h3 class="mode-title">固定關卡模式</h3>
-          <p class="mode-desc">
-            全自動重複刷特定指定難度（普通、惡夢或地獄）。自動開局、清圖、拾取、回營地整備販售，全天候穩定累積資源。
-          </p>
-        </div>
+      <!-- Tabs -->
+      <div class="tabs" role="tablist" aria-label="輔助器分頁">
+        <button type="button" class="tab-btn" role="tab" id="tab-assist" aria-controls="pane-assist" aria-selected="true">⚔️ 戰鬥輔助</button>
+        <button type="button" class="tab-btn" role="tab" id="tab-progress" aria-controls="pane-progress" aria-selected="false" tabindex="-1">🧭 自動戰鬥</button>
+        <button type="button" class="tab-btn" role="tab" id="tab-cheat" aria-controls="pane-cheat" aria-selected="false" tabindex="-1">🧪 遊戲修改</button>
+      </div>
 
-        <div class="mode-card">
-          <span class="mode-badge">MODE 03 // LADDER</span>
-          <h3 class="mode-title">天梯模式</h3>
-          <p class="mode-desc">
-            支援連續推關挑戰極限恐怖層數，或設定固定層數穩定刷取高階獎勵。依排行榜高手配點與換裝持續推進。
-          </p>
+      <div class="tab-pane" role="tabpanel" id="pane-assist" aria-labelledby="tab-assist">
+        <p class="pane-intro">你自己決定要打哪裡，輔助器負責保命與撿東西。</p>
+        <div class="setting-groups">
+          <div class="setting-group">
+            <h4>🧪 生命與藥水</h4>
+            <ul class="detail-list">
+              <li><b>自動喝生命藥水</b>：低於設定的生命門檻（％）就喝。</li>
+              <li><b>一擊必殺預判</b>：預估接下來幾秒（可設定）的傷害會致命時提早喝水。</li>
+              <li><b>魔王附近</b>：600 範圍內有幕末魔王或頭目時，喝水門檻提高到 80％。</li>
+              <li>可設定藥水冷卻毫秒數，以及無法掛接遊戲時使用的藥帶欄（1～4）。</li>
+            </ul>
+          </div>
+          <div class="setting-group">
+            <h4>🏃 走位與閃避</h4>
+            <ul class="detail-list">
+              <li><b>合計威脅</b>：打不痛、能秒殺的小怪不閃，避免越閃越遠。</li>
+              <li><b>預判包圍</b>：以 16 個方向取樣，提前往空隙移動。</li>
+              <li><b>重擊閃避</b>：單發傷害大的飛彈往彈道橫向閃開；精英／頭目近戰時橫向繞圈。</li>
+              <li><b>戰鬥方式</b>：自動（依已學技能射程）、近戰貼身、遠程保持距離三選一。</li>
+            </ul>
+          </div>
+          <div class="setting-group">
+            <h4>💎 撿寶</h4>
+            <ul class="detail-list">
+              <li><b>自動撿寶</b>：依遊戲內建的撿寶過濾器決定保留、隱藏或自動販售，請在遊戲設定調整過濾器。</li>
+              <li><b>全圖撿寶</b>：關閉／開啟（依遊戲過濾器）。</li>
+              <li><b>全圖吸經驗</b><span class="pill warn">非原版行為</span>：地上經驗寶石自動飛來。</li>
+              <li><b>全圖吸金幣</b><span class="pill off">預設關閉</span>：獨立開關，關閉時保留原版撿取。</li>
+              <li><b>踢罐子木桶</b>：可能掉藥水；附近有敵人時不去。</li>
+              <li><b>通關後等待撿裝</b>：附近還有寶箱或暗金以上裝備時，通關門最多等 20 秒。</li>
+            </ul>
+          </div>
+          <div class="setting-group">
+            <h4>💀 死亡保護 <span class="pill off">預設關閉</span></h4>
+            <ul class="detail-list">
+              <li>預估傷害致命且無法補血、生命低於緊急門檻（預設 15％），或被圍且四周無路可逃時觸發。</li>
+              <li>觸發後以原版「暫停 → 離開本局」離場，並關閉推層、重刷與任務推進；可選擇同時關閉兩個總開關。</li>
+              <li>沿用原版結算，可能損失本局進度；須手動重新開啟自動推進。</li>
+            </ul>
+            <p class="card-foot">判定為啟發式，不保證生存。</p>
+          </div>
         </div>
       </div>
 
-      <div class="alert-card"><h3 class="alert-card-title">製作裝備與操作控制</h3><p>製作裝備可依分類篩選底材，分別檢視前後綴範圍；可確定的複合詞綴會自動補入並同欄顯示，無法唯一判定時提示確認。遇到問題可輸出裝備設定供診斷。</p><p>戰鬥中可按「停止自動戰鬥」；設定面板的「立即停止輔助」關閉兩個輔助總開關，「全部關閉」另關閉細部開關與自動模式。部分已套用的遊戲修改可能持續至重新開始遊戲。</p></div>
+      <div class="tab-pane" role="tabpanel" id="pane-progress" aria-labelledby="tab-progress" hidden>
+        <p class="pane-intro">開啟「自動戰鬥開關」並選擇自動模式，輔助器會自己開局、選卡、配點、換裝、回營地整備。目前模式用不到的設定會自動隱藏。</p>
 
-      <!-- Autobot Features Details -->
-      <div class="features-list">
-        <div class="feature-item">
-          <div class="feature-bullet">&gt;</div>
-          <div class="feature-content">
-            <h4>智慧戰鬥走位與閃避</h4>
-            <p>實時計算怪物合計威脅，預判包圍空隙，重擊飛彈與近戰橫移閃避，依技能射程維持最佳輸出距離。</p>
+        <div class="modes-container" style="margin-top:0">
+          <div class="mode-card">
+            <span class="mode-badge">MODE 01 // QUEST</span>
+            <h3 class="mode-title">任務模式</h3>
+            <p class="mode-desc">目標是完成所有任務並練到 99 級。讀取存檔判斷目前任務進度與「尋找凱恩」的步驟，優先接近任務頭目。</p>
+            <div class="flow" aria-label="尋找凱恩流程範例">
+              <span class="step">撿到卷軸</span><span class="arrow">→</span>
+              <span class="step">回營地找阿卡拉翻譯</span><span class="arrow">→</span>
+              <span class="step">觸碰石塊陣</span><span class="arrow">→</span>
+              <span class="step">進傳送門救凱恩</span><span class="arrow">→</span>
+              <span class="step">回營地交任務</span>
+            </div>
+            <ul class="detail-list">
+              <li>打完巴爾先回營地整備，再開最高已開放難度。</li>
+              <li>75 級以上不回普通、85 級以上不回惡夢刷。</li>
+              <li>普通、惡夢、地獄共 18 項任務完成且達 99 級後，自動改為固定關卡模式刷地獄。</li>
+            </ul>
+          </div>
+
+          <div class="mode-card">
+            <span class="mode-badge">MODE 02 // FARMING</span>
+            <h3 class="mode-title">固定關卡模式</h3>
+            <p class="mode-desc">選擇普通、惡夢或地獄，重複刷同一難度：自動開局、清圖、撿寶、回營地整備，適合穩定累積金幣與裝備。</p>
+          </div>
+
+          <div class="mode-card">
+            <span class="mode-badge">MODE 03 // LADDER</span>
+            <h3 class="mode-title">天梯模式</h3>
+            <p class="mode-desc">兩種方式：</p>
+            <ul class="detail-list">
+              <li><b>推關</b>：恐怖層數一層一層往上推。</li>
+              <li><b>固定層數</b>：重刷指定層數，該層須已通關。</li>
+              <li>可設定通關後等待秒數，以及有保留角色時陣亡後重試。</li>
+            </ul>
           </div>
         </div>
 
-        <div class="feature-item">
-          <div class="feature-bullet">&gt;</div>
-          <div class="feature-content">
-            <h4>預判喝水與死亡保護</h4>
-            <p>靠近魔王提早補血，預估致命傷害提早喝水；死亡保護預設關閉，觸發時以原版離場並停用自動推進；不保證生存，須手動重新開啟。</p>
+        <h3 class="sub-title">各模式共用的自動行為</h3>
+        <div class="setting-groups">
+          <div class="setting-group">
+            <h4>🏆 依排行榜高手配法</h4>
+            <ul class="detail-list">
+              <li><b>選升級卡</b>：優先進化卡，其次依排行榜技能與被動權重；技能進化後可再次習得基礎技能。</li>
+              <li><b>自動重抽</b>：候選卡評分偏低時使用重抽。</li>
+              <li><b>自動配點</b>：依該職業高手的屬性比例逐點分配。</li>
+              <li><b>重置技能</b>：技能配置與排行榜差太多時向阿卡拉付費重置（普通通關後可用），重置後立刻重新選卡。</li>
+            </ul>
+            <p class="card-foot">資料取自排行榜各職業前 50 位不同玩家，遊戲改版後重新抓取。</p>
+          </div>
+          <div class="setting-group">
+            <h4>🛡️ 自動換裝</h4>
+            <ul class="detail-list">
+              <li>以遊戲原版數值比較裝備，替換門檻約等於傷害提升％。</li>
+              <li>每個欄位都會補上裝備；優先排行榜高手常用的暗金／套裝。</li>
+              <li>同時計分生命、減傷與四系抗性，避免換成玻璃大砲。</li>
+              <li>自動讀赫拉迪克法典並套用技能變體、使用任務獎品。</li>
+            </ul>
+          </div>
+          <div class="setting-group">
+            <h4>🏕️ 回營地整備</h4>
+            <ul class="detail-list">
+              <li><b>先交任務</b>：每次回營地先向凱恩／阿卡拉回報已完成的任務。</li>
+              <li>暗金／套裝收進收藏庫，較好的裝備存倉庫。</li>
+              <li>賣掉用不到的裝備（符文、寶石、護身符、任務物品不賣）。</li>
+              <li>向阿卡拉買生命藥水、向恰西升級永久能力與買裝備。</li>
+            </ul>
+          </div>
+          <div class="setting-group">
+            <h4>📉 難度調整</h4>
+            <ul class="detail-list">
+              <li>最高難度連續失敗 3 次，會回低一級刷一局。</li>
+              <li>某難度完整打完卻整局沒升級，之後該等級以上不再回去刷。</li>
+              <li>在營地自動開局或續玩，全新存檔也能直接開始。</li>
+            </ul>
           </div>
         </div>
+      </div>
 
-        <div class="feature-item">
-          <div class="feature-bullet">&gt;</div>
-          <div class="feature-content">
-            <h4>全自動換裝與天梯配點</h4>
-            <p>參考全服天梯高手比例自動配點，自動辨識暗金/套裝最佳穿戴、自動使用任務獎品與阿卡拉技能洗點。</p>
+      <div class="tab-pane" role="tabpanel" id="pane-cheat" aria-labelledby="tab-cheat" hidden>
+        <p class="pane-intro">單機娛樂用的數值修改，<b>全部預設關閉</b>，並由「遊戲修改總開關」統一控制。這些修改會改變遊戲數值，不屬於原版行為。</p>
+        <div class="setting-groups">
+          <div class="setting-group">
+            <h4>⚔️ 戰鬥修改</h4>
+            <ul class="detail-list">
+              <li><b>無敵</b>：免疫所有傷害並鎖定滿血。</li>
+              <li><b>致命攻擊</b>：致命一擊機率最高。</li>
+              <li><b>一擊必殺</b>：所有屬性傷害提升一百倍。</li>
+              <li><b>技能 99 等</b>：已學技能與被動鎖定 99 等。</li>
+            </ul>
+          </div>
+          <div class="setting-group">
+            <h4>👹 怪物與環境</h4>
+            <ul class="detail-list">
+              <li><b>怪物數量最大化</b>：地圖怪物生成速度與數量拉滿。</li>
+              <li><b>全精英</b>：一般怪物全部升階為金／藍怪。</li>
+            </ul>
+          </div>
+          <div class="setting-group">
+            <h4>🎲 流程與掉落</h4>
+            <ul class="detail-list">
+              <li><b>無限重抽</b>：升級選卡可無限重抽、跳過與排除。</li>
+              <li><b>掉寶率最高</b>：大幅提升暗金／套裝／稀有尋寶率。</li>
+              <li><b>金幣掉落率最高</b>：玩家金幣超過 90 億時自動關閉。</li>
+            </ul>
           </div>
         </div>
+        <p class="card-foot" style="margin-top:16px">⚠️ 部分已寫入遊戲的修改在關閉後仍可能持續到重新開始遊戲。使用後的存檔不建議上傳排行榜。</p>
+      </div>
 
-        <div class="feature-item">
-          <div class="feature-bullet">&gt;</div>
-          <div class="feature-content">
-            <h4>全圖吸取與自動整備</h4>
-            <p>全圖吸經驗與自動撿裝，回營地自動交任務、存倉庫、賣垃圾、買藥水與恰西升級，流程一氣呵成。</p>
-          </div>
+      <h3 class="sub-title">停止與關閉：四種方式的差別</h3>
+      <p class="sub-desc">依你想停多少選擇對應按鈕。</p>
+      <div class="table-wrap">
+        <table class="ctl-table">
+          <thead>
+            <tr><th>操作</th><th>位置</th><th>自動戰鬥</th><th>戰鬥輔助</th><th>細部開關／自動模式</th><th>適用情境</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>停止自動戰鬥</td><td>戰鬥畫面下方</td><td class="yes">關閉</td><td class="no">保留</td><td class="no">保留</td><td>想自己接手打，但仍要自動喝水、閃避</td></tr>
+            <tr><td>立即停止輔助</td><td>設定面板底部</td><td class="yes">關閉</td><td class="yes">關閉</td><td class="no">保留</td><td>暫時完全不要輔助，之後再開回原本設定</td></tr>
+            <tr><td>全部關閉</td><td>設定面板底部</td><td class="yes">關閉</td><td class="yes">關閉</td><td class="yes">全部關閉（含全圖撿寶、推層／固定關卡、遊戲修改）</td><td>回到乾淨狀態；數值門檻保留，重新開總開關不會自動啟用細項</td></tr>
+            <tr><td>死亡保護觸發</td><td>自動</td><td class="yes">關閉推進</td><td>依設定</td><td class="no">保留</td><td>緊急離場後需手動重新開啟</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="sub-desc" style="margin-top:10px">畫面下方狀態列會顯示目前模式與輔助器正在做什麼；設定面板顯示任務進度。遊戲改版時面板最上方會提示「遊戲已更新」。</p>
+    </div>
+  </section>
+
+  <!-- Language Section -->
+  <section class="section" id="lang">
+    <div class="container">
+      <div class="section-title-wrap">
+        <div class="section-tag">// MODULE: LOCALIZATION</div>
+        <h2 class="section-title">遊戲繁體中文化</h2>
+        <p class="section-desc">載入書籤後，遊戲暫停時左上角出現「🌐 語言」按鈕</p>
+      </div>
+      <div class="grid-cards">
+        <div class="hud-card">
+          <div class="card-header-line"><span class="card-icon">🔁</span><span class="card-badge-mono">LIVE_SWITCH</span></div>
+          <h3 class="card-title">即時切換</h3>
+          <p class="card-text">繁體中文與 English 雙向切換，不必重新整理頁面，網頁版也不用再點書籤；選擇會記住。輔助器與修改器介面同步切換語言。</p>
+        </div>
+        <div class="hud-card">
+          <div class="card-header-line"><span class="card-icon">📜</span><span class="card-badge-mono">COVERAGE</span></div>
+          <h3 class="card-title">翻譯範圍</h3>
+          <p class="card-text">遊戲按鈕、浮動文字、提示說明，以及畫在畫布上的文字都會翻譯；魔法與稀有物品名稱依字首、字尾分別翻譯。以遊戲全部介面字串比對，繁中均有譯文。</p>
+        </div>
+        <div class="hud-card">
+          <div class="card-header-line"><span class="card-icon">📖</span><span class="card-badge-mono">D2R_TERMS</span></div>
+          <h3 class="card-title">對照官方用語</h3>
+          <p class="card-text">遊戲與網頁／桌面修改器共用同一份字典；裝備名稱與屬性說明依《暗黑破壞神 II：獄火重生》官方繁中文字修正可精確對應的部分。</p>
         </div>
       </div>
     </div>
@@ -1211,78 +1818,57 @@
       <div class="section-title-wrap">
         <div class="section-tag">// MODULE: SCREENSHOTS_GALLERY</div>
         <h2 class="section-title">實際畫面</h2>
-        <p class="section-desc">實際執行畫面展示，點擊縮圖即可開啟全螢幕檢視</p>
+        <p class="section-desc">實際執行畫面，點擊縮圖可放大檢視</p>
       </div>
 
       <div class="gallery-grid">
         <div class="gallery-item">
-          <div class="gallery-img-wrap" onclick="openLightbox('img/battle1.jpg', '自動戰鬥中：走位閃避')">
+          <button type="button" class="gallery-img-wrap" data-src="img/battle1.jpg" data-caption="自動戰鬥中：走位閃避">
             <img src="img/battle1.jpg" alt="自動戰鬥中：走位閃避" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
-          </div>
-          <div class="gallery-caption">
-            <span class="gallery-caption-tag">IMG 01</span>
-            <span>自動戰鬥中：走位閃避</span>
-          </div>
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 01</span><span>自動戰鬥中：走位閃避</span></div>
         </div>
 
         <div class="gallery-item">
-          <div class="gallery-img-wrap" onclick="openLightbox('img/battle2.jpg', '自動戰鬥：遭遇第一幕頭目血鴉')">
+          <button type="button" class="gallery-img-wrap" data-src="img/battle2.jpg" data-caption="自動戰鬥：遭遇第一幕頭目血鴉">
             <img src="img/battle2.jpg" alt="自動戰鬥：遭遇第一幕頭目血鴉" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
-          </div>
-          <div class="gallery-caption">
-            <span class="gallery-caption-tag">IMG 02</span>
-            <span>自動戰鬥：遭遇第一幕頭目血鴉</span>
-          </div>
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 02</span><span>自動戰鬥：遭遇第一幕頭目血鴉</span></div>
         </div>
 
         <div class="gallery-item">
-          <div class="gallery-img-wrap" onclick="openLightbox('img/panel.jpg', '輔助器設定面板')">
+          <button type="button" class="gallery-img-wrap" data-src="img/panel.jpg" data-caption="輔助器設定面板">
             <img src="img/panel.jpg" alt="輔助器設定面板" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
-          </div>
-          <div class="gallery-caption">
-            <span class="gallery-caption-tag">IMG 03</span>
-            <span>輔助器設定面板</span>
-          </div>
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 03</span><span>輔助器設定面板</span></div>
         </div>
 
         <div class="gallery-item">
-          <div class="gallery-img-wrap" onclick="openLightbox('img/editor.jpg', '存檔修改器：倉庫裡製作好的裝備，點選即可檢視與編輯屬性及遊戲範圍')">
-            <img src="img/editor.jpg" alt="存檔修改器：倉庫裡製作好的裝備，點選即可檢視與編輯屬性及遊戲範圍" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
-          </div>
-          <div class="gallery-caption">
-            <span class="gallery-caption-tag">IMG 04</span>
-            <span>存檔修改器：倉庫裡製作好的裝備，點選即可檢視與編輯屬性及遊戲範圍</span>
-          </div>
+          <button type="button" class="gallery-img-wrap" data-src="img/editor.jpg" data-caption="存檔修改器：點選倉庫裡的裝備，即可檢視與編輯屬性及遊戲範圍">
+            <img src="img/editor.jpg" alt="存檔修改器：點選倉庫裡的裝備，即可檢視與編輯屬性及遊戲範圍" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 04</span><span>存檔修改器：點選倉庫裡的裝備，即可檢視與編輯屬性及遊戲範圍</span></div>
         </div>
 
         <div class="gallery-item">
-          <div class="gallery-img-wrap" onclick="openLightbox('img/craft1.jpg', '製作裝備：稀有法珠（+2 魔法使技能、20% 施法速度）')">
+          <button type="button" class="gallery-img-wrap" data-src="img/craft1.jpg" data-caption="製作裝備：稀有法珠（+2 魔法使技能、20% 施法速度）">
             <img src="img/craft1.jpg" alt="製作裝備：稀有法珠（+2 魔法使技能、20% 施法速度）" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
-          </div>
-          <div class="gallery-caption">
-            <span class="gallery-caption-tag">IMG 04</span>
-            <span>製作裝備：稀有法珠（+2 魔法使技能、20% 施法速度）</span>
-          </div>
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 05</span><span>製作裝備：稀有法珠（+2 魔法使技能、20% 施法速度）</span></div>
         </div>
 
         <div class="gallery-item">
-          <div class="gallery-img-wrap" onclick="openLightbox('img/craft2.jpg', '製作裝備：稀有統御者鎧甲，屬性依原版規則把關')">
+          <button type="button" class="gallery-img-wrap" data-src="img/craft2.jpg" data-caption="製作裝備：稀有統御者鎧甲，屬性依原版規則把關">
             <img src="img/craft2.jpg" alt="製作裝備：稀有統御者鎧甲，屬性依原版規則把關" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
-          </div>
-          <div class="gallery-caption">
-            <span class="gallery-caption-tag">IMG 04</span>
-            <span>製作裝備：稀有統御者鎧甲，屬性依原版規則把關</span>
-          </div>
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 06</span><span>製作裝備：稀有統御者鎧甲，屬性依原版規則把關</span></div>
         </div>
 
         <div class="gallery-item">
-          <div class="gallery-img-wrap" onclick="openLightbox('img/paused.jpg', '暫停畫面上的修改器與輔助按鈕')">
-            <img src="img/paused.jpg" alt="暫停畫面上的修改器與輔助按鈕" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
-          </div>
-          <div class="gallery-caption">
-            <span class="gallery-caption-tag">IMG 05</span>
-            <span>暫停畫面上的修改器與輔助按鈕</span>
-          </div>
+          <button type="button" class="gallery-img-wrap" data-src="img/paused.jpg" data-caption="暫停畫面左上角的修改器與輔助按鈕">
+            <img src="img/paused.jpg" alt="暫停畫面左上角的修改器與輔助按鈕" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 07</span><span>暫停畫面左上角的修改器與輔助按鈕</span></div>
         </div>
       </div>
     </div>
@@ -1293,37 +1879,27 @@
     <div class="container">
       <div class="section-title-wrap">
         <div class="section-tag">// MODULE: VERIFIED_DATA</div>
-        <h2 class="section-title">大量實測數據</h2>
-        <p class="section-desc">輔助器的每項調整都來自真實遊戲長時間掛機的結果</p>
+        <h2 class="section-title">實測數據</h2>
+        <p class="section-desc">輔助器的調整來自真實遊戲長時間掛機的結果</p>
       </div>
       <div class="grid-cards">
         <div class="hud-card">
-          <div class="card-header-line">
-            <span class="card-icon">📈</span>
-            <span class="card-badge-mono">CAMPAIGN</span>
-          </div>
+          <div class="card-header-line"><span class="card-icon">📈</span><span class="card-badge-mono">CAMPAIGN</span></div>
           <h3 class="card-title">全新存檔一路推進</h3>
           <p class="card-text">全新存檔的法師全自動打通普通（第五幕 82 級擊敗巴爾）與惡夢，推進到地獄第二幕；在地獄陣亡後會自動回惡夢練等。</p>
         </div>
         <div class="hud-card">
-          <div class="card-header-line">
-            <span class="card-icon">🧪</span>
-            <span class="card-badge-mono">35_RUNS</span>
-          </div>
+          <div class="card-header-line"><span class="card-icon">🧪</span><span class="card-badge-mono">35_RUNS</span></div>
           <h3 class="card-title">35 個存檔長跑</h3>
           <p class="card-text">以 35 個存檔長時間實戰，修正精英判斷、閃避、換裝、配點、交任務等數十項行為；營地整備實測可自動賣裝、買穿皮甲並升級生命。</p>
         </div>
         <div class="hud-card">
-          <div class="card-header-line">
-            <span class="card-icon">🏆</span>
-            <span class="card-badge-mono">TOP_50</span>
-          </div>
+          <div class="card-header-line"><span class="card-icon">🏆</span><span class="card-badge-mono">TOP_50</span></div>
           <h3 class="card-title">依排行榜高手配法</h3>
           <p class="card-text">選卡、配點、技能變體與換裝參考排行榜各職業前 50 位玩家的實際配置，遊戲改版後重新抓取。</p>
         </div>
       </div>
-      
-      <!-- Limitation warning card -->
+
       <div class="alert-card">
         <h3 class="alert-card-title">⚠️ 自動戰鬥並不完美</h3>
         <ul class="alert-card-list">
@@ -1337,13 +1913,135 @@
     </div>
   </section>
 
+  <!-- Installation Steps Section -->
+  <section class="section" id="install">
+    <div class="container">
+      <div class="section-title-wrap">
+        <div class="section-tag">// MODULE: SETUP_GUIDE</div>
+        <h2 class="section-title">安裝教學</h2>
+        <p class="section-desc">網頁版是書籤小程式（Bookmarklet），電腦與手機瀏覽器皆免安裝；Windows 另有可攜版</p>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-box">
+          <div class="step-num">01</div>
+          <h3 class="step-title">取得書籤程式碼</h3>
+          <p class="step-desc">
+            前往<a href="https://nojackno2-ctrl.github.io/d2-survivors-toolkit/" target="_blank" rel="noopener" style="text-decoration:none;font-weight:600;">網頁版安裝頁</a>，按「📋 複製書籤程式碼」。內容如下（以安裝頁複製的為準）：
+          </p>
+          <div class="code-preview">javascript:import('https://nojackno2-ctrl.github.io/d2-survivors-toolkit/d2edit.js?v='+Date.now())</div>
+        </div>
+
+        <div class="step-box">
+          <div class="step-num">02</div>
+          <h3 class="step-title">加入瀏覽器書籤</h3>
+          <p class="step-desc">依裝置操作方式不同，見下方三種平台說明。部分瀏覽器貼上時會自動刪掉開頭的 <code>javascript:</code>，請確認網址開頭仍是它。</p>
+        </div>
+
+        <div class="step-box">
+          <div class="step-num">03</div>
+          <h3 class="step-title">在遊戲頁點書籤</h3>
+          <p class="step-desc">
+            到 <a href="https://d2survivors.lol/play/" target="_blank" rel="noopener"><code>d2survivors.lol/play</code></a> 點書籤，畫面中央的進度條依序載入輔助器、字典、遊戲資料、物品引擎與修改器頁面（約 5～10 秒）。接著按<strong>暫停</strong>，左上角就會出現「修改器」「輔助」「🌐 語言」按鈕。
+          </p>
+        </div>
+      </div>
+
+      <div class="platform-grid">
+        <div class="setting-group">
+          <h4>🖥️ 電腦（Chrome／Edge／Firefox）</h4>
+          <ol>
+            <li>按 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> 顯示書籤列。</li>
+            <li>把安裝頁上的「D2 修改器」連結直接拖到書籤列。</li>
+            <li>或在書籤列按右鍵 →「新增網頁」，網址貼上程式碼。</li>
+          </ol>
+        </div>
+        <div class="setting-group">
+          <h4>🤖 Android（Chrome）</h4>
+          <ol>
+            <li>隨便把一個網頁加入書籤（「⋮」→ ☆）。</li>
+            <li>「⋮」→「書籤」→ 編輯剛剛的書籤。</li>
+            <li>名稱改為 <code>D2 修改器</code>，網址整個刪掉後貼上程式碼。</li>
+            <li><b>使用時</b>：在網址列輸入「D2 修改器」，點建議清單中的書籤（從書籤清單直接點不會執行）。</li>
+          </ol>
+        </div>
+        <div class="setting-group">
+          <h4>🍎 iPhone／iPad（Safari）</h4>
+          <ol>
+            <li>按分享 →「加入書籤」並儲存。</li>
+            <li>打開書籤清單 →「編輯」→ 點剛剛的書籤。</li>
+            <li>名稱改為 <code>D2 修改器</code>，網址刪掉後貼上程式碼。</li>
+            <li><b>使用時</b>：在遊戲頁直接點書籤。</li>
+          </ol>
+        </div>
+        <div class="setting-group">
+          <h4>💻 Windows 桌面版</h4>
+          <ol>
+            <li>到 <a href="https://github.com/nojackno2-ctrl/d2-survivors-toolkit/releases" target="_blank" rel="noopener">Releases</a> 下載 <code>D2.exe</code>（可攜版，免安裝），可對照 <code>SHA256SUMS.txt</code> 確認檔案完整。</li>
+            <li>關閉遊戲後執行，會讀取已安裝遊戲的存檔。</li>
+            <li>修改後按「寫入存檔」，每次寫入前自動備份。</li>
+          </ol>
+          <p class="card-foot">執行檔未經程式碼簽署，若出現 SmartScreen 警告請選「其他資訊 → 仍要執行」。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="section" id="faq">
+    <div class="container">
+      <div class="section-title-wrap">
+        <div class="section-tag">// MODULE: FAQ</div>
+        <h2 class="section-title">常見問題</h2>
+      </div>
+      <div class="faq">
+        <details>
+          <summary>點了書籤卻沒看到修改器？</summary>
+          <div class="answer"><p>這是正常的。修改器與輔助器的按鈕只在遊戲<b>暫停</b>時出現在左上角，請先在遊戲中按暫停。</p></div>
+        </details>
+        <details>
+          <summary>暫停後還是沒有按鈕？</summary>
+          <div class="answer"><p>確認書籤網址開頭是 <code>javascript:</code>，且目前位於 <code>d2survivors.lol</code> 的頁面。Android 必須從網址列輸入書籤名稱開啟，從書籤清單點選不會執行。第一次開啟需要連網載入遊戲程式。</p></div>
+        </details>
+        <details>
+          <summary>看到舊版介面怎麼辦？</summary>
+          <div class="answer"><p>書籤每次都會載入最新版。重新整理遊戲頁後再點一次書籤即可；重新整理後本來就需要再點一次。</p></div>
+        </details>
+        <details>
+          <summary>改完存檔後要怎麼套用？</summary>
+          <div class="answer"><p>按「寫入存檔」，再按「關閉」，遊戲會重新載入並套用。網頁版直接讀寫瀏覽器裡的存檔，不經過遊戲的匯入功能，不會留下匯入紀錄。</p></div>
+        </details>
+        <details>
+          <summary>為什麼不能製作暗金、套裝或符文之語？</summary>
+          <div class="answer"><p>預設的合規模式依原版規則把關，不允許直接製作這三種品質。如果只在單機遊玩，可到修改器「設定」開啟「解除修改限制」，但存檔將不適合上傳排行榜。</p></div>
+        </details>
+        <details>
+          <summary>製作裝備時提示「可能配套」或要我確認？</summary>
+          <div class="answer"><p>部分詞綴會同時帶多條屬性。修改器只在能唯一確定是哪個詞綴時才自動補入配套屬性；同一屬性也可能來自單獨詞綴時，會標示「可能配套」並請你確認，不會猜測。若結果與預期不同，可按「輸出裝備設定」複製診斷內容回報。</p></div>
+        </details>
+        <details>
+          <summary>遊戲更新後還能用嗎？</summary>
+          <div class="answer"><p>版本不同時不會封鎖使用，但修改器與輔助器上方會提示「遊戲已更新」，表示尚未驗證新版，部分功能可能失效。發現問題請到 GitHub 回報。</p></div>
+        </details>
+        <details>
+          <summary>關閉遊戲修改後，效果為什麼還在？</summary>
+          <div class="answer"><p>部分修改已寫入目前這一局的遊戲狀態，關閉開關後仍可能持續到重新開始遊戲；金幣倍率會在「全部關閉」時還原。</p></div>
+        </details>
+        <details>
+          <summary>可以放著輔助器長時間掛機嗎？</summary>
+          <div class="answer"><p>可以，但不保證存活或通關，地獄難度仍常陣亡。建議偶爾查看狀況，長時間無人看管前請先在「存檔管理」建立快照。</p></div>
+        </details>
+      </div>
+    </div>
+  </section>
+
   <!-- Changelog Section -->
   <section class="section" id="changelog">
     <div class="container">
       <div class="section-title-wrap">
         <div class="section-tag">// MODULE: CHANGELOG</div>
         <h2 class="section-title">更新日誌</h2>
-        <p class="section-desc">完整紀錄見 <a href="https://github.com/nojackno2-ctrl/d2-survivors-toolkit/commits/main" target="_blank" rel="noopener" style="color:var(--cyan)">GitHub</a></p>
+        <p class="section-desc">完整紀錄見 <a href="https://github.com/nojackno2-ctrl/d2-survivors-toolkit/commits/main" target="_blank" rel="noopener">GitHub</a></p>
       </div>
       <style>
         .log{max-width:860px;margin:0 auto;border-left:2px solid var(--cyan-glow);padding-left:22px}
@@ -1400,45 +2098,6 @@
     </div>
   </section>
 
-  <!-- Installation Steps Section -->
-  <section class="section" id="install">
-    <div class="container">
-      <div class="section-title-wrap">
-        <div class="section-tag">// MODULE: SETUP_GUIDE</div>
-        <h2 class="section-title">書籤安裝三步驟簡述</h2>
-        <p class="section-desc">網頁版採用輕量書籤小程式（Bookmarklet），電腦與手機瀏覽器皆可免安裝使用</p>
-      </div>
-
-      <div class="steps-grid">
-        <div class="step-box">
-          <div class="step-num">01</div>
-          <h3 class="step-title">步驟 1：取得書籤代碼</h3>
-          <p class="step-desc">
-            前往<a href="https://nojackno2-ctrl.github.io/d2-survivors-toolkit/" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:none;font-weight:600;">網頁版安裝頁</a>，點擊「📋 複製書籤程式碼」按鈕複製啟動代碼。
-          </p>
-          <div class="code-preview">javascript:import('https://nojackno2-ctrl.github.io/d2-survivors-toolkit/d2edit.js?v='+Date.now())</div>
-        </div>
-
-        <div class="step-box">
-          <div class="step-num">02</div>
-          <h3 class="step-title">步驟 2：加入瀏覽器書籤</h3>
-          <p class="step-desc">
-            <strong>電腦版</strong>：將安裝頁按鈕拖曳至書籤列，或新增書籤貼上網址。<br>
-            <strong>手機版 (iOS/Android)</strong>：將任意頁存入書籤後編輯，將網址替換為代碼（注意保留開頭的 <code>javascript:</code>）。
-          </p>
-        </div>
-
-        <div class="step-box">
-          <div class="step-num">03</div>
-          <h3 class="step-title">步驟 3：開啟遊戲呼叫工具</h3>
-          <p class="step-desc">
-            進入 <code>d2survivors.lol/play</code> 點擊書籤載入。在遊戲中按下<strong>「暫停」</strong>，點擊畫面左上角<strong>「修改器」</strong>或左上角<strong>「輔助」</strong>即可開啟完整功能！
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- Compliance Section -->
   <section class="section" id="compliance">
     <div class="container">
@@ -1447,14 +2106,20 @@
         <div class="compliance-columns">
           <div class="comp-col">
             <h4>標準合規模式（預設）</h4>
-            <p>
-              完全遵循 Diablo II 原版生成與遊戲 10/20 排行榜規則（魔法 1前綴1後綴、稀有 2~6 詞綴且至多一條職業+技能、屬性點不超標、金幣與單次恰西花費低於 100 億）。依已知規則檢查，但不保證排行榜接受存檔。</p><p style="color:#f59e0b"><strong>⚠️ 但不保證絕對安全：</strong>遊戲隨時可能更新排行榜的檢查方式，也可能有未公開的偵測，修改過的存檔仍可能被排行榜拒絕、移除紀錄或停權，是否上傳請自行評估。
-            </p>
+            <p>依 Diablo II 原版生成規則與遊戲 10/20 起的排行榜規則把關：</p>
+            <ul class="detail-list">
+              <li>不能製作暗金、套裝、符文之語。</li>
+              <li>魔法最多 1 前綴＋1 後綴；稀有 2～6 個詞綴（前後綴各最多 3、稀有珠寶最多 4、同類不重複）。</li>
+              <li>稀有物品最多一條職業／技能樹 +技能。</li>
+              <li>屬性點不超過等級應得上限；屬性下拉選單只列出依規則還能加入的屬性。</li>
+              <li>金幣與恰西單次升級花費不超過 100 億。</li>
+            </ul>
+            <p style="color:#f59e0b;margin-top:12px"><strong>⚠️ 但不保證絕對安全：</strong>遊戲隨時可能更新排行榜的檢查方式，也可能有未公開的偵測，修改過的存檔仍可能被排行榜拒絕、移除紀錄或停權，是否上傳請自行評估。修改器不提供任何繞過遊戲檢查的功能。</p>
           </div>
           <div class="comp-col">
             <h4>解除限制模式（單機爽玩）</h4>
             <p>
-              若你只想在單人模式體驗毀天滅地的爽快感，可以在設定中打開「解除修改限制」。解除後裝備製作將不再受原版詞綴、數量與品質限制，允許自訂超越遊戲常規的神級裝備（此狀態存檔將無法上傳排行榜）。
+              若你只想在單人模式體驗毀天滅地的爽快感，可以在修改器「設定」打開「解除修改限制」。解除後裝備製作不再受原版詞綴、數量、數值與品質限制，可製作任何屬性、任何數量、超越原版數值的裝備。此狀態下的存檔無法上傳排行榜，屬玩家自行選擇。
             </p>
           </div>
         </div>
@@ -1496,8 +2161,33 @@
     </div>
   </footer>
 
+  <a href="#top" class="back-top" id="backTop" aria-label="回到頂端">↑</a>
+
   <script>
-    // Lightbox Logic
+    // 輔助器分頁
+    (function () {
+      var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab-btn'));
+      function select(tab, focus) {
+        tabs.forEach(function (t) {
+          var on = t === tab;
+          t.setAttribute('aria-selected', String(on));
+          t.tabIndex = on ? 0 : -1;
+          var pane = document.getElementById(t.getAttribute('aria-controls'));
+          if (pane) pane.hidden = !on;
+        });
+        if (focus) tab.focus();
+      }
+      tabs.forEach(function (t, i) {
+        t.addEventListener('click', function () { select(t, false); });
+        t.addEventListener('keydown', function (e) {
+          var n = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+          if (n) { e.preventDefault(); select(tabs[(i + n + tabs.length) % tabs.length], true); }
+        });
+      });
+    })();
+
+    // 截圖放大
+    var lastTrigger = null;
     function openLightbox(src, caption) {
       var modal = document.getElementById('lightboxModal');
       var img = document.getElementById('lightboxImg');
@@ -1508,6 +2198,8 @@
       if (cap) cap.textContent = caption || '';
       modal.classList.add('active');
       document.body.style.overflow = 'hidden';
+      var close = modal.querySelector('.lightbox-close');
+      if (close) close.focus();
     }
 
     function closeLightbox(e) {
@@ -1515,19 +2207,33 @@
         return;
       }
       var modal = document.getElementById('lightboxModal');
-      if (!modal) return;
+      if (!modal || !modal.classList.contains('active')) return;
       modal.classList.remove('active');
       document.body.style.overflow = '';
       var img = document.getElementById('lightboxImg');
       if (img) img.src = '';
+      if (lastTrigger) lastTrigger.focus();
     }
 
-    // Keyboard ESC to close lightbox
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        closeLightbox();
-      }
+    Array.prototype.forEach.call(document.querySelectorAll('.gallery-img-wrap[data-src]'), function (btn) {
+      btn.addEventListener('click', function () {
+        lastTrigger = btn;
+        openLightbox(btn.getAttribute('data-src'), btn.getAttribute('data-caption'));
+      });
     });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeLightbox();
+    });
+
+    // 回到頂端
+    (function () {
+      var btn = document.getElementById('backTop');
+      if (!btn) return;
+      function update() { btn.classList.toggle('show', window.scrollY > 600); }
+      window.addEventListener('scroll', update, { passive: true });
+      update();
+    })();
   </script>
 </body>
 </html>
