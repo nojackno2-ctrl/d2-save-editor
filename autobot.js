@@ -1805,8 +1805,8 @@
   const launcher = document.createElement("button"), stopButton = document.createElement("button"), host = document.createElement("div");
   launcher.type = stopButton.type = "button"; launcher.id = "d2autobot-launcher"; launcher.textContent = "輔助";
   launcher.style.cssText = "position:fixed;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));z-index:2147483645;display:none;padding:8px 14px;min-height:44px;border:1px solid #d4a84a;border-radius:6px;background:rgba(20,17,13,.95);color:#d4a84a;font:bold 15px system-ui;cursor:pointer;touch-action:manipulation";
-  stopButton.textContent = "停止輔助";
-  // 停止輔助按鈕下方顯示輔助器目前在做什麼。
+  stopButton.textContent = "停止自動戰鬥";
+  // 狀態列顯示輔助器目前在做什麼。
   const statusLine = document.createElement("div");
   statusLine.id = "d2autobot-status";
   statusLine.style.cssText = "position:fixed;bottom:max(12px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:2147483645;max-width:min(92vw,calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 16px));background:rgba(0,0,0,.75);color:#f0d9a0;border-radius:4px;padding:3px 10px;font:13px sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;display:none";
@@ -1825,7 +1825,7 @@
     .toggle{min-width:104px;flex-shrink:0;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:8px}.toggle::before{content:"";width:14px;height:14px;border-radius:50%;background:#b0a49c;flex-shrink:0}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:104px;flex-shrink:0}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{flex:1;border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px;font-size:13px;overflow-wrap:anywhere}.version-warn[hidden]{display:none!important}.version-warn{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#451a14;border:1px solid #d45d48;color:#ffded7;border-radius:6px;padding:8px 12px;margin:10px 0 4px;font-size:13px;font-weight:bold}.version-warn button{min-height:28px;padding:2px 8px;background:transparent;border:none;color:#ffded7;font-size:18px;cursor:pointer;line-height:1}.version-warn button:hover{color:#fff}
     @media(max-width:600px){.backdrop{padding:0}.box{width:100%;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;border-radius:0;border:0;padding:12px;padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}input,select{font-size:16px}label{flex-wrap:wrap}select{max-width:100%;width:100%}}
     @media(max-height:500px){.backdrop{padding:0}.box{width:100%;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;border-radius:0;border:0;padding:10px max(14px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}h3{margin:12px 0 4px}label{min-height:38px;padding:4px 0}}
-  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><div id="version-warn" class="version-warn" hidden><span class="version-msg"></span><button type="button" class="version-dismiss" aria-label="關閉提示">×</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">自動戰鬥</button><button type="button" role="tab" data-tab="cheat" aria-selected="false">遊戲修改</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div><div data-pane="cheat" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點下方「停止輔助」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button></section></div>`;
+  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><div id="version-warn" class="version-warn" hidden><span class="version-msg"></span><button type="button" class="version-dismiss" aria-label="關閉提示">×</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">自動戰鬥</button><button type="button" role="tab" data-tab="cheat" aria-selected="false">遊戲修改</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div><div data-pane="cheat" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；戰鬥中可按「停止自動戰鬥」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button> <button type="button" id="stop-all">全部關閉</button><p class="note">全部關閉會關閉所有開關及全圖撿裝；已套用的部分遊戲修改可能持續至重新開始遊戲。</p></section></div>`;
   const panel = root.querySelector(".backdrop"), status = root.querySelector(".status"), controls = new Map();
   const versionWarn = root.querySelector("#version-warn"), versionMsg = root.querySelector(".version-msg"), versionDismiss = root.querySelector(".version-dismiss");
   function refreshVersionNotice() {
@@ -1910,7 +1910,13 @@
   }
   function closePanel() { panel.hidden = true; if (launcher.style.display !== "none") launcher.focus(); }
   launcher.onclick = () => { if (!toolsMenuOpen()) return; release(); panel.hidden = false; versionDismissed = false; refreshVersionNotice(); refreshControls(); root.getElementById("close").focus(); };
-  root.getElementById("close").onclick = closePanel; root.getElementById("stop").onclick = stopButton.onclick = () => stop("已手動停止輔助", true);
+  root.getElementById("close").onclick = closePanel; root.getElementById("stop").onclick = () => stop("已手動停止輔助", true);
+  root.getElementById("stop-all").onclick = () => {
+    const disable = (obj) => { for (const key of Object.keys(obj)) { if (typeof obj[key] === "boolean") obj[key] = false; else if (obj[key] && typeof obj[key] === "object") disable(obj[key]); } };
+    disable(settings); settings.terror.mode = "off"; settings.quest.farmDifficulty = "off";
+    restoreGoldRate(); stop("已全部關閉", true);
+  };
+  stopButton.onclick = () => { settings.progressEnabled = false; release(); lastAction = "已停止自動戰鬥"; save(true); };
   for (const el of [host, launcher, stopButton]) for (const name of ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "keydown", "keyup", "click", "wheel"]) el.addEventListener(name, (e) => e.stopPropagation(), { signal: abort.signal });
   root.addEventListener("keydown", (e) => {
     if (e.code === "Escape") { e.preventDefault(); closePanel(); }
@@ -1926,10 +1932,10 @@
     checkRetreat(performance.now());
     const editorOpen = !!window.__d2editIsOpen?.(), menuOpen = toolsMenuOpen();
     launcher.textContent = trAuto("輔助");
-    stopButton.textContent = trAuto("停止輔助");
+    stopButton.textContent = trAuto("停止自動戰鬥");
     launcher.style.display = menuOpen && !editorOpen && panel.hidden ? "block" : "none";
-    stopButton.style.display = (settings.enabled || settings.progressEnabled) && !menuOpen && !editorOpen && panel.hidden ? "block" : "none";
-    statusLine.style.display = stopButton.style.display;
+    stopButton.style.display = settings.progressEnabled && !menuOpen && !editorOpen && panel.hidden ? "block" : "none";
+    statusLine.style.display = (settings.enabled || settings.progressEnabled) && !menuOpen && !editorOpen && panel.hidden ? "block" : "none";
     // 依使用者要求：狀態列顯示目前自動戰鬥模式。
     const line = (settings.progressEnabled ? "【" + modeLabel() + "】" : "") + lastAction;
     if (statusLine.textContent !== line) statusLine.textContent = trAuto(line);

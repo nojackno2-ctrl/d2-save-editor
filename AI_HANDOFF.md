@@ -1,5 +1,15 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：核對並更新安裝頁、修改器、README 與公告網站的入口位置、停止控制、製作裝備、排行榜及死亡保護說明；公告網站加入新功能介紹並更新日誌。同步桌面來源對應文字，未封裝桌面版。`node tests/test_lang.cjs`、`node tests/craft-affix-audit.cjs`（708 筆、0 失敗）、`node tests/craft-affix-composite.cjs`、`node tests/craft-limits.cjs`、Electron `tests/craft-companion-ui.cjs`、Electron `tests/autobot.cjs`（168 項、0 失敗）、語法與 `git diff --check` 通過；未進行本次真實遊戲驗收。依使用者要求提交並推送 GitHub；Pages 與獨立 Cloudflare 公告網站部署需另行核對。
+
+- 2026-11-03｜Codex：依使用者更正，「全部關閉」改為關閉所有細部布林開關、全圖撿裝與推層／固定關卡模式，保留數值門檻及無關開關的選項；重新開啟總開關不會啟用細項。同步網頁與桌面來源；隔離 Electron `web/tests/autobot.cjs` 168 項通過、0 失敗，語法、語言測試與 `git diff --check` 通過。部分已套用的遊戲修改可能持續至重新開始；未實機驗證、發布或封裝。
+
+- 2026-11-03｜Codex：輔助器面板新增「全部關閉」，關閉戰鬥輔助、自動戰鬥、遊戲修改三個總開關，原先保留細項設定（已依後續指示變更），並還原金幣倍率；已寫入遊戲的部分修改可能持續至重新開始。網頁與桌面來源同步；隔離 Electron `web/tests/autobot.cjs` 166 項通過、0 失敗，涵蓋儲存、介面與倍率還原；語法、語言測試及 `git diff --check` 通過。未實機驗證、發布或封裝。
+
+- 2026-11-03｜Codex：戰鬥畫面「停止自動戰鬥」僅關閉自動戰鬥，保留戰鬥輔助與遊戲修改；設定面板的立即停止仍關閉兩個輔助開關。同步網頁與桌面來源，隔離 Electron `web/tests/autobot.cjs` 163 項通過、0 失敗，包含按鈕及設定保留；`node --check` 與 `node web/tests/test_lang.cjs` 通過。尚未在真實遊戲驗證，未發布或封裝。
+
+- 2026-11-03｜Codex：複合詞綴同欄顯示已發布提交 `c74d530`；GitHub Pages 工作 `41563059302` 成功，公開 `editor.html` 避開快取下載後 Git 雜湊與提交一致。未做真實遊戲存檔驗收或發布桌面版。
+
 - 2026-11-03｜Codex：依使用者要求發布複合詞綴選項配套說明與同欄顯示；發布前 708 筆詞綴稽核、複合詞綴及上限測試、隔離 Electron 介面測試與 `git diff --check` 通過；提交後待核對 GitHub Pages。
 
 - 2026-11-03｜Codex：製作頁前後綴下拉選項顯示詞綴配套屬性；若同屬性也可能為單獨詞綴則標示「可能配套」。自動配套的數值欄顯示在主屬性同一列，底層仍保留遊戲所需的各屬性，編輯數值會同步；刪除主列會刪除配套。隔離 Electron `tests/craft-companion-ui.cjs` 驗證選項配套文字、同列欄位、編輯同步、刪除及歧義；`tests/craft-affix-audit.cjs` 708 筆 0 失敗，複合與上限測試、語言測試、三份頁面語法及 `git diff --check` 通過。桌面來源已同步，未發布網頁、未封裝桌面及未驗收真實遊戲存檔。

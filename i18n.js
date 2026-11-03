@@ -44,7 +44,7 @@
     "；遊戲程式已變更": "; game code has changed", "遊戲程式已變更": "Game code has changed", "關閉提示": "Dismiss notice",
     // 設定
     "解除修改限制": "Remove editing restrictions", "介面語言": "Interface language", "自動（依系統語言）": "Auto (system language)",
-    "預設關閉。關閉時修改器會依原版規則把關，確保上傳排行榜的存檔不出現不合理的裝備：": "Off by default. While off, the editor enforces the original game rules so that saves uploaded to the leaderboard never contain impossible gear:",
+    "預設關閉。關閉時修改器會依原版規則把關，檢查已知規則，仍不保證排行榜接受存檔：": "Off by default. The editor checks known game rules, but leaderboard acceptance is not guaranteed:",
     "暗金、套裝、符文之語：屬性種類與數量必須與原版物品定義相同，每項數值不可超出原版範圍，底材必須正確。": "Unique, set and runeword items: the stats must match the original item definition exactly, every value must stay within its original range, and the base must be correct.",
     "魔法：最多 1 個前綴＋1 個後綴；稀有：2～6 個詞綴（稀有珠寶最多 4 個），前綴、後綴各最多 3 個，同類詞綴不可重複；每個詞綴必須是此底材可出現的原版詞綴，數值在原版範圍內。": "Magic: at most 1 prefix + 1 suffix. Rare: 2–6 affixes (rare jewels max 4), at most 3 prefixes and 3 suffixes, no two affixes from the same group. Every affix must be an original affix that can roll on that base, with values in its original range.",
     "普通品質不可有詞綴；底材固有屬性必須與原版相同。": "Normal items cannot have affixes; base (implicit) stats must match the original.",
@@ -209,7 +209,7 @@
     "需求 ": "Req ", "需求": "Req", "點": "pts", "件": " item(s)",
     // 輔助器 (autobot) 介面與控制項
     "遊戲輔助工具": "Game Assistant", "遊戲輔助設定": "Game Assistant Settings", "立即停止輔助": "Stop Assistant Now",
-    "戰鬥輔助": "Combat Assist", "自動戰鬥": "Auto Battle", "輔助": "Assist", "停止輔助": "Stop Assist",
+    "戰鬥輔助": "Combat Assist", "自動戰鬥": "Auto Battle", "輔助": "Assist", "停止輔助": "Stop Assist", "停止自動戰鬥": "Stop Auto Battle", "全部關閉": "Turn Off All", "全部關閉會關閉所有開關及全圖撿裝；已套用的部分遊戲修改可能持續至重新開始遊戲。": "Turn Off All disables every switch and global item pickup; some applied game modifications may remain until the game is restarted.",
     "一般與安全": "General & Safety", "戰鬥輔助總開關": "Combat Assist Master Switch",
     "生命與藥水": "Life & Potions", "自動喝生命藥水": "Auto Drink Life Potion", "生命門檻（％）": "Life Threshold (%)",
     "一擊必殺預判喝水": "Lethal Hit Prediction Potion", "預測提前秒數": "Lookahead Seconds", "生命藥水冷卻（毫秒）": "Potion Cooldown (ms)", "降級模式生命藥帶欄（1～4）": "Fallback Belt Slot (1–4)",
@@ -230,7 +230,7 @@
     "自動穿上較佳裝備": "Auto Equip Better Gear", "替換門檻（約等於傷害提升％）": "Upgrade Threshold (~dmg gain %)",
     "營地整備（每次回營地自動變強）": "Camp Preparation (get stronger every town trip)", "回營地自動整備": "Auto Camp Maintenance", "暗金／套裝收進收藏庫": "Deposit Unique/Set to Collection", "較好的裝備存入倉庫": "Stash Better Gear", "賣掉用不到的裝備": "Sell Junk Gear", "用金幣向阿卡拉買生命藥水": "Buy Potions from Akara", "用金幣升級恰西永久能力": "Buy Charsi Permanent Upgrades", "向商人買較佳裝備": "Buy Better Gear from Vendors",
     "死亡保護": "Death Protection", "死亡保護（緊急離開本局）": "Death Protection (emergency save & exit)", "緊急生命門檻（％）": "Emergency Life Threshold (%)", "觸發後關閉兩頁總開關": "Disable both automation switches on trigger",
-    "手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；緊急時可點下方「停止輔助」。": "Manual input temporarily yields control; pauses when backgrounded, in settings panel, save editor, or game paused. Master switch only toggles here; click \"Stop Assist\" below in emergencies.",
+    "手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；戰鬥中可按「停止自動戰鬥」。": "Manual input temporarily yields control; pauses when backgrounded, in settings panel, save editor, or game paused. Master switches are controlled here; use Stop Auto Battle during combat.",
     "死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。": "Death protection defaults to off; triggers disable progression and must be manually re-enabled. Uses original exit settlement, risking loss of current run; may return to character select without camp. Damage and surrounding are heuristic, no survival guarantee. Quests track spawned items, stones, cages, bosses, and portals; specific builds, hand-ins, and secrets require manual action.",
     "品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。": "Quality filter controls active tracking; walking over items may still trigger original pickups. When unhooked, downgrades to readable HUD belt presses without guessing enemy positions from Canvas.",
     "遊戲修改": "Cheats", "修改總控制": "Cheat Master Control", "遊戲修改總開關（主控所有修改項目）": "Cheat Master Switch (controls all cheats)",
