@@ -1,5 +1,7 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：新增獨立「全圖吸金幣」開關，預設關閉，啟用戰鬥輔助時吸取地上金幣；關閉時保留遊戲原本撿取。同步桌面來源；隔離 Electron `tests/autobot.cjs` 168 項通過、0 失敗，語言、語法及 `git diff --check` 通過；未實際遊戲驗證或封裝。前次提交 `86d8d32` 被既有 post-commit hook 自動推送，非本次指示授權；後續提交以單次 Git 設定停用 hooks。
+
 - 2026-11-03｜Codex：精簡撿寶面板，移除重複的品質及升級篩選，追蹤與全圖撿寶改依遊戲原版 `loot()` 的保留、隱藏與自動販售判斷；保留寶箱、藥水及任務行為，同步桌面來源。隔離 Electron `tests/autobot.cjs` 166 項通過、0 失敗；`node tests/test_lang.cjs`、JavaScript 語法與 `git diff --check` 通過。尚未於真實遊戲驗證、發布或封裝。
 
 - 2026-11-03｜Codex：核對並更新安裝頁、修改器、README 與公告網站的入口位置、停止控制、製作裝備、排行榜及死亡保護說明；公告網站加入新功能介紹並更新日誌。同步桌面來源對應文字，未封裝桌面版。`node tests/test_lang.cjs`、`node tests/craft-affix-audit.cjs`（708 筆、0 失敗）、`node tests/craft-affix-composite.cjs`、`node tests/craft-limits.cjs`、Electron `tests/craft-companion-ui.cjs`、Electron `tests/autobot.cjs`（168 項、0 失敗）、語法與 `git diff --check` 通過；未進行本次真實遊戲驗收。依使用者要求提交並推送 GitHub；Pages 與獨立 Cloudflare 公告網站部署需另行核對。
