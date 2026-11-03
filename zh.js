@@ -65,6 +65,8 @@ function modZh(m) {
 const cleanName = (s) => (typeof s === "string" ? s.replace(/([\u4e00-\u9fa5\u3400-\u4dbf])\s+([\u4e00-\u9fa5\u3400-\u4dbf])/g, "$1$2") : s);
 function nameZh(it) {
   if (UI_EN) return it.name ?? "";
+  const itemName = look("item:" + it.name);
+  if (itemName && (["runeword", "unique", "set"].includes(it.rarity) || it.name === it.base)) return cleanName(itemName);
   if (has(it.name)) return cleanName(T(it.name));
   const base = it.base ?? "", i = base ? it.name.indexOf(base) : -1;
   if (i >= 0) {
@@ -79,7 +81,7 @@ function nameZh(it) {
 function baseZh(it) {
   if (UI_EN) return it.type === "quest" ? it.name : it.base;
   if (it.type === "quest") return cleanName(nameZhQuest(it));
-  return cleanName(T(it.base));
+  return cleanName(look("item:" + it.base) ?? T(it.base));
 }
 const nameZhQuest = (it) => cleanName(T(it.name));
 const rarityZh = { normal: "普通", magic: "魔法", rare: "稀有", set: "套裝", unique: "暗金", runeword: "符文之語" };

@@ -115,5 +115,29 @@ for (const [source, expected] of Object.entries({
   "Weapon set II": "武器組 II",
   "MAGIC ITEMS hides magic charms too. Set CHARMS to KEEP to keep them": "「魔法物品」也會隱藏魔法護符。將「護符」設為「保留」即可保留它們",
 })) assert.strictEqual(extra[source], expected);
+assert.strictEqual(dict["Weapon set II"], "武器組 II");
+assert.strictEqual(dict["Nature's Peace's Oak Sage life now counts beside Wisp Projector or a weaker Oak Sage of your own"], "自然祥和提供的橡木智者生命加成，現在可與鬼火投射者或自身較弱的橡木智者並存。");
+assert.strictEqual(dict["item:Spirit"], "精神");
+assert.strictEqual(dict["+# to Strength"], "+{0} 力量");
 
+// 修改器同類抗性須使用一致的完整名稱與數值格式。
+const vm = require("vm");
+const zhContext = vm.createContext({});
+vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "zh.js"), "utf8") + "\n;globalThis.zhTest = { zhInit, modZh, nameZh, baseZh, T };", zhContext);
+zhContext.zhTest.zhInit({ dict, game: require("../gamedata.json") });
+for (const [element, name] of Object.entries({ fire: "火焰", cold: "冰寒", lightning: "電擊", poison: "毒素" })) {
+  assert.strictEqual(zhContext.zhTest.modZh({ stat: element + "Resist", value: 25 }), `${name}抗性 +25%`);
+  assert.strictEqual(zhContext.zhTest.modZh({ stat: "max" + element[0].toUpperCase() + element.slice(1) + "Resist", value: 5 }), `${name}抗性上限 +5%`);
+  assert.strictEqual(zhContext.zhTest.modZh({ stat: element + "Pierce", value: 10 }), `敵人${name}抗性 -10%`);
+}
+for (const [stat, expected] of Object.entries({ strength: "+25 力量", enhancedDefense: "+25% 防禦強化", lightningThorns: "攻擊者受到 25 點電擊傷害", targetDefense: "-25% 目標防禦" })) {
+  assert.strictEqual(zhContext.zhTest.modZh({ stat, value: 25 }), expected);
+}
+assert.strictEqual(zhContext.zhTest.modZh({ stat: "strength", value: "#" }), "+# 力量");
+assert.strictEqual(zhContext.zhTest.nameZh({ rarity: "runeword", name: "Fury" }), "狂怒");
+assert.strictEqual(zhContext.zhTest.T("Fury"), "狂怒連擊");
+assert.strictEqual(zhContext.zhTest.nameZh({ rarity: "unique", name: "Frostburn" }), "霜燃");
+assert.strictEqual(zhContext.zhTest.baseZh({ base: "Maul" }), "重鎚");
+assert.strictEqual(zhContext.zhTest.nameZh({ rarity: "normal", name: "Maul", base: "Maul" }), "重鎚");
+assert.strictEqual(zhContext.zhTest.T("Maul"), "槌擊");
 console.log("=== 所有語言模組單元測試均成功通過！ ===");

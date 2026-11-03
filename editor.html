@@ -852,7 +852,7 @@ async function renderCraft() {
     const updateBases = () => {
       const type = $("#xCategory").value;
       const list = BASES.filter(b => b.type !== "quest" && (TYPE_ZH[b.type] ? b.type : "other") === type);
-      $("#xBase").innerHTML = list.sort((a, b) => a.level - b.level).map(b => `<option value="${esc(b.name)}">${esc(T(b.name))}（需求 ${b.level}）</option>`).join("");
+      $("#xBase").innerHTML = list.sort((a, b) => a.level - b.level).map(b => `<option value="${esc(b.name)}">${esc(baseZh({ base: b.name }))}（需求 ${b.level}）</option>`).join("");
     };
     updateBases();
     $("#xCategory").onchange = () => { updateBases(); updateCraftRanges(); };
@@ -934,7 +934,7 @@ async function renderCraftPick() {
     ${x.affix ? '<p class="note">詞綴跟遊戲掉落一樣隨機（合法）。做好可在「物品」頁修改屬性，或多做幾件挑喜歡的。</p>' : ""}
     <div class="f">
       ${x.affix ? "" : '<span>數值</span><select id="pMax"><option value="1">全部最高（合法）</option><option value="0">隨機（跟掉落一樣）</option></select>'}
-      ${x.rarity === "runeword" ? `<span>底材</span><select id="pBase">${rwBases.map(b => `<option value="${esc(b)}" ${b === x.base ? "selected" : ""}>${esc(T(b))}</option>`).join("")}</select>` : ""}
+      ${x.rarity === "runeword" ? `<span>底材</span><select id="pBase">${rwBases.map(b => `<option value="${esc(b)}" ${b === x.base ? "selected" : ""}>${esc(baseZh({ base: b }))}</option>`).join("")}</select>` : ""}
       <span>數量</span><input id="pN" type="number" value="1" min="1" ${unlocked() ? "" : 'max="40"'}>
       ${unlocked() ? '<span>數值倍率</span><input id="pMul" type="number" value="1" min="0" step="0.5">' : ""}
       <span>放到</span><select id="pDest">${destOptions()}</select>
@@ -1344,7 +1344,7 @@ function baseOptions(selected) {
   for (const b of list) (byType[TYPE_ZH[b.type] ? b.type : "other"] ??= []).push(b);
   const known = list.some(b => b.name === selected);
   return (known || !selected ? "" : `<option value="${esc(selected)}" selected>${esc(T(selected))}</option>`) + Object.keys(TYPE_ZH).filter(t => byType[t]).map(t => `<optgroup label="${TYPE_ZH[t]}">${byType[t].sort((a, b) => a.level - b.level)
-    .map(b => `<option value="${esc(b.name)}" ${b.name === selected ? "selected" : ""}>${esc(T(b.name))}（需求 ${b.level}）</option>`).join("")}</optgroup>`).join("");
+    .map(b => `<option value="${esc(b.name)}" ${b.name === selected ? "selected" : ""}>${esc(baseZh({ base: b.name }))}（需求 ${b.level}）</option>`).join("")}</optgroup>`).join("");
 }
 function renderEditor() {
   if (!BASES) ensureBases().then(() => BASES && renderEditor()).catch(() => {});

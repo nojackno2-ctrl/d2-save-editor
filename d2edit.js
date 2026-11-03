@@ -183,7 +183,7 @@ const backend = {
       return { dir, bases: {}, uniques: {}, sets: {}, quest: {}, runes: {}, gems: {} };
     }
   },
-  // 中文：內建繁體字典，若遊戲頁面另有翻譯器，再補充其翻譯。
+  // 中文：與遊戲語言模組共用內建繁體字典。
   async i18n() {
     const game = structuredClone(await (window.__d2gamedataPromise || fetch(at("gamedata.json")).then((r) => r.json())));
     let dict = {};
@@ -196,36 +196,7 @@ const backend = {
       try { const response = await fetch(at("zh-TW.json"), i ? { cache: "reload" } : undefined); if (!response.ok) throw new Error("字典讀取失敗"); dict = await response.json(); }
       catch { dict = {}; if (i < 2) await new Promise((r) => setTimeout(r, 800 * (i + 1))); }
     }
-    const I = window.D2I18N;
-    if (!I || I.language !== "zh-Hant") return { dict, game, missing: !Object.keys(dict).length };
-    const put = (en) => { if (en && !(en in dict)) { const zh = I.translate(en); if (zh && zh !== en) dict[en] = zh; } };
-    // 屬性樣板：# 代入特殊數字翻整句，再把數字換回 {0}{1}{2}
-    const SENT = ["12345", "23456", "34567"];
-    const putTemplate = (en) => {
-      let i = 0;
-      const zh = I.translate(en.replace(/#/g, () => SENT[i++] ?? "0"));
-      if (!zh || zh === en || !/[㐀-鿿]/.test(zh)) return;
-      dict[en] = SENT.reduce((s, n, k) => s.split(n).join(`{${k}}`), zh);
-    };
-    for (const t of Object.values(game.stats)) putTemplate(t);
-    for (const w of ["on striking", "on attack", "when struck", "when you Kill an Enemy", "when you Die", "when you Level-Up"]) putTemplate(`#% Chance to cast level # # ${w}`);
-    putTemplate("Level # # Aura When Equipped");
-    for (const c of Object.values(game.classes)) { put(c.only); c.trees.forEach(put); }
-    // 名稱：物品、底材、套裝、技能，以及存檔裡出現過的物品
-    try {
-      const e = await engine();
-      for (const x of await e.catalog()) { put(x.name); put(x.base); put(x.set); }
-      for (const b of await e.bases()) put(b.name);
-    } catch {}
-    try {
-      const stats = await fetch(window.__D2EDIT_ITEMSTATS || (await d2url("itemstats.json"))).then((r) => r.json());
-      for (const s of Object.values(stats.skills ?? {})) put(s.name);
-    } catch {}
-    for (const m of Object.values(MODES)) {
-      const walk = (o) => { if (Array.isArray(o)) o.forEach(walk); else if (o && typeof o === "object") { if (o.mods && o.name) { put(o.name); put(o.base); for (const w of o.name.split(" ")) put(w); } Object.values(o).forEach(walk); } };
-      try { walk(JSON.parse(localStorage.getItem(m.key) || "null")); } catch {}
-    }
-    return { dict, game };
+    return { dict, game, missing: !Object.keys(dict).length };
   },
   async engine(fn, ...args) {
     if (!["capabilities", "catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName", "validateItems", "allowedStatsMany", "affixSlots"].includes(fn)) throw new Error("不支援的操作");

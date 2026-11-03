@@ -1,5 +1,21 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：依使用者要求準備推送共用繁中翻譯及更新日誌；公告頁與 version.json 已加入變更說明。推送前 `node tests/test_lang.cjs`、`node tests/craft-limits.cjs`、`node tests/craft-affix-composite.cjs`、隔離 Electron `tests/craft-companion-ui.cjs`、`node ../editor/tests/build-web.cjs`、JavaScript 語法及 `git diff --check` 通過。保留既有 autobot.js 與 tests/autobot.cjs 未提交變更，不納入本次提交；尚待推送及核對 GitHub Pages，桌面版未重新封裝。
+
+- 2026-11-03｜Codex：依使用者要求整合繁中共用字典，將舊擴充字典 300 筆合入 zh-TW.json，修正自然祥和名稱，遊戲語言模組、網頁修改器及桌面修改器共用；桌面不再優先讀啟動器字典，網頁不再以遊戲翻譯器覆寫。比對 D2R 3.3.93847 後更新 39 個可精確對應的屬性樣板，以 item: 語境修正底材、暗金與符文之語並避免影響同名技能；同步網頁及桌面來源。舊 locales/zh-TW.json 保留既有變更作歷史資料，繁中不再載入。驗證：39 筆原先不同的屬性逐筆以數值 25 複核均與官方相符；`node tests/test_lang.cjs`、`node tests/craft-limits.cjs`、`node tests/craft-affix-composite.cjs`、隔離 Electron `tests/craft-companion-ui.cjs`、`node ../editor/tests/build-web.cjs`、桌面 core 字典 13907 筆比對、語法及 `git diff --check` 通過。仍有 55 個無精確對應樣板與舊版物品清單未完成人工核對；尚未在真實遊戲驗收、發布或重新封裝。
+
+- 2026-11-03｜Codex：唯讀擷取本機 D2R 3.3.93847 CASC 物品名稱、詞綴與屬性字串至 TEMP，以遊戲 2026.1030.2 擷取的物品與 708 筆詞綴、目前 gamedata.json 135 個屬性樣板逐條精確比對；結果在上層「裝備屬性分析」兩份官方裝備逐條比對 CSV。名稱 1780 筆含詞綴，一般底材／暗金／套裝／符文之語 6 筆差異、1 筆字典缺少、21 筆官方同英文多譯；屬性 41 一致、39 不同、55 無精確對應。無精確對應不代表沒有官方對應；官方多譯不可盲目覆寫。比對未涵蓋最新版動態新增物品、技能觸發及語境消歧，未改翻譯，後續需以遊戲最新資料及物品類型逐項複核。
+
+- 2026-11-03｜Codex：修正修改器四種元素抗性名稱不一致；火焰與電擊缺少完整樣板而退回「抗火／抗電」，現補齊完整樣板並統一單獨名稱，網頁及桌面字典同步。`node tests/test_lang.cjs` 驗證四種一般抗性、抗性上限及降低敵人抗性的格式；未於遊戲介面實測，未發布或封裝。
+
+- 2026-11-03｜Codex：檢查裝備繁中是否採用官方譯文；官方 changelog 最新為 20261102.2，遊戲是非官方作品，繁中由 zh-TW.json 與 locales/zh-TW.json 組成。發現 Nature's Peace 在前者為「自然祥和」、後者新聞為「大自然的和平」；Lightning Damage 亦有「閃電傷害」與「電擊傷害」兩種。尚未取得 D2R 官方裝備文字表逐條比對，不能判定全部符合官方；未修改譯文，後續須擷取本機 D2R 原版字串並對應 Survivors 的實際物品與屬性；以 rg 比對兩層字典及官方 changelog，未做實機驗證。
+
+
+- 2026-11-03｜Codex：更新官方新聞繁中翻譯，補齊 20261102.2 的 8 條及 20261102.1 的 2 條，網頁與桌面來源同步。以官方 changelog 與兩層字典逐條比對，所有新聞均有譯文；`node tests/test_lang.cjs`、`node --check lang.js`、`git diff --check` 通過。尚未實際遊戲驗證、發布或封裝。
+
+
+- 2026-11-03｜Codex：使用者回報手機暫停選單的繼續與儲存並離開無法點擊，截圖同時顯示升級選卡。發現輔助器先前可能在前景選單開啟或遊戲已非 levelUp 時仍對殘留畫面選卡；已限制須為 levelUp 且 frontend 關閉，同步 editor。隔離 Electron `tests/autobot.cjs` 172 項通過、0 失敗；`node --check autobot.js`、`node tests/test_lang.cjs`、`git diff --check` 通過。此競態是否為使用者問題的原因尚未證實，未於真實手機重現、驗證、發布或封裝；需調查原版選單觸控及遊戲狀態。
+
 - 2026-11-03｜Codex：最佳化輔助器：選卡改用獨立計時，首次可於下一次決策執行，重抽及重試間隔 100 毫秒；隱藏設定面板時不再每 200 毫秒掃描遊戲實體以更新面板狀態。同步 web／editor 原始碼及測試；隔離 Electron `tests/autobot.cjs` 170 項通過、0 失敗，`node --check autobot.js`、`node tests/test_lang.cjs` 通過。尚未實際遊戲測速、驗收、發布或封裝。
 
 - 2026-11-03｜Codex：新增獨立「全圖吸金幣」開關，預設關閉，啟用戰鬥輔助時吸取地上金幣；關閉時保留遊戲原本撿取。同步桌面來源；隔離 Electron `tests/autobot.cjs` 168 項通過、0 失敗，語言、語法及 `git diff --check` 通過；未實際遊戲驗證或封裝。前次提交 `86d8d32` 被既有 post-commit hook 自動推送，非本次指示授權；後續提交以單次 Git 設定停用 hooks。

@@ -7,10 +7,9 @@
   if (window.__d2lang?.version) return;
 
   const STORAGE_KEY = "d2lang";
-  // 擴充清單：新增語言只要放 locales/<code>.json（英文原文 → 譯文，數字位置寫 # 並以 {0} {1} 代回）並在此加入一行
-  // base：先載入的大字典（繁中沿用啟動器字典 zh-TW.json），file 的內容會覆蓋在上面（補遊戲更新新增的字串）
+  // 繁體中文統一使用 zh-TW.json；其他語言使用 locales/<code>.json。
   const LOCALES = [
-    { code: "zh-TW", name: "繁體中文", base: "zh-TW.json", file: "locales/zh-TW.json" },
+    { code: "zh-TW", name: "繁體中文", base: "zh-TW.json", file: null },
     { code: "en", name: "English (Original)", file: null },
   ];
 
