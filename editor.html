@@ -1693,11 +1693,10 @@ function detect() {
     note: faultyItems ? "遊戲檢查" : "近似檢查",
     fix: async () => { if (regen.length) await maxItems(regen); for (const it of other) { it.rarity = "unique"; delete it.stats; delete it.roll; } }, fixText: "重新產生為合法物品" }
     : { ok: true, text: "物品合法性檢查通過", note: faultyItems ? "遊戲檢查" : "近似檢查" });
-  if (!ruleBad) out.push({ unknown: true, text: "稀有職業技能詞綴未驗證：物品規則檢查無法使用" });
-  else out.push(ruleBad.length ? { ok: false, text: `原版屬性規則不合規（含稀有職業技能詞綴）：${ruleBad.slice(0, 5).map(x => nameZh(x.item) + "：" + x.problems.map(problemText).join("；")).join("、")}${ruleBad.length > 5 ? "…" : ""}`,
-      note: "排行榜不應出現", ...(ruleBad.some(x => ["unique", "set", "runeword"].includes(x.item.rarity)) && {
-        fix: async () => maxItems(ruleBad.map(x => x.item).filter(it => ["unique", "set", "runeword"].includes(it.rarity))), fixText: "重新產生暗金／套裝／符文之語" }) }
-    : { ok: true, text: "所有物品符合原版屬性規則（含稀有職業技能詞綴）" });
+  // 以遊戲自己的資料與檢查為準：原版暗黑2規則（itemstats）只作參考，不當成「會被偵測」
+  if (!ruleBad) out.push({ unknown: true, text: "與原版暗黑2規則的差異未列出：物品規則檢查無法使用" });
+  else out.push(ruleBad.length ? { ok: true, advisory: true, text: `${ruleBad.length} 件物品與原版暗黑2規則不同（以遊戲為準，${faultyItems ? "遊戲檢查接受" : "遊戲檢查不可用，無法確認"}）：${ruleBad.slice(0, 5).map(x => nameZh(x.item)).join("、")}${ruleBad.length > 5 ? "…" : ""}`, note: "僅供參考" }
+    : { ok: true, text: "所有物品與原版暗黑2規則一致" });
   const badLv = [];
   for (const [c, h] of Object.entries(s.heroes ?? {})) for (const k of ["kept", "run"]) { const lv = h?.[k]?.build?.level; if (lv !== undefined && !(Number.isInteger(lv) && lv >= 1 && lv <= 99)) badLv.push([c, k]); }
   out.push(badLv.length ? { ok: false, text: `角色等級超出 1–99：${badLv.map(([c]) => CLASS_ZH[c]).join("、")}`, fix: () => { for (const [c, k] of badLv) s.heroes[c][k].build.level = 99; }, fixText: "設為 99" }
@@ -1740,9 +1739,10 @@ function renderDetails(list) {
   for (const x of list) if (!x.ok && !x.unknown && !/物品|原版屬性規則/.test(x.text)) rows.push({ where: "存檔欄位", what: x.text, fix: x.fixText ?? "" });
   const gamble = new Set(Object.values(save.gambleByClass ?? {}).flatMap(v => v ?? []));
   const where = new Map(itemsWithWhere(save).map(w => [w.item, w.where]));
+  const notes = [];
   for (const x of ruleBad ?? []) {
     if (gamble.has(x.item)) continue;
-    for (const p of x.problems) rows.push({ where: where.get(x.item) ?? "（位置不明）", what: `「${(x.item.name && nameZh(x.item)) || baseZh(x.item)}」：${problemText(p)}`, fix: ["unique", "set", "runeword"].includes(x.item.rarity) ? "可用上方按鈕重新產生為合法物品" : "手動修改該屬性，或刪除此物品" });
+    for (const p of x.problems) notes.push({ where: where.get(x.item) ?? "（位置不明）", what: `「${(x.item.name && nameZh(x.item)) || baseZh(x.item)}」：${problemText(p)}`, fix: "與原版暗黑2不同，遊戲本身的資料為準，不必修正" });
   }
   for (const it of faultyItems ?? []) if (!(ruleBad ?? []).some(x => x.item === it))
     rows.push({ where: where.get(it) ?? "（位置不明）", what: `「${(it.name && nameZh(it)) || baseZh(it)}」：缺少遊戲需要的隨機種子（roll），遊戲會判定不合法`, fix: "重新產生為合法物品" });
@@ -1752,7 +1752,9 @@ function renderDetails(list) {
     ? `<span class="bad">✖ 已編輯／有問題，不會上傳排行榜</span>　共 ${rows.length} 項待處理${lb.off ? "（排行榜上傳目前已關閉）" : "（排行榜上傳目前開啟，建議關閉）"}`
     : `<span class="ok">✔ 沒有發現問題</span>`;
   $("#lbOff").hidden = !edited || !!lb.off;
-  $("#details").innerHTML = rows.length ? rows.map(r => `<tr><td>${esc(r.where)}</td><td>${esc(r.what)}</td><td class="dim">${esc(r.fix)}</td></tr>`).join("") : `<tr><td colspan="3" class="dim">沒有問題</td></tr>`;
+  const tr = (r, c = "") => `<tr class="${c}"><td>${esc(r.where)}</td><td>${esc(r.what)}</td><td class="dim">${esc(r.fix)}</td></tr>`;
+  $("#details").innerHTML = (rows.length ? rows.map(r => tr(r)).join("") : `<tr><td colspan="3" class="dim">沒有問題</td></tr>`)
+    + (notes.length ? `<tr><td colspan="3" class="dim">以下僅供參考（與原版暗黑2不同，不算問題）</td></tr>` + notes.map(r => tr(r, "dim")).join("") : "");
 }
 function lbTurnOff() { save.leaderboard = { ...save.leaderboard, off: true }; renderGuard(); status("已關閉排行榜上傳（記得寫入存檔）", "ok"); }
 async function fixAll() {
