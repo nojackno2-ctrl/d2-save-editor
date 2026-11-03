@@ -1,5 +1,25 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：官方最新版 20261103.2 與前版 20261103.1 比對；發布前最後執行 `node verify/verify.cjs --update --workers 2` 仍取得 .2，9 項更新逐條完成、7／7 測試通過，新增遊戲字串與公告各 9 項均無缺譯。`node verify/selftest.cjs 20261103.2` 6 項通過。Electron 33.2.1 全新隔離設定檔以本機 web 待發布來源載入官方遊戲；狀態 playing、`diag.connected=true`、`tested=20261103.2`、掛接 `Game-DYfMoexm.js`；截圖及 7 個來源 SHA-256 在 `editor/tests/live-harness/run-update-20261103-final4/`，`verify/reports/live.json` 與來源指紋一致。桌面首次打包因 Windows 符號連結權限失敗；依 electron-builder 25.1.8 本機程式確認設定 `signAndEditExecutable:false` 可略過該步驟，`npm run dist` 成功，產物 SHA-256 `6EC66797832703C129360E1CB3F403A0576CAB9C6235E7DBE77FC40471F12DC1`。發布器已加官方 build 重查、精確暫存清單與失敗重試不重複升版。尚未發布。
+
+- 【已過時，當時狀態由上方 20261103.2 紀錄取代】2026-11-03｜Codex：執行 `node D:/D2倖存者/verify/verify.cjs --update`，沿用遊戲快照 20261103.1；選定測試 7／7 通過（34 秒），無自動來源更新。當時 `impact.json` 有 29 項待分析、`language.json` 有 98 項新增未翻譯；後續版本已重新完成相鄰版本比較、翻譯與驗證。
+
+- 2026-11-03｜Codex：依使用者澄清，更新流程改為 AI 主動分析官方變更、修復與改良；下載、比對、翻譯缺漏與可重複測試由腳本執行，禁止本地 AI。已更新 `../verify/README.md`、`../.agents/skills/game-update/SKILL.md` 並移除舊的「盡量不需要 AI」「等待確認」說明；`rg` 確認舊文字已移除。此項為流程文件調整，未執行遊戲更新或發布。
+
+- 2026-11-03｜Codex：依使用者要求，遊戲更新工作流程須逐項分析官方更新、完成工具包改良與翻譯、正式測試，並以隔離設定檔載入官方真實遊戲及待發布工具包；完成後已授權自動發布。新增 `../verify/lib/impact.cjs`、逐項佐證及發布前檢查；29 項分類與佐證保存測試通過，發布阻擋待分析項目有效。`node verify/verify.cjs --update --dry --build 20261103.1 --workers 2`：7／7 通過，但 29 項待分析、新增未翻譯 98 項，未真實遊戲驗證，未發布；live.json 證據由執行代理實測後記錄，尚無自動載入程式。
+
+- 2026-11-03｜Codex：每次遊戲更新新增繁中翻譯稽核，使用快照中的官方 ko 字典、翻譯器及 changelog 新聞，比對前版並列出新增及全部未翻譯項目至 `../verify/reports/language.json`；缺前版則檢查全部。`node --check` 通過；實際比較 20261102.2→20261103.1：新增遊戲字串 73（70 未翻）、新增新聞 29（28 未翻），目前共 74／28 項未翻；為自動比對結果，尚未補譯或人工核對，也未重跑完整更新流程。
+
+- 2026-11-03｜Codex：修正遊戲 20261103.1 的 makeSet 特徵碼，辨識新版保留擲值狀態的外層函式並兼容舊格式；web／editor signatures.json SHA-256 一致。`node verify/verify.cjs --update` 掛鉤點通過、選定測試 7／7 通過（34 秒），自動更新 editor/autobot.js、editor/tests/autobot.cjs、editor/index.html、editor/editor.html；未驗證真實遊戲，等待使用者確認發布。
+
+- 2026-11-03｜Codex：更新驗證改為下載快照後與前次已驗證快照逐檔比對並選擇測試；未知 JS／HTML 變動、快照不可信或驗證來源變更時全測，只有樣式或無變更則不測、不更新已驗證版本。發布確認時依比對與測試結果自動寫入工具與公告站更新日誌。`node --check` 通過；隔離快照測試涵蓋未變、樣式、核心、未知模組、HTML、缺基準、強制執行、損壞快照；`node verify/publish.cjs` 僅列出計畫。尚未執行真實新版更新、完整流程或發布。
+
+- 2026-11-03｜Codex：已解決更新驗證的 autobot 測試故障：`editor/tests/autobot.cjs` 落後於符合現行選卡與任務流程的 `web/tests/autobot.cjs`，已同步；兩份 SHA-256 均為 `4E9B2443C4D79F292B58F2B2EBB30D75EB77FD4C1E2030640A48A996AB066B1E`。`node verify/verify.cjs --quick --dry --workers 2`：7／7 通過、34 秒；屬隔離測試，未驗證真實遊戲。先前 11 個失敗的記錄為已解決；舊 ticket 為歷史故障單。
+
+- 2026-11-03｜Codex：改良每日更新驗證：同版號須來源、測試及驗證程式指紋一致且快照存在才沿用，`--full` 強制重跑；重試保留首次失敗證據，報告標示未涵蓋真實遊戲。`node --check` 通過，隔離子程序重試測試通過。`node verify/verify.cjs --quick --dry --workers 2`：6／7 項通過；autobot 兩次均 161 通過、11 失敗，失敗詳見 `../verify/reports/ticket.json`，尚未釐清原因；editor／web 的 autobot.js 雜湊相同，兩份 tests/autobot.cjs 雜湊不同。未執行完整更新驗證或實機驗收。
+
+- 2026-11-03｜Codex：依使用者要求停用遊戲更新驗證失敗後的本地 AI 自動修復；更新 `../verify/verify.cjs`、`../verify/README.md` 與 `../.agents/skills/game-update/SKILL.md`。`node --check verify/verify.cjs` 通過；以隔離替身模擬更新測試失敗，確認未呼叫修復、已還原自動修改並產生故障單。未執行完整遊戲更新驗證。
+
 - 2026-11-03｜Codex：依使用者授權準備提交並推送輔助器配裝、任務與選卡更新；node 語法及 git diff --check 通過。先前隔離 Electron 測試 193 項通過；本次重跑 Electron 尚未完成，地獄通關與全部任務流程仍未完成實機驗收。
 
 - 2026-11-03｜Codex：17:21 定時檢查，21 個程序均存活且狀態新鮮；刺客 2、德魯伊 1、死靈 2 已自動進入地獄第一幕（83／85／87 級），其餘仍在惡夢，所有 diag.hellClears 為 0；進入地獄不等於通關，任務模式後續仍待驗證。
