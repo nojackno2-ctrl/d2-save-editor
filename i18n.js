@@ -84,7 +84,7 @@
     "共用倉庫": "Shared stash", "共用": "Shared", "身上裝備": "Equipped", "個人倉庫": "Personal stash", "背包": "Inventory", "護身符欄": "Charm slots",
     "傭兵裝備": "Mercenary gear", "其他": "Other", "暗金收藏": "Unique collection", "賣出紀錄（可買回）": "Sold items (buyback)",
     "（空）": "(empty)", "搜尋名稱…": "Search name…", " 件物品": " items",
-    "底材": "Base", "品質": "Quality", "防禦": "Defense", "位置（橫, 直）": "Position (x, y)", "屬性": "Stats", "固有": "Implicit", "底材固有屬性": "Base implicit stat",
+    "輸出裝備設定": "Export equipment settings", "複製裝備設定": "Copy equipment settings", "複製下列內容貼給協助除錯的人；不包含存檔內容。": "Copy the text below to share for troubleshooting; it does not include save data.", "裝備分類": "Equipment category", "底材": "Base", "品質": "Quality", "防禦": "Defense", "位置（橫, 直）": "Position (x, y)", "屬性": "Stats", "固有": "Implicit", "底材固有屬性": "Base implicit stat",
     "套用修改": "Apply", "數值最高（合法）": "Max values (legit)", "刪除物品": "Delete item", "複製到": "Copy to", "移動到": "Move to",
     "屬性可從下拉選單挑選。範圍以此物品的遊戲產生資料為準；無法判定時顯示「未提供」。修改套裝／魔法／稀有物品的屬性後，可能被遊戲判定為不合法，請到「反修改偵測」頁處理。按上方「寫入存檔」才會真正存檔。": "Pick stats from the dropdown. Ranges come from the game's own item data; \"n/a\" means unknown. After editing set/magic/rare stats the game may consider the item not legit — use the Anti-tamper check page. Nothing is saved until you press \"Write save\".",
     "已刪除（尚未寫入存檔）": "Deleted (not written yet)", "已複製（尚未寫入存檔）": "Copied (not written yet)", "已移動（尚未寫入存檔）": "Moved (not written yet)",

@@ -1,5 +1,11 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：依使用者要求發布上述製作裝備更新至 GitHub Pages；發布前重新執行 `tests/craft-limits.cjs`、`tests/test_lang.cjs`、隔離 Electron `tests/craft-diagnostic-ui.cjs` 及 `git diff --check` 均通過。部署狀態與公開內容待提交後核對；不涉及桌面執行檔發布。
+
+- 2026-11-03｜Codex：製作裝備新增「輸出裝備設定」與複製按鈕，輸出表單屬性、原版檢查、名稱判定、詞綴數量及相同設定的上次製作結果；不擷取存檔資料，複製失敗時可手動選取。同步網頁與桌面來源。隔離 Electron 假後端 `tests/craft-diagnostic-ui.cjs` 通過，確認資料與測試存檔金幣未輸出；`tests/craft-limits.cjs`、`tests/test_lang.cjs`、內嵌 JavaScript 語法及 `git diff --check` 通過。Electron 測試產生 GPU 診斷訊息但結束碼為 0；未於真實遊戲或已封裝版本驗收，未發布。
+
+- 2026-11-03｜Codex：製作裝備新增「裝備分類」與依分類篩選的底材欄位；固有屬性範圍由遊戲產生器取樣並標明取樣，非保證理論極值。詞綴上限沿用既有規則：魔法最多 2、一般稀有最多 6、稀有珠寶最多 4，護身符不可稀有；新增護身符介面即時限制。`node tests/craft-limits.cjs`、`node tests/test_lang.cjs`、桌面 `node tests/runeword-class-base.cjs`、JavaScript 語法及 `git diff --check` 通過。以上為模擬驗證，未完成實際遊戲介面與存檔驗收，未封裝或發布。
+
 - 2026-11-02｜Codex：依使用者新指示移除版本不符的使用封鎖，保留更新提示與程式特徵檢查；先前要求舊版封鎖的紀錄已過時。網頁隔離測試：`tests/autobot.cjs` 160 項通過、`tests/weapon-sets-ui.cjs` 通過，`tests/version-gate-web.cjs` 對 20261102.1 與 20261101.1 完成後端及介面寫入；`node tests/build-web.cjs`、`node tests/test_lang.cjs` 通過。曾誤用已修補模組產生重複匯出錯誤，改用原版模組後通過。舊版功能未做完整相容驗收。網頁提交 `89374b5` 已推送；GitHub Pages 部署中。獨立 Cloudflare 公告網站嘗試 `npx wrangler deploy --name d2-survivors-toolkit --assets ./site --compatibility-date 2026-11-02`，因沒有 Cloudflare API Token 失敗，尚未更新。桌面來源已同步，但未重新封裝或發布執行檔。
 
 - 2026-11-02｜Antigravity：因應官方遊戲更新進行全面實機真機隔離驗證與收尾：

@@ -231,7 +231,9 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
     if (!base || !["magic", "rare"].includes(item.rarity)) return empty;
     const lim = limitOf(base, item.rarity);
     if (!lim) return empty;
-    const limit = { pre: lim.pre, suf: lim.suf, max: lim.max };
+    const limit = item.rarity === "rare" && base.type === "charm"
+      ? { pre: 0, suf: 0, max: 0 } : { pre: lim.pre, suf: lim.suf, max: lim.max };
+    if (limit.max === 0) return { limit, used: { pre: 0, suf: 0 }, kinds: {} };
 
     // 此底材與品質可用的詞綴屬性（排除稀有不可用的 magicOnly）
     const affixes = (G.__affixes ?? []).filter(a => G.__affixApplies?.(a, base, a.cls) && !(item.rarity === "rare" && a.d2?.magicOnly));
@@ -490,7 +492,10 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
       let fixed = null;
       try { fixed = this.itemModMax(item); } catch (_) {}
       const info = this.affixInfo(item?.base, item?.rarity);
-      return { fixed, affix: info?.ranges ?? {} };
+      const base = bases.get(item?.base);
+      let implicit = {};
+      if (base && G.__makeAffix) { try { implicit = baseImplicits(base); } catch (_) {} }
+      return { fixed, implicit, affix: info?.ranges ?? {} };
     },
     // 依遊戲的詞綴組合規則推導名稱；無法唯一確定時不猜測。
     resolveName(item) {

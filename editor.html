@@ -245,6 +245,7 @@
     <h2>訂製裝備</h2>
     <p class="dim">自選底材、品質與屬性。魔法名稱依詞綴組合，稀有名稱由遊戲隨機產生，固定品質依物品定義命名；詞綴或固定物品無法唯一判定時會提示。物品等級為 99，穿戴需求由遊戲依屬性計算。屬性範圍列出此底材可用的詞綴，並非所有詞綴都能同時出現。未解除修改限制時，屬性必須符合原版規則（固定物品依原版定義，魔法／稀有依原版詞綴組合），否則無法製作。</p>
     <div class="craftform">
+      <span>裝備分類</span><select id="xCategory"></select>
       <span>底材</span><select id="xBase"></select>
       <span>品質</span><select id="xRar"></select>
     </div>
@@ -276,7 +277,8 @@
       <table id="cmods" style="margin-top:8px"><thead><tr><th>中文說明</th><th>屬性</th><th>數值／詞綴範圍</th><th>固有</th><th></th></tr></thead><tbody></tbody></table>
       <div class="bar" style="margin-top:6px"><button id="xAdd">＋ 新增屬性</button></div>
     </div>
-    <div class="bar" style="margin-top:12px"><span class="dim">放到</span><select id="xDest"></select><button class="primary" id="xMake">製作</button></div>
+    <div class="bar" style="margin-top:12px"><span class="dim">放到</span><select id="xDest"></select><button class="primary" id="xMake">製作</button><button id="xDiagnose">輸出裝備設定</button></div>
+    <div id="xDiagPanel" hidden><p class="dim">複製下列內容貼給協助除錯的人；不包含存檔內容。</p><textarea id="xDiagText" rows="12" readonly style="width:100%;box-sizing:border-box"></textarea><div class="bar"><button id="xDiagCopy">複製裝備設定</button><span id="xDiagMsg" class="dim"></span></div></div>
   </section>
 </div>
 
@@ -842,7 +844,15 @@ async function renderCraft() {
   try { await ensureBases(); }
   catch (e) { status(e.message, "bad"); return; }
   if (!$("#xBase").options.length) {
-    $("#xBase").innerHTML = baseOptions();
+    const categories = [...new Set(BASES.filter(b => b.type !== "quest").map(b => TYPE_ZH[b.type] ? b.type : "other"))];
+    $("#xCategory").innerHTML = categories.map(t => `<option value="${esc(t)}">${esc(TYPE_ZH[t])}</option>`).join("");
+    const updateBases = () => {
+      const type = $("#xCategory").value;
+      const list = BASES.filter(b => b.type !== "quest" && (TYPE_ZH[b.type] ? b.type : "other") === type);
+      $("#xBase").innerHTML = list.sort((a, b) => a.level - b.level).map(b => `<option value="${esc(b.name)}">${esc(T(b.name))}（需求 ${b.level}）</option>`).join("");
+    };
+    updateBases();
+    $("#xCategory").onchange = () => { updateBases(); updateCraftRanges(); };
     $("#xAdd").onclick = () => { $("#cmods tbody").insertAdjacentHTML("beforeend", craftModRow()); updateCraftRanges(); };
     $("#xAddPre").onclick = () => { $("#cmods-pre tbody").insertAdjacentHTML("beforeend", craftModRow("prefix")); updateCraftRanges(); };
     $("#xAddSuf").onclick = () => { $("#cmods-suf tbody").insertAdjacentHTML("beforeend", craftModRow("suffix")); updateCraftRanges(); };
@@ -863,7 +873,18 @@ async function renderCraft() {
         tbl.onclick = (e) => { if (e.target.classList.contains("rm")) { e.target.closest("tr").remove(); updateCraftRanges(); } };
       }
     }
-    $("#xMake").onclick = makeCustom;
+    $("#xMake").onclick = async () => {
+      const before = JSON.stringify(craftSnapshot());
+      await makeCustom();
+      lastCraftAttempt = { 設定: before, 結果: $("#status").textContent };
+    };
+    $("#xDiagnose").onclick = makeCraftDiagnostic;
+    $("#xDiagCopy").onclick = async () => {
+      await makeCraftDiagnostic();
+      const t = $("#xDiagText");
+      try { await navigator.clipboard.writeText(t.value); $("#xDiagMsg").textContent = "已複製，可以貼上了"; }
+      catch (_) { t.focus(); t.select(); $("#xDiagMsg").textContent = "請手動複製選取的內容"; }
+    };
   }
   updateCraftRarities();
   // 品質選單重建後重新檢查各列屬性與刷新欄位數量顯示
@@ -1115,7 +1136,7 @@ async function updateCraftRanges() {
     $("#xAddPre").disabled = $("#xAddSuf").disabled = false;
   } else if (isSplit && slots?.limit) {
     const totalUsed = (slots.used?.pre ?? 0) + (slots.used?.suf ?? 0);
-    const totalLimitStr = item.rarity === "magic" ? "1～2" : `2～${slots.limit.max}`;
+    const totalLimitStr = slots.limit.max === 0 ? "此底材不能製作稀有品質" : item.rarity === "magic" ? "1～2" : `2～${slots.limit.max}`;
     $("#c-affix-total").textContent = `合計上限：${totalLimitStr}（目前已用 ${totalUsed}）`;
     $("#c-pre-slots").textContent = `已用 ${slots.used.pre} / 上限 ${slots.limit.pre}`;
     const preFull = slots.used.pre >= slots.limit.pre || totalUsed >= slots.limit.max;
@@ -1132,6 +1153,43 @@ async function updateCraftRanges() {
   } else {
     await filterStats("#cmods", item);
   }
+}
+// 只擷取製作表單，不輸出存檔或角色資料。
+let lastCraftAttempt = null;
+function craftSnapshot() {
+  const rarity = $("#xRar").value;
+  const split = rarity === "magic" || rarity === "rare";
+  const sections = split ? [["前綴", "#cmods-pre"], ["後綴", "#cmods-suf"], ["固有", "#cmods-imp"]] : [["屬性", "#cmods"]];
+  const rows = sections.flatMap(([section, table]) => [...document.querySelectorAll(`${table} tbody tr`)].map(tr => {
+    const raw = tr.querySelector(".val").value;
+    return { 區域: section, 屬性代碼: tr.querySelector(".stat").value.trim(), 數值: raw.trim() !== "" && !isNaN(raw) ? Number(raw) : raw,
+      固有: tr.querySelector(".imp").checked, 說明: tr.querySelector(".zh").textContent, 顯示範圍: tr.querySelector(".limit").textContent };
+  }));
+  const base = BASES?.find(b => b.name === $("#xBase").value);
+  return { 裝備分類: $("#xCategory").value, 底材: base?.name ?? $("#xBase").value, 底材部位: base?.type ?? "", 底材類型: base?.itype ?? "", 品質: rarity, 解除限制: unlocked(), 屬性列: rows };
+}
+async function makeCraftDiagnostic() {
+  const snapshot = craftSnapshot(), panel = $("#xDiagPanel"), output = $("#xDiagText");
+  panel.hidden = false; $("#xDiagMsg").textContent = "正在檢查…";
+  const mods = snapshot.屬性列.filter(r => r.屬性代碼).map(r => ({ stat: r.屬性代碼, value: r.數值, ...(r.固有 ? { implicit: true } : {}) }));
+  const item = { base: snapshot.底材, type: snapshot.底材部位, rarity: snapshot.品質, mods };
+  const report = { 格式: "裝備製作診斷 v1", 工具版本: TOOLKIT_VERSION, 已測遊戲版本: TESTED_GAME_BUILD, 設定: snapshot };
+  if (lastCraftAttempt && lastCraftAttempt.設定 === JSON.stringify(snapshot)) report.上次製作結果 = lastCraftAttempt.結果;
+  const check = async (name, fn, ...args) => {
+    try { const result = await window.api.engine(fn, ...args); report[name] = result ?? "引擎未回傳資料"; }
+    catch (e) { report[name] = `檢查失敗：${e.message ?? String(e)}`; }
+  };
+  await check("名稱判定", "resolveName", item);
+  if (["unique", "set", "runeword"].includes(item.rarity)) {
+    if (report.名稱判定?.name) await check("原版規則檢查", "validateItems", [{ ...item, name: report.名稱判定.name }]);
+    else report.原版規則檢查 = "無法判定固定物品名稱，未檢查固定物品規則";
+  } else await check("原版規則檢查", "validateItems", [item]);
+  if (snapshot.品質 === "magic" || snapshot.品質 === "rare") {
+    const slots = snapshot.屬性列.map(r => ({ stat: r.屬性代碼, value: r.數值, ...(r.固有 ? { implicit: true } : {}), ...(r.區域 === "前綴" ? { kind: "prefix" } : r.區域 === "後綴" ? { kind: "suffix" } : {}) }));
+    await check("詞綴數量", "affixSlots", item, slots);
+    if (report.詞綴數量 && typeof report.詞綴數量 === "object") delete report.詞綴數量.kinds;
+  }
+  output.value = JSON.stringify(report, null, 2); $("#xDiagMsg").textContent = "已產生，可複製貼上";
 }
 async function makeCustom() {
   const rarity = $("#xRar").value;
@@ -1249,12 +1307,14 @@ async function loadStatRanges(item) {
 function rangeText(db, stat, implicit, index) {
   const fixed = db?.fixed?.[`${implicit ? "1" : "0"}:${stat}`]?.[index];
   if (fixed) return `範圍：${fixed[0]}～${fixed[1]}`;
+  if (implicit && db?.implicit?.[stat]) return `底材取樣範圍：${db.implicit[stat].join("～")}`;
   const list = !implicit && db?.affix?.[stat];
   return list?.length ? `可用詞綴範圍：${[...new Set(list.map(r => r.join("～")))].join("、")}` : "範圍：未提供";
 }
 function rangeMax(db, stat, implicit, index) {
   const fixed = db?.fixed?.[`${implicit ? "1" : "0"}:${stat}`]?.[index];
   if (fixed) return fixed[1];
+  if (implicit && db?.implicit?.[stat]) return db.implicit[stat][1];
   const list = !implicit && db?.affix?.[stat];
   return list?.length ? Math.max(...list.map(r => r[1])) : null;
 }
