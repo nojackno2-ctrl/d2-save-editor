@@ -498,20 +498,18 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     return true;
   }
 
+  const CJK_PUNCT = /[，,、]/, CJK_PUNCT_ALL = /[，,、]+/g, MULTI_SPACE = /\s{2,}/g;
+  const CJK_CHAR = /[\u4e00-\u9fa5\u3400-\u4dbf]/, CJK_GAP = /([\u4e00-\u9fa5\u3400-\u4dbf])\s+(?=[\u4e00-\u9fa5\u3400-\u4dbf])/g;
   // 淨化中文字串：移除怪物名稱中文字之間的空格、精英怪屬性中間的逗號／頓號
   function cleanCJK(str) {
     if (!str || typeof str !== "string" || currentLang === "en") return str;
     let s = str;
     // 將逗號、頓號替換為空格，多餘空格縮減
-    if (/[，,、]/.test(s)) {
-      s = s.replace(/[，,、]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    if (CJK_PUNCT.test(s)) {
+      s = s.replace(CJK_PUNCT_ALL, " ").replace(MULTI_SPACE, " ").trim();
     }
-    // 移除中文字（CJK字元）之間的空格，保留中英或數字之間的合理空格
-    if (/[\u4e00-\u9fa5\u3400-\u4dbf]/.test(s)) {
-      while (/([\u4e00-\u9fa5\u3400-\u4dbf])\s+([\u4e00-\u9fa5\u3400-\u4dbf])/.test(s)) {
-        s = s.replace(/([\u4e00-\u9fa5\u3400-\u4dbf])\s+([\u4e00-\u9fa5\u3400-\u4dbf])/g, "$1$2");
-      }
-    }
+    // 移除中文字（CJK字元）之間的空格，保留中英或數字之間的合理空格；以前瞻一次處理連續字元，免重複掃描
+    if (CJK_CHAR.test(s)) s = s.replace(CJK_GAP, "$1");
     return s;
   }
 
@@ -522,7 +520,7 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     if (GameTranslator && d && Object.keys(d).length) try { gameTr = new GameTranslator([d]); } catch { gameTr = null; }
   }
   const cache = new Map();
-  const HAS_LETTER = /[A-Za-z]/;
+  const HAS_LETTER = /[A-Za-z]/, HAS_CJK = /[　-鿿가-힣＀-￯]/;
   function translateString(str) {
     if (!str || typeof str !== "string" || currentLang === "en" || !HAS_LETTER.test(str)) return str;
     let r = cache.get(str);
@@ -536,7 +534,8 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     else if (build && word) r = build[1] + word + " " + build[2] + build[3] + build[4];
     else r = look(str);
     // 已含中日韓文字的（我們自己的工具介面、已翻好的）不算缺漏
-    if (r === str && str.trim().length > 1 && !/[　-鿿가-힣＀-￯]/.test(str)) missing.add(str.trim());
+    // 缺漏清單只供除錯，限制數量避免長時間遊玩（例如持續變動的數字字串）讓記憶體無限成長
+    if (r === str && missing.size < 5000 && str.trim().length > 1 && !HAS_CJK.test(str)) missing.add(str.trim());
     r = cleanCJK(r);
     if (cache.size > 20000) cache.clear();
     cache.set(str, r);
@@ -924,9 +923,10 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     document.body.appendChild(menu);
 
     const syncBtn = () => {
-      const isPaused = pausedNow();
-      btn.style.display = isPaused ? "block" : "none";
-      if (!isPaused && menu) menu.style.display = "none";
+      const isPaused = pausedNow(), want = isPaused ? "block" : "none";
+      // 每 300 毫秒執行：值相同時不寫入 style，避免無謂的樣式重算
+      if (btn.style.display !== want) btn.style.display = want;
+      if (!isPaused && menu && menu.style.display !== "none") menu.style.display = "none";
     };
 
     setInterval(syncBtn, 300);
