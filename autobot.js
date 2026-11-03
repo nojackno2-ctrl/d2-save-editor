@@ -153,7 +153,7 @@
   const finite = Number.isFinite, point = (p) => p && finite(p.x) && finite(p.y);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y), live = (e) => point(e) && !e.dead;
   const unit = (x, y) => { const n = Math.hypot(x, y); return n > 0.001 ? { x: x / n, y: y / n } : { x: 0, y: 0 }; };
-  function visible(el) { return !!el && !el.classList.contains("hidden") && getComputedStyle(el).display !== "none" && getComputedStyle(el).visibility !== "hidden"; }
+  function visible(el) { if (!el || el.classList.contains("hidden")) return false; const css = getComputedStyle(el); return css.display !== "none" && css.visibility !== "hidden"; }
   // 新版暫停選單可能繪於 Canvas；已取得實例時以 Game.state 為準。
   const paused = () => game ? game.state === "paused" : visible(document.getElementById("paused")) || document.body.classList.contains("frontend-over-run");
   const toolsMenuOpen = () => paused() || document.body.classList.contains("frontend-open");
@@ -1901,23 +1901,25 @@
     manual(e);
   }, { capture: true, signal: abort.signal });
   window.addEventListener("pointerdown", manual, { capture: true, signal: abort.signal }); window.addEventListener("blur", release, { signal: abort.signal }); document.addEventListener("visibilitychange", release, { signal: abort.signal });
+  const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
+  const setDisplay = (el, show) => { const v = show ? "block" : "none"; if (el.style.display !== v) el.style.display = v; };
   const timer = setInterval(() => {
     if (!alive) return;
     checkRetreat(performance.now());
     const editorOpen = !!window.__d2editIsOpen?.(), menuOpen = toolsMenuOpen();
-    launcher.textContent = trAuto("輔助");
-    stopButton.textContent = trAuto("停止自動戰鬥");
-    launcher.style.display = menuOpen && !editorOpen && panel.hidden ? "block" : "none";
-    stopButton.style.display = settings.progressEnabled && !menuOpen && !editorOpen && panel.hidden ? "block" : "none";
-    statusLine.style.display = (settings.enabled || settings.progressEnabled) && !menuOpen && !editorOpen && panel.hidden ? "block" : "none";
+    // 每 200 毫秒執行：只在內容不同時才寫入 DOM，避免無謂觸發語言模組的 MutationObserver 與重排。
+    setText(launcher, trAuto("輔助"));
+    setText(stopButton, trAuto("停止自動戰鬥"));
+    setDisplay(launcher, menuOpen && !editorOpen && panel.hidden);
+    setDisplay(stopButton, settings.progressEnabled && !menuOpen && !editorOpen && panel.hidden);
+    setDisplay(statusLine, (settings.enabled || settings.progressEnabled) && !menuOpen && !editorOpen && panel.hidden);
     // 依使用者要求：狀態列顯示目前自動戰鬥模式。
-    const line = (settings.progressEnabled ? "【" + modeLabel() + "】" : "") + lastAction;
-    if (statusLine.textContent !== line) statusLine.textContent = trAuto(line);
+    setText(statusLine, trAuto((settings.progressEnabled ? "【" + modeLabel() + "】" : "") + lastAction));
     if (!menuOpen || editorOpen) panel.hidden = true;
     if (!game) guarded(null, performance.now());
     if (panel.hidden) return;
     const s = readState(game);
-    status.textContent = trAuto(["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用（" + modeLabel() + "）" : "關閉"), game ? questLine(game) : "", game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n"));
+    setText(status, trAuto(["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用（" + modeLabel() + "）" : "關閉"), game ? questLine(game) : "", game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n")));
   }, 200);
   const api = {
     destroy() { if (!alive) return; alive = false; restoreGoldRate(); release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,

@@ -295,7 +295,8 @@ const pausedNow = () => {
 };
 // 依使用者要求：整個工具讀取完畢前不讓玩家使用，「修改器」按鈕等載入完成才出現。
 let toolsReady = false;
-const sync = () => { launcher.style.display = toolsReady && pausedNow() && !frame ? "block" : "none"; };
+// 每 500 毫秒及畫面變動時執行：值相同時不寫入 style，避免無謂的樣式重算
+const sync = () => { const v = toolsReady && pausedNow() && !frame ? "block" : "none"; if (launcher.style.display !== v) launcher.style.display = v; };
 let watched = null;
 const observer = new MutationObserver(() => {
   const p = document.getElementById("paused");
