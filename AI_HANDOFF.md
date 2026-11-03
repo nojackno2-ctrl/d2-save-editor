@@ -1,5 +1,7 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：精簡撿寶面板，移除重複的品質及升級篩選，追蹤與全圖撿寶改依遊戲原版 `loot()` 的保留、隱藏與自動販售判斷；保留寶箱、藥水及任務行為，同步桌面來源。隔離 Electron `tests/autobot.cjs` 166 項通過、0 失敗；`node tests/test_lang.cjs`、JavaScript 語法與 `git diff --check` 通過。尚未於真實遊戲驗證、發布或封裝。
+
 - 2026-11-03｜Codex：核對並更新安裝頁、修改器、README 與公告網站的入口位置、停止控制、製作裝備、排行榜及死亡保護說明；公告網站加入新功能介紹並更新日誌。同步桌面來源對應文字，未封裝桌面版。`node tests/test_lang.cjs`、`node tests/craft-affix-audit.cjs`（708 筆、0 失敗）、`node tests/craft-affix-composite.cjs`、`node tests/craft-limits.cjs`、Electron `tests/craft-companion-ui.cjs`、Electron `tests/autobot.cjs`（168 項、0 失敗）、語法與 `git diff --check` 通過；未進行本次真實遊戲驗收。依使用者要求提交並推送 GitHub；Pages 與獨立 Cloudflare 公告網站部署需另行核對。
 
 - 2026-11-03｜Codex：依使用者更正，「全部關閉」改為關閉所有細部布林開關、全圖撿裝與推層／固定關卡模式，保留數值門檻及無關開關的選項；重新開啟總開關不會啟用細項。同步網頁與桌面來源；隔離 Electron `web/tests/autobot.cjs` 168 項通過、0 失敗，語法、語言測試與 `git diff --check` 通過。部分已套用的遊戲修改可能持續至重新開始；未實機驗證、發布或封裝。

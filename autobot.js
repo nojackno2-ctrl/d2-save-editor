@@ -106,7 +106,7 @@
   const modeLabel = () => ({ quest: "任務模式", terror: "天梯・推關", fixedDifficulty: "固定關卡 " + (DIFF_ZH[settings.quest.fixedDifficulty] || ""), fixedTier: "天梯・固定層數 " + settings.terror.targetFarmTier + " 層" })[autoMode()];
   // 依使用者要求：固定關卡模式是獨立的自動模式（不在天梯模式裡）；天梯模式只有推關與固定層數。
   const autoKind = () => ["quest", "fixedDifficulty"].includes(autoMode()) ? autoMode() : "ladder";
-  const get = (path) => path === "loot.vacuumMode" ? (!settings.loot.vacuum ? "off" : settings.loot.onlyUpgrades ? "upgrades" : "all") : path === "autoKind" ? autoKind() : path === "ladderMode" ? (["terror", "fixedTier"].includes(autoMode()) ? autoMode() : "terror") : path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
+  const get = (path) => path === "loot.vacuumMode" ? (!settings.loot.vacuum ? "off" : "all") : path === "autoKind" ? autoKind() : path === "ladderMode" ? (["terror", "fixedTier"].includes(autoMode()) ? autoMode() : "terror") : path === "autoMode" ? autoMode() : path === "terror.progressEnabled" ? settings.terror.mode === "progress" : path === "terror.farmEnabled" ? settings.terror.mode === "farm" : path.split(".").reduce((o, k) => o[k], settings);
   function put(path, value) {
     if (path === "loot.vacuumMode") { settings.loot.vacuum = value !== "off"; if (value !== "off") settings.loot.onlyUpgrades = value === "upgrades"; return; }
     if (path === "autoKind") { if (value !== autoKind()) put("autoMode", value === "ladder" ? "terror" : value); return; }
@@ -364,33 +364,23 @@
     // 實測：地上藥水是 kind=potion 且沒有 item，舊版只接受金幣，藥水全被略過（角色 49/294 血、腳邊 4 瓶藥水沒撿）。
     // 遊戲 20261101.1：地上藥水種類有 potion／rejuvenation／mana（法師的魔力藥水補能量護盾，滿了才入腰帶）；腰帶有空或可直接使用就撿。
     if (["potion", "rejuvenation", "mana"].includes(drop.kind)) { if (drop.kind === "mana" && game?.kit?.id !== "sorceress") return false; const cols = game?.world?.belt?.columns; return !Array.isArray(cols) || cols.some((c) => (c?.length || 0) < 4) || drop.kind === "mana"; }
-    if (!item) return drop.kind === "gold" && settings.loot.pickupGold;
+    if (!item) return drop.kind === "gold";
     if (item.type === "quest") return questOn();
-    if (item.type === "rune") { const n = String(item.base).match(/^r(\d{2})$/); return !!n && +n[1] >= settings.loot.minRuneTier; }
-    if (!settings.loot.qualityThreshold[item.rarity] && !(settings.loot.vacuum && !settings.loot.onlyUpgrades)) return false;
-    // 護符與非裝備沿用原有規則；裝備依目前角色的換裝評分判斷。
-    if (isCharm(item) || !settings.loot.onlyUpgrades) return true;
-    if (!game?.world?.player || typeof game.heroNumbers !== "function") return false;
-    return worth(item);
+    // 交由遊戲原版判斷保留、隱藏與自動販售，避免輔助器再套用另一套品質規則。
+    let decision = drop.loot;
+    try { if (typeof game?.loot === "function") decision = game.loot(item); } catch { return false; }
+    return decision === "pick" || decision === "sell";
   }
-  const worthCache = new WeakMap();
-  function worth(item) {
-    const now = performance.now(), hit = worthCache.get(item);
-    if (hit && now - hit.at < 10000) return hit.ok;
-    let ok = false;
-    try { ok = !!bestGear(game, [item]); } catch { ok = false; }
-    worthCache.set(item, { ok, at: now });
-    return ok;
-  }
+
   // 會去撿的掉落物（不含罐子）；通關後沒有就直接離開。
-  const wantedLoot = (s, now, lootOn = assistOn() && settings.loot.enabled) => s.pickups.filter((e) => !e.flippy && !e.discarded && e.loot !== "sell" && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && accepts(e) && dist(e, s.p) <= settings.loot.searchRadius);
+  const wantedLoot = (s, now, lootOn = assistOn() && settings.loot.enabled) => s.pickups.filter((e) => !e.flippy && !e.discarded && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && accepts(e) && dist(e, s.p) <= settings.loot.searchRadius);
   // 全圖撿取（非原版行為，可關閉）：要撿的掉落物設原版 magnet 自己飛來；寶箱原版不吸，直接移到角色身上讓原版開啟。
   function vacuum(s, now) {
     // 依使用者要求：全圖吸經驗（非原版行為，可關閉）——地上的經驗寶石（kind=xp）也設原版 magnet 自己飛來，不受撿裝開關影響。
     if (assistOn() && settings.loot.vacuumXp && s.p) for (const e of s.pickups) if (e.kind === "xp" && !e.dead) e.magnet = true;
     if (!assistOn() || !settings.loot.enabled || !settings.loot.vacuum || !s.p) return;
     for (const e of s.pickups) {
-      if (e.dead || e.flippy || e.discarded || e.loot === "sell" || e.kind === "xp" || !accepts(e)) continue;
+      if (e.dead || e.flippy || e.discarded || e.kind === "xp" || !accepts(e)) continue;
       if (e.kind === "chest") { e.x = s.p.x; e.y = s.p.y; e.sprite?.position?.set?.(e.x, e.y); }
       else e.magnet = true;
     }
@@ -1825,7 +1815,7 @@
     .toggle{min-width:104px;flex-shrink:0;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:8px}.toggle::before{content:"";width:14px;height:14px;border-radius:50%;background:#b0a49c;flex-shrink:0}.toggle[aria-checked=true]{background:#245436;border-color:#7bd89a;color:#effff3}.toggle[aria-checked=true]::before{background:#8affaf}.toggle[aria-checked=false]{background:#452b29;border-color:#b99188;color:#ffe9e4}.toggle:focus-visible{outline:3px solid #f8d87d;outline-offset:3px}input[type=number]{width:104px;flex-shrink:0}button{cursor:pointer}.tabs{display:flex;gap:8px;margin:12px 0 0;border-bottom:1px solid #9c7e41}.tabs button{flex:1;border-radius:5px 5px 0 0;border-bottom:0}.tabs button[aria-selected=true]{background:#d4a84a;color:#18140f;font-weight:bold}.note{font-size:13px;color:#cabd9d}.status{white-space:pre-line;padding:10px;background:#0005;border-radius:5px;font-size:13px;overflow-wrap:anywhere}.version-warn[hidden]{display:none!important}.version-warn{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#451a14;border:1px solid #d45d48;color:#ffded7;border-radius:6px;padding:8px 12px;margin:10px 0 4px;font-size:13px;font-weight:bold}.version-warn button{min-height:28px;padding:2px 8px;background:transparent;border:none;color:#ffded7;font-size:18px;cursor:pointer;line-height:1}.version-warn button:hover{color:#fff}
     @media(max-width:600px){.backdrop{padding:0}.box{width:100%;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;border-radius:0;border:0;padding:12px;padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}input,select{font-size:16px}label{flex-wrap:wrap}select{max-width:100%;width:100%}}
     @media(max-height:500px){.backdrop{padding:0}.box{width:100%;max-height:100vh;max-height:100dvh;height:100vh;height:100dvh;border-radius:0;border:0;padding:10px max(14px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}h3{margin:12px 0 4px}label{min-height:38px;padding:4px 0}}
-  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><div id="version-warn" class="version-warn" hidden><span class="version-msg"></span><button type="button" class="version-dismiss" aria-label="關閉提示">×</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">自動戰鬥</button><button type="button" role="tab" data-tab="cheat" aria-selected="false">遊戲修改</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div><div data-pane="cheat" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；戰鬥中可按「停止自動戰鬥」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">品質過濾控制自動追蹤目標；路過物品仍可能由原版自動撿起。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button> <button type="button" id="stop-all">全部關閉</button><p class="note">全部關閉會關閉所有開關及全圖撿裝；已套用的部分遊戲修改可能持續至重新開始遊戲。</p></section></div>`;
+  </style><div class="backdrop" hidden><section class="box" role="dialog" aria-modal="true" aria-label="遊戲輔助設定"><div class="head"><h2>遊戲輔助工具</h2><button type="button" id="close">關閉</button></div><div id="version-warn" class="version-warn" hidden><span class="version-msg"></span><button type="button" class="version-dismiss" aria-label="關閉提示">×</button></div><p class="status" role="status"></p><div class="tabs" role="tablist"><button type="button" role="tab" data-tab="assist" aria-selected="true">戰鬥輔助</button><button type="button" role="tab" data-tab="progress" aria-selected="false">自動戰鬥</button><button type="button" role="tab" data-tab="cheat" aria-selected="false">遊戲修改</button></div><div id="fields"><div data-pane="assist" role="tabpanel"></div><div data-pane="progress" role="tabpanel" hidden></div><div data-pane="cheat" role="tabpanel" hidden></div></div><p class="note">手動操作會暫讓控制權；背景分頁、設定面板、修改器及遊戲暫停時停止動作。總開關只能在此面板切換；戰鬥中可按「停止自動戰鬥」。</p><p class="note">死亡保護預設關閉；觸發時一律關閉推層、重刷與任務推進，須自行重新開啟。沿用原版離場結算，可能損失本局進度；無營地模式時可能回到角色選單。致命傷害與包圍判定為啟發式，不保證生存。任務輔助追蹤已生成的物品、石陣、牢籠、敵人與通關門；特定配點、營地交付及隱藏條件仍需手動處理。</p><p class="note">裝備依遊戲內建撿寶過濾器決定保留、隱藏或自動販售；請在遊戲設定調整。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。</p><button type="button" id="stop">立即停止輔助</button> <button type="button" id="stop-all">全部關閉</button><p class="note">全部關閉會關閉所有開關及全圖撿裝；已套用的部分遊戲修改可能持續至重新開始遊戲。</p></section></div>`;
   const panel = root.querySelector(".backdrop"), status = root.querySelector(".status"), controls = new Map();
   const versionWarn = root.querySelector("#version-warn"), versionMsg = root.querySelector(".version-msg"), versionDismiss = root.querySelector(".version-dismiss");
   function refreshVersionNotice() {
@@ -1862,8 +1852,7 @@
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
   for (const [path, label] of [["enabled", "自動走位（預判包圍、保持距離、閃避）"], ["combatStyle", "戰鬥方式"], ["dodgeProjectiles", "閃避敵方飛彈"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依技能攻擊距離）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
-  group("撿寶過濾"); field("loot.enabled", "自動撿裝備"); field("loot.vacuumXp", "全圖吸經驗（地上經驗寶石自動飛來；非原版行為）"); field("loot.vacuumMode", "全圖撿裝模式", [["off", "關閉全圖撿裝"], ["all", "全部撿取"], ["upgrades", "只撿更好的裝備"]]); field("loot.searchRadius", "物品搜尋距離"); field("loot.pickupGold", "追蹤金幣"); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
-  for (const [quality, label] of [["normal", "普通"], ["magic", "魔法"], ["rare", "稀有"], ["set", "套裝"], ["unique", "暗金"], ["runeword", "符文之語"]]) field("loot.qualityThreshold." + quality, "撿取" + label);
+  group("撿寶"); field("loot.enabled", "自動撿寶"); field("loot.vacuumXp", "全圖吸經驗（地上經驗寶石自動飛來；非原版行為）"); field("loot.vacuumMode", "全圖撿寶", [["off", "關閉"], ["all", "開啟（依遊戲過濾器）"]]); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
   field("loot.backtrackForLoot", "通關後等待撿裝");
   tab("progress"); field("progressEnabled", "自動戰鬥開關"); field("autoKind", "自動模式", [["quest", "任務模式（完成所有任務並練到 99 級，達成後自動改刷地獄）"], ["fixedDifficulty", "固定關卡模式（重複刷指定難度）"], ["ladder", "天梯模式"]]);
   field("ladderMode", "天梯方式", [["terror", "推關（恐怖層數往上推）"], ["fixedTier", "固定層數（重刷指定層，須已通關）"]]);

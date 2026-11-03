@@ -215,6 +215,8 @@
     "一擊必殺預判喝水": "Lethal Hit Prediction Potion", "預測提前秒數": "Lookahead Seconds", "生命藥水冷卻（毫秒）": "Potion Cooldown (ms)", "降級模式生命藥帶欄（1～4）": "Fallback Belt Slot (1–4)",
     "走位與閃避": "Movement & Dodging", "自動走位（預判包圍、保持距離、閃避）": "Auto Movement (Kite, Dodge & Avoid Surround)", "戰鬥方式": "Combat Style", "閃避敵方飛彈": "Dodge Enemy Projectiles",
     "自動（依技能攻擊距離）": "Auto (by skill reach)", "近戰（貼身攻擊）": "Melee (close range)", "遠程（保持距離）": "Ranged (keep distance)",
+    "撿寶": "Loot", "自動撿寶": "Auto loot", "全圖撿寶": "Global loot", "開啟（依遊戲過濾器）": "On (use game loot filter)",
+    "裝備依遊戲內建撿寶過濾器決定保留、隱藏或自動販售；請在遊戲設定調整。無法掛接時，僅在 HUD 可讀的情況下按指定藥帶鍵，不從 Canvas 猜測敵人位置。": "Equipment follows the game loot filter for keeping, hiding, or selling; adjust it in game settings. When unhooked, uses readable HUD belt presses without guessing enemy positions from Canvas.",
     "全圖撿裝模式": "Global Loot Mode", "關閉全圖撿裝": "Global loot off", "全部撿取": "Pick up everything", "只撿更好的裝備": "Only pick upgrades", "撿寶過濾": "Loot Filter", "自動撿裝備": "Auto Loot Gear", "全圖吸經驗（地上經驗寶石自動飛來；非原版行為）": "Global Vacuum XP (auto-attract XP gems; unoriginal)", "全圖撿取（要撿的東西自動飛來、寶箱直接開啟；非原版行為）": "Global Vacuum Loot (attract items & auto open chests; unoriginal)", "物品搜尋距離": "Item Search Radius", "追蹤金幣": "Track Gold", "踢地上罐子木桶（可能掉藥水）": "Kick Jars & Barrels (may drop potions)", "普通／魔法／稀有只撿比身上好的（撿前先看屬性）": "Only pick upgrades for normal/magic/rare", "通關後等待撿裝": "Wait for loot after clearing",
     "撿取普通": "Loot Normal", "撿取魔法": "Loot Magic", "撿取稀有": "Loot Rare", "撿取套裝": "Loot Set", "撿取暗金": "Loot Unique", "撿取符文之語": "Loot Runeword",
     "自動戰鬥開關": "Auto Battle Switch", "自動模式": "Auto Mode",
