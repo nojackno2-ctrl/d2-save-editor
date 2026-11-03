@@ -148,7 +148,7 @@
   let alive = true, game = null, lastStep = -Infinity, lastHp = -Infinity;
   let manualUntil = 0, lootTarget = null, lootSince = 0, ownWalk = null, ownReach = null;
   let smooth = { x: 0, y: 0 }, stuck = null, stuckCount = 0, clearAt = 0, clearWorld = null, transition = false;
-  let errors = 0, lastAction = "待命", hookNote = "正在定位遊戲模組", hookUrl = "", actionAt = 0, gameplayCompatible = false;
+  let errors = 0, lastAction = "待命", hookNote = "正在定位遊戲模組", hookUrl = "", actionAt = 0, cardActionAt = -Infinity, gameplayCompatible = false;
   let retreat = null, protectedWorld = null;
   const finite = Number.isFinite, point = (p) => p && finite(p.x) && finite(p.y);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y), live = (e) => point(e) && !e.dead;
@@ -1276,7 +1276,7 @@
     } else sent = pulseCardAction("reroll", "KeyR");
     if (sent) levelRerollCount++;
     lastAction = sent ? "自動配技能：嘗試使用重抽換一批技能卡" : "無法確認重抽鍵位，請手動選卡";
-    actionAt = now;
+    cardActionAt = now;
   }
     // 屬性點依高手比例分配；原版 spendStatPoints(屬性, 點數)。
   // 依使用者要求：撿到赫拉迪克法典（hcx，+1 技能變體點數，上限 10）就讀，並把點數花在技能變體上。
@@ -1614,9 +1614,9 @@
     applyCheats(g);
     checkRetreat(now);
     const levelUpVisible = visible(document.getElementById("level-up"));
-    if (!levelUpVisible) { levelRerollCount = 0; levelCards = levelHandlers = levelOfferKind = null; }
+    if (!levelUpVisible) { levelRerollCount = 0; cardActionAt = -Infinity; levelCards = levelHandlers = levelOfferKind = null; }
     // 依使用者要求：自動戰鬥開著時每次升級一定要選卡（不受手動讓位影響；設定面板開著時除外）；只開戰鬥輔助時選卡交給玩家。
-    if (settings.progressEnabled && panel.hidden && levelUpVisible && now - actionAt > 800) {
+    if (settings.progressEnabled && panel.hidden && levelUpVisible && now - cardActionAt >= 100) {
       const cards = [...document.querySelectorAll("#choices button")].filter(visible);
       if (cards.length) {
         const choice = pickCard(g, cards);
@@ -1628,7 +1628,7 @@
         const i = choice.best;
         const picked = triggerCardPick(i);
         lastAction = picked === "picked" ? "已選擇升級卡 " + (i + 1) : picked === "sent" ? "已送出升級卡按鍵 " + (i + 1) : "無法確認選卡鍵位，請手動選卡";
-        actionAt = now;
+        cardActionAt = now;
         release();
         return;
       }
@@ -1660,22 +1660,6 @@
         if (runStart && g.won) { runStart.complete = true; noteRunEnd(g, now); }
         failStreak[g.difficulty] = died ? (failStreak[g.difficulty] || 0) + 1 : 0;
         actionAt = now; lastAction = died ? "陣亡，返回營地整備" : "本局通關，返回營地"; void g.toMenu(); return;
-      }
-      // 推進時才自動選卡：進化優先，其次依排行榜高手的技能／被動權重。
-      // 優先使用原版回呼，避免重新綁定後固定數字鍵觸發錯誤動作。
-      if ((questOn() || terrorMode() !== "off") && visible(document.getElementById("level-up")) && now - actionAt > 800) {
-        const cards = [...document.querySelectorAll("#choices button")].filter(visible);
-        if (cards.length) {
-          const choice = pickCard(g, cards);
-          if (shouldReroll(g, choice)) {
-            triggerReroll(now);
-          } else {
-            const i = choice.best;
-            const picked = triggerCardPick(i);
-            lastAction = picked === "picked" ? "已選擇升級卡 " + (i + 1) : picked === "sent" ? "已送出升級卡按鍵 " + (i + 1) : "無法確認選卡鍵位，請手動選卡";
-            actionAt = now;
-          }
-        }
       }
       return;
     }
@@ -1931,6 +1915,7 @@
     if (statusLine.textContent !== line) statusLine.textContent = trAuto(line);
     if (!menuOpen || editorOpen) panel.hidden = true;
     if (!game) guarded(null, performance.now());
+    if (panel.hidden) return;
     const s = readState(game);
     status.textContent = trAuto(["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用（" + modeLabel() + "）" : "關閉"), game ? questLine(game) : "", game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n"));
   }, 200);

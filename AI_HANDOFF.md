@@ -1,5 +1,7 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：最佳化輔助器：選卡改用獨立計時，首次可於下一次決策執行，重抽及重試間隔 100 毫秒；隱藏設定面板時不再每 200 毫秒掃描遊戲實體以更新面板狀態。同步 web／editor 原始碼及測試；隔離 Electron `tests/autobot.cjs` 170 項通過、0 失敗，`node --check autobot.js`、`node tests/test_lang.cjs` 通過。尚未實際遊戲測速、驗收、發布或封裝。
+
 - 2026-11-03｜Codex：新增獨立「全圖吸金幣」開關，預設關閉，啟用戰鬥輔助時吸取地上金幣；關閉時保留遊戲原本撿取。同步桌面來源；隔離 Electron `tests/autobot.cjs` 168 項通過、0 失敗，語言、語法及 `git diff --check` 通過；未實際遊戲驗證或封裝。前次提交 `86d8d32` 被既有 post-commit hook 自動推送，非本次指示授權；後續提交以單次 Git 設定停用 hooks。
 
 - 2026-11-03｜Codex：精簡撿寶面板，移除重複的品質及升級篩選，追蹤與全圖撿寶改依遊戲原版 `loot()` 的保留、隱藏與自動販售判斷；保留寶箱、藥水及任務行為，同步桌面來源。隔離 Electron `tests/autobot.cjs` 166 項通過、0 失敗；`node tests/test_lang.cjs`、JavaScript 語法與 `git diff --check` 通過。尚未於真實遊戲驗證、發布或封裝。
