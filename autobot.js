@@ -1616,7 +1616,7 @@
     const levelUpVisible = visible(document.getElementById("level-up"));
     if (!levelUpVisible) { levelRerollCount = 0; cardActionAt = -Infinity; levelCards = levelHandlers = levelOfferKind = null; }
     // 依使用者要求：自動戰鬥開著時每次升級一定要選卡（不受手動讓位影響；設定面板開著時除外）；只開戰鬥輔助時選卡交給玩家。
-    if (settings.progressEnabled && panel.hidden && levelUpVisible && now - cardActionAt >= 100) {
+    if (settings.progressEnabled && panel.hidden && levelUpVisible && g?.state === "levelUp" && !document.body.classList.contains("frontend-open") && now - cardActionAt >= 100) {
       const cards = [...document.querySelectorAll("#choices button")].filter(visible);
       if (cards.length) {
         const choice = pickCard(g, cards);

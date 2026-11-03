@@ -1,5 +1,9 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：依使用者要求將既有選卡修正整理至分支 codex/level-up-menu-guard；
+ode --check autobot.js、
+ode tests/test_lang.cjs、隔離 Electron 	ests/autobot.cjs（172 項、0 失敗）通過。遠端 main 領先此分支基底 3 個提交；尚未合併或實機驗證。
+
 - 2026-11-03｜Codex：補齊公告頁與網頁／桌面修改器的更新日誌，加入翻譯、撿寶、選卡及載入效能與手機介面變更。`node tests/test_lang.cjs`、`node ../editor/tests/build-web.cjs`、網頁與桌面日誌比對及 `git diff --check` 通過；未發布或重新封裝，保留既有輔助器未提交變更。
 
 - 2026-11-03｜Codex：共用繁中翻譯及日誌已提交並推送 `40d6cb9`；GitHub Pages 工作 `41570100255` 成功，避開快取下載 zh-TW.json、zh.js、lang.js、d2edit.js、site/index.html、version.json，其 Git 雜湊與提交一致。獨立 Cloudflare 公告站未驗證部署；桌面執行檔未重新封裝。既有 autobot.js 與 tests/autobot.cjs 仍未提交。
