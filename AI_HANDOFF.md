@@ -1,5 +1,11 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：依使用者要求發布複合詞綴選項配套說明與同欄顯示；發布前 708 筆詞綴稽核、複合詞綴及上限測試、隔離 Electron 介面測試與 `git diff --check` 通過；提交後待核對 GitHub Pages。
+
+- 2026-11-03｜Codex：製作頁前後綴下拉選項顯示詞綴配套屬性；若同屬性也可能為單獨詞綴則標示「可能配套」。自動配套的數值欄顯示在主屬性同一列，底層仍保留遊戲所需的各屬性，編輯數值會同步；刪除主列會刪除配套。隔離 Electron `tests/craft-companion-ui.cjs` 驗證選項配套文字、同列欄位、編輯同步、刪除及歧義；`tests/craft-affix-audit.cjs` 708 筆 0 失敗，複合與上限測試、語言測試、三份頁面語法及 `git diff --check` 通過。桌面來源已同步，未發布網頁、未封裝桌面及未驗收真實遊戲存檔。
+
+- 2026-11-03｜Codex：複合詞綴自動新增功能已發布提交 `11ac34f`；GitHub Pages 工作 `41562385669` 成功，公開 `editor.html` 與 `engine-page.js` 避開快取下載後 Git 雜湊均與提交一致。未做真實遊戲存檔驗收或發布桌面版。
+
 - 2026-11-03｜Codex：依使用者要求發布複合詞綴自動新增及提示；發布前 `tests/craft-affix-audit.cjs` 708 筆、0 失敗，`tests/craft-affix-composite.cjs`、`tests/craft-limits.cjs`、隔離 Electron `tests/craft-companion-ui.cjs`、語法及 `git diff --check` 通過；提交後待確認 GitHub Pages 部署。
 
 - 2026-11-03｜Codex：製作頁選擇可唯一確定配套的複合詞綴時，自動加入其他屬性列並顯示提示；移除或更換原列時移除未被使用者修改的自動配套列，有不同詞綴可能時提示確認而不猜測。修正分區下拉建議值未寫入選項的問題。同步桌面來源；隔離 Electron `tests/craft-companion-ui.cjs` 驗證巨魔護手自動加準確率 +5、提示、刪除及歧義不猜測，通過；`tests/craft-affix-audit.cjs`（708 筆、0 失敗）、`tests/craft-affix-composite.cjs`、`tests/craft-limits.cjs`、`tests/test_lang.cjs`、桌面 `runeword-class-base.cjs` 與語法、`git diff --check` 通過。未在真實遊戲存檔驗收，未發布網頁或封裝桌面。

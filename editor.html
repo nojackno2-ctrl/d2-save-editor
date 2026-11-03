@@ -989,6 +989,7 @@ const craftModRow = (kind = "") => `<tr data-auto="1"${kind ? ` data-kind="${kin
 let craftCompanionId = 0;
 function removeCraftCompanions(tr) {
   tr.dataset.companionRequest = String((Number(tr.dataset.companionRequest) || 0) + 1);
+  tr.querySelector(".companion-fields")?.remove();
   const id = tr.dataset.companionId;
   if (id) for (const row of document.querySelectorAll("#craft tr[data-companion-owner]")) if (row.dataset.companionOwner === id) row.remove();
 }
@@ -1024,7 +1025,15 @@ async function addCraftCompanions(tr) {
     const row = table.querySelector("tbody").lastElementChild, sel = row.querySelector(".stat");
     if (![...sel.options].some(o => o.value === part.stat)) sel.add(new Option(modZh({ stat: part.stat, value: "#" }), part.stat));
     sel.value = part.stat; row.querySelector(".val").value = part.value; delete row.dataset.auto;
-    row.dataset.companionOwner = id; row.querySelector(".zh").textContent = modZh({ stat: part.stat, value: part.value });
+    row.dataset.companionOwner = id; row.style.display = "none";
+    row.querySelector(".zh").textContent = modZh({ stat: part.stat, value: part.value });
+    let fields = tr.querySelector(".companion-fields");
+    if (!fields) { fields = document.createElement("div"); fields.className = "companion-fields"; tr.querySelector(".val").parentElement.appendChild(fields); }
+    const label = document.createElement("label"); label.style.display = "block";
+    label.append(document.createTextNode(modZh({ stat: part.stat, value: "#" }) + " "));
+    const input = document.createElement("input"); input.value = part.value; input.setAttribute("aria-label", modZh({ stat: part.stat, value: "#" }));
+    input.oninput = () => { row.querySelector(".val").value = input.value; row.querySelector(".zh").textContent = modZh({ stat: part.stat, value: input.value }); updateCraftRanges(); };
+    label.append(input); fields.append(label);
     rows.push(row); added.push(modZh({ stat: part.stat, value: part.value }));
   }
   if (added.length) { note.hidden = false; note.textContent = `此詞綴需要配套屬性，已自動新增：${added.join("、")}。`; }
@@ -1116,8 +1125,8 @@ async function filterCraftSplit(item, kinds, db) {
   const mods = allRows.map(tr => ({ stat: tr.querySelector(".stat").value, value: num(tr.querySelector(".val").value), ...(tr.closest("#cmods-pre") ? { kind: "prefix" } : tr.closest("#cmods-suf") ? { kind: "suffix" } : {}), ...(tr.querySelector(".imp").checked && { implicit: true }),
     ...JSON.parse(tr.dataset.original || "{}").length !== undefined && JSON.parse(tr.dataset.original).stat === tr.querySelector(".stat").value && { length: JSON.parse(tr.dataset.original).length } }));
   const seq = filterSeq["#craft"] = (filterSeq["#craft"] ?? 0) + 1;
-  let r;
-  try { r = await Promise.all(allRows.map((tr, i) => window.api.engine("allowedStatsMany", { ...item, ...(tr.closest("#cmods-pre") ? { requestKind: "prefix" } : tr.closest("#cmods-suf") ? { requestKind: "suffix" } : {}) }, [mods.filter((m, j) => j !== i && m.stat)]).then(x => x?.[0]))); } catch { return; }
+  let r, info;
+  try { [r, info] = await Promise.all([Promise.all(allRows.map((tr, i) => window.api.engine("allowedStatsMany", { ...item, ...(tr.closest("#cmods-pre") ? { requestKind: "prefix" } : tr.closest("#cmods-suf") ? { requestKind: "suffix" } : {}) }, [mods.filter((m, j) => j !== i && m.stat)]).then(x => x?.[0]))), window.api.engine("affixInfo", item.base, item.rarity).catch(() => null)]); } catch { return; }
   if (seq !== filterSeq["#craft"] || !Array.isArray(r)) return;
   allRows.forEach((tr, i) => {
     let allowed = r[i];
@@ -1129,8 +1138,19 @@ async function filterCraftSplit(item, kinds, db) {
     else if (isSuf) allowed = allowed.filter(a => !a.implicit && (kinds[a.stat] === "suffix" || kinds[a.stat] === "both"));
     else if (isImp) allowed = allowed.filter(a => a.implicit);
     const sel = tr.querySelector(".stat"), cur = mods[i];
-    const list = allowed.map(a => ({ ...a, label: modZh({ stat: a.stat, value: "#", implicit: a.implicit }) + (a.implicit ? "（固有）" : "") }))
-      .sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
+    const list = allowed.map(a => {
+      const kind = isPre ? "prefix" : isSuf ? "suffix" : null;
+      const paired = new Set(); let standalone = false;
+      if (kind && !a.implicit) for (const affix of info?.combinations ?? []) {
+        if (affix.kind !== kind) continue;
+        const parts = [{ stat: affix.stat, min: affix.min, max: affix.max }, ...(affix.alike ?? []).map(stat => ({ stat, min: affix.min, max: affix.max })), ...(affix.also ? [affix.also] : [])];
+        if (!parts.some(p => p.stat === a.stat && a.value >= p.min && a.value <= p.max)) continue;
+        if (parts.length === 1) standalone = true;
+        for (const p of parts) if (p.stat !== a.stat) paired.add(modZh({ stat: p.stat, value: "#" }));
+      }
+      const label = modZh({ stat: a.stat, value: "#", implicit: a.implicit }) + (a.implicit ? "（固有）" : "") + (paired.size ? `（${standalone ? "可能配套" : "配套"}：${[...paired].join("、")}）` : "");
+      return { ...a, label };
+    }).sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
     const isCur = (a) => a.stat === cur.stat && !!a.implicit === !!cur.implicit;
     const extra = cur.stat && !list.some(isCur) ? `<option value="${esc(cur.stat)}" data-imp="${cur.implicit ? 1 : 0}" selected>${esc(modZh({ stat: cur.stat, value: "#", implicit: cur.implicit }))}（不符合原版規則）</option>` : "";
     sel.innerHTML = '<option value="">（請選擇屬性）</option>' + extra + list.map(a => `<option value="${esc(a.stat)}" data-imp="${a.implicit ? 1 : 0}" data-value="${esc(a.value)}" ${isCur(a) ? "selected" : ""}>${esc(a.label)}</option>`).join("");
