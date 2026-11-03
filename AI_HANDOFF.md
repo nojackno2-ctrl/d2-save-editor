@@ -42,6 +42,8 @@
 - 已過時：版本不符封鎖、手動 Cloudflare 部署、30 級選卡暫定門檻、`TESTED_GAME_BUILD` 待調高（已為 20261102.2）。
 
 ## 近期紀錄
+- 2026-11-03｜Codex：選卡修正（選單開啟時不操作升級選卡）整理至分支 `codex/level-up-menu-guard`；`node --check autobot.js`、`node tests/test_lang.cjs`、隔離 Electron `tests/autobot.cjs`（172 項、0 失敗）通過；未實機驗證。
+- 2026-11-03｜Claude Code：將 `codex/level-up-menu-guard` 合併至 main（AI_HANDOFF 衝突以精簡版為準並補入此紀錄）；`claude/*` 分支內容已由 #2、#3 併入。
 - 2026-11-03｜Claude Code｜PR #3 的 Cloudflare 預覽建置失敗：非 main 分支會執行 `npx wrangler preview`，設定缺 `previews` 區塊。已在 `wrangler.jsonc` 加入 `"previews": {}`；wrangler 4.156.2 原始碼 `ensurePreviewsConfig` 確認有此鍵就放行，`wrangler deploy --dry-run` 仍正常讀取 site/ 10 個檔案。本機沒有 Cloudflare 憑證，無法實際執行 preview，需以 PR 重新建置確認。
 - 2026-11-03｜Claude Code｜**專案最佳化**（使用者要求「最佳化專案」，選定四項）：
   - 輔助器 `autobot.js`：每 200 毫秒的介面迴圈原本無條件寫入按鈕文字與 `style.display`，且狀態列以未翻譯字串比對已翻譯內容（英文介面時每次都重寫），持續觸發 `lang.js` 的 MutationObserver；改為 `setText`／`setDisplay` 只在值不同時寫入，面板狀態文字同樣處理。`visible()` 只取一次 `getComputedStyle`。
