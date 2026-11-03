@@ -1,5 +1,9 @@
 # 交接紀錄
 
+- 2026-11-03｜Codex：補齊公告頁與網頁／桌面修改器的更新日誌，加入翻譯、撿寶、選卡及載入效能與手機介面變更。`node tests/test_lang.cjs`、`node ../editor/tests/build-web.cjs`、網頁與桌面日誌比對及 `git diff --check` 通過；未發布或重新封裝，保留既有輔助器未提交變更。
+
+- 2026-11-03｜Codex：共用繁中翻譯及日誌已提交並推送 `40d6cb9`；GitHub Pages 工作 `41570100255` 成功，避開快取下載 zh-TW.json、zh.js、lang.js、d2edit.js、site/index.html、version.json，其 Git 雜湊與提交一致。獨立 Cloudflare 公告站未驗證部署；桌面執行檔未重新封裝。既有 autobot.js 與 tests/autobot.cjs 仍未提交。
+
 - 2026-11-03｜Codex：依使用者要求準備推送共用繁中翻譯及更新日誌；公告頁與 version.json 已加入變更說明。推送前 `node tests/test_lang.cjs`、`node tests/craft-limits.cjs`、`node tests/craft-affix-composite.cjs`、隔離 Electron `tests/craft-companion-ui.cjs`、`node ../editor/tests/build-web.cjs`、JavaScript 語法及 `git diff --check` 通過。保留既有 autobot.js 與 tests/autobot.cjs 未提交變更，不納入本次提交；尚待推送及核對 GitHub Pages，桌面版未重新封裝。
 
 - 2026-11-03｜Codex：依使用者要求整合繁中共用字典，將舊擴充字典 300 筆合入 zh-TW.json，修正自然祥和名稱，遊戲語言模組、網頁修改器及桌面修改器共用；桌面不再優先讀啟動器字典，網頁不再以遊戲翻譯器覆寫。比對 D2R 3.3.93847 後更新 39 個可精確對應的屬性樣板，以 item: 語境修正底材、暗金與符文之語並避免影響同名技能；同步網頁及桌面來源。舊 locales/zh-TW.json 保留既有變更作歷史資料，繁中不再載入。驗證：39 筆原先不同的屬性逐筆以數值 25 複核均與官方相符；`node tests/test_lang.cjs`、`node tests/craft-limits.cjs`、`node tests/craft-affix-composite.cjs`、隔離 Electron `tests/craft-companion-ui.cjs`、`node ../editor/tests/build-web.cjs`、桌面 core 字典 13907 筆比對、語法及 `git diff --check` 通過。仍有 55 個無精確對應樣板與舊版物品清單未完成人工核對；尚未在真實遊戲驗收、發布或重新封裝。
