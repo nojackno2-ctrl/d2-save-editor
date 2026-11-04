@@ -123,8 +123,8 @@ assert.strictEqual(dict["+# to Strength"], "+{0} 力量");
 // 修改器同類抗性須使用一致的完整名稱與數值格式。
 const vm = require("vm");
 const zhContext = vm.createContext({});
-vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "zh.js"), "utf8") + "\n;globalThis.zhTest = { zhInit, modZh, nameZh, baseZh, T };", zhContext);
-zhContext.zhTest.zhInit({ dict, game: require("../gamedata.json") });
+vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "..", "modifier", "zh.js"), "utf8") + "\n;globalThis.zhTest = { zhInit, modZh, nameZh, baseZh, T };", zhContext);
+zhContext.zhTest.zhInit({ dict, game: require("../../modifier/gamedata.json") });
 for (const [element, name] of Object.entries({ fire: "火焰", cold: "冰寒", lightning: "電擊", poison: "毒素" })) {
   assert.strictEqual(zhContext.zhTest.modZh({ stat: element + "Resist", value: 25 }), `${name}抗性 +25%`);
   assert.strictEqual(zhContext.zhTest.modZh({ stat: "max" + element[0].toUpperCase() + element.slice(1) + "Resist", value: 5 }), `${name}抗性上限 +5%`);

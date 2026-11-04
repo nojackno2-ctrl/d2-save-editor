@@ -32,7 +32,7 @@ async function audit(previous, current) {
     if (!Translator || !currentDict || typeof currentDict !== "object") return { ok: false, reason: "無法解析官方語言字典或翻譯器" };
     // Audit the exact web source used for publication; the editor mirror is
     // synchronized separately and can lag during an in-progress update.
-    const dictionary = JSON.parse(fs.readFileSync(path.join(P.web, "zh-TW.json"), "utf8"));
+    const dictionary = JSON.parse(fs.readFileSync(path.join(P.web, "lang", "zh-TW.json"), "utf8"));
     const tr = new Translator([dictionary]);
     const keys = Object.keys(currentDict).filter((k) => !/[#*]/.test(k) && !/^[a-z]+:/.test(k));
     const added = oldDict ? keys.filter((k) => !Object.hasOwn(oldDict, k)) : keys;

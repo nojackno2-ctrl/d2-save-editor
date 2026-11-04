@@ -167,7 +167,7 @@ node build-web.js https://nojackno2-ctrl.github.io/d2-survivors-toolkit/   # 產
 | `tests/live-harness/` | 實機長跑測試框架：每職業多個全新存檔，一律以 GitHub 連結（書籤方式）載入，輔助器全自動遊玩 |
 | `tools/ladder-learn.js` | 排行榜學習：各職業前 50 位不同玩家，同一玩家只取最高恐懼層紀錄 |
 | `docs/game-analysis/` | 遊戲反編譯分析（核心、戰鬥與命中率、物品與掉落、成長與任務、介面、全職業技能），不含遊戲原始碼 |
-| `AI_HANDOFF.md` | 交接紀錄與長期規則（遊戲更新後全部重新驗證、子代理成果整合回倉庫） |
+| `AI_HANDOFF.md`、`docs/ai/` | 交接紀錄與長期規則、AI 文件索引（遊戲更新後全部重新驗證、子代理成果整合回倉庫） |
 
 ## 免責聲明
 

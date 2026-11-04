@@ -29,7 +29,7 @@ function context(failures) {
 }
 
 // 與「上次全部通過」的版本比對：回歸類失敗最需要的線索就是「改了什麼」。小改動用頭尾夾擠找出差異區段。
-const GOOD = path.join(P.verify, "lastgood");
+const GOOD = path.join(P.root, "backups", "code", "lastgood");
 function changedSinceGood() {
   const out = [];
   if (!fs.existsSync(GOOD)) return out;

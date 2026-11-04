@@ -1,7 +1,7 @@
 const fs=require('node:fs'), assert=require('node:assert/strict');
 (async()=>{
- const {boot}=await import('data:text/javascript,'+encodeURIComponent(fs.readFileSync('engine-page.js','utf8')));
- const affixes=JSON.parse(fs.readFileSync('../裝備屬性分析/魔法稀有詞綴.json','utf8'));
+ const {boot}=await import('data:text/javascript,'+encodeURIComponent(fs.readFileSync(require('node:path').join(__dirname,'..','engine-page.js'),'utf8')));
+ const affixes=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'..','..','game-data','裝備屬性分析','魔法稀有詞綴.json'),'utf8'));
  let tested=0, composite=0; const failures=[];
  for (const a of affixes) {
   const base={name:'test',type:'gloves',itype:'glov'}, d=a.d2??{}, game={__setData(){},__uniques:[],__sets:[],__runewords:[],__bases:[base],__affixes:[a],__affixApplies:()=>true,__isType:(a,b)=>a===b,__seeded:(_,f)=>f(),__makeAffix:()=>({mods:[]})};

@@ -99,7 +99,7 @@ async function update() {
   const a = adapt.analyze(build);
   report.steps.push({ analyze: a });
   if (!a.ok) { ticket("analyze", a.issues); return finish(false, `掛鉤點檢查失敗：\n- ${a.issues.join("\n- ")}\n（故障單：verify/reports/ticket.json）`); }
-  const backupDir = path.join(P.verify, "backups", new Date().toISOString().replace(/[:.]/g, "-"));
+  const backupDir = path.join(P.root, "backups", "code", new Date().toISOString().replace(/[:.]/g, "-"));
   let changed = [];
   if (flag("dry")) log("（--dry）不修改原始碼。將替換檔名為：", a.roles.itemArt, a.roles.saveTransfer);
   else changed = adapt.applyNames(a.roles, backupDir);

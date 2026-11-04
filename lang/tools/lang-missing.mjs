@@ -1,6 +1,6 @@
 // 遊戲更新後找出語言包缺漏：下載遊戲目前的韓文字典（= 遊戲全部可翻譯字串）與原生翻譯器，
 // 用繁中共用 zh-TW.json 或其他語言 locales/<語言>.json 逐條翻一次，列出翻不到的英文。
-// 用法：node tools/lang-missing.mjs [語言代碼，預設 zh-TW] [輸出檔，預設印出]
+// 用法：node lang/tools/lang-missing.mjs [語言代碼，預設 zh-TW] [輸出檔，預設印出]
 // 繁中缺漏補進 zh-TW.json，其他語言補進 locales/<語言>.json（英文原文 → 譯文，數字位置寫 #，譯文以 {0} {1} 代回）。
 import fs from "node:fs";
 import os from "node:os";

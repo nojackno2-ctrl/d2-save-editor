@@ -1,6 +1,6 @@
 // 桌面版語言注入：把語言模組放進官方桌面版遊戲（D2 Survivors.exe）的 app.asar，開機就載入。
 // 用法（需系統管理員權限，因為遊戲裝在 Program Files）：
-//   node tools/desktop-lang.mjs [--game "C:\Program Files\D2 Survivors"] [--d2r "C:\Program Files (x86)\Diablo II Resurrected"] [--out 另存路徑] [--restore]
+//   node lang/tools/desktop-lang.mjs [--game "C:\Program Files\D2 Survivors"] [--d2r "C:\Program Files (x86)\Diablo II Resurrected"] [--out 另存路徑] [--restore]
 // - 先備份原檔為 app.asar.d2lang-orig（已有就不覆蓋）；--restore 還原備份。
 // - D2R 原版繁中字型（BlizzardGlobalTCUnicode.ttf）在本機從玩家自己的 D2R 取出，只放進本機的 app.asar，不散佈。
 // - 遊戲更新後官方安裝程式會覆蓋 app.asar，重新執行本工具即可。
@@ -72,7 +72,7 @@ try {
   } catch (e) { console.warn("取不到 D2R 字型，改用系統字型：", e.message); }
 
   // 啟動腳本：等遊戲畫面出現（遊戲模組已載入）才載入語言模組，避免搶在遊戲之前執行遊戲模組
-  fs.writeFileSync(path.join(dst, "boot.js"), `// 由 tools/desktop-lang.mjs 產生
+  fs.writeFileSync(path.join(dst, "boot.js"), `// 由 lang/tools/desktop-lang.mjs 產生
 window.__d2zhUrl = new URL("zh-TW.json", import.meta.url).href;
 const ready = () => !!document.querySelector("canvas");
 (async () => {

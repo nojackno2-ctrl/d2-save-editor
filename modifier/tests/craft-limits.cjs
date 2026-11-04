@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 (async () => {
-  const { boot } = await import('data:text/javascript,' + encodeURIComponent(fs.readFileSync('engine-page.js', 'utf8')));
+  const { boot } = await import('data:text/javascript,' + encodeURIComponent(fs.readFileSync(require('node:path').join(__dirname,'..','engine-page.js'), 'utf8')));
   const types = ['weapon','shield','head','body','gloves','belt','boots','ring','amulet','charm','jewel'];
   const bases = types.map(type => ({name:type, type, itype:type === 'jewel' ? 'jewl' : type}));
   const game = { __setData(){}, __uniques:[], __sets:[], __runewords:[], __bases:bases,

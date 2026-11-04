@@ -23,19 +23,19 @@
 
 ## 語言功能與遊戲中文化
 
-桌面版可執行 `node tools/desktop-lang.mjs` 注入語言模組；安裝於系統目錄時需要系統管理員權限，遊戲更新後須重新執行。使用 `node tools/desktop-lang.mjs --restore` 還原備份。語言選單中的「使用 D2R 原版字型…」可從本機《暗黑破壞神 II：獄火重生》擷取字型。
+桌面版可執行 `node lang/tools/desktop-lang.mjs` 注入語言模組；安裝於系統目錄時需要系統管理員權限，遊戲更新後須重新執行。使用 `node tools/desktop-lang.mjs --restore` 還原備份。語言選單中的「使用 D2R 原版字型…」可從本機《暗黑破壞神 II：獄火重生》擷取字型。
 
 載入修改器後，遊戲暫停時（#paused 可見或選單開啟）畫面**中間上方**會出現「🌐 語言」按鈕：
 - **切換語言**：點擊展開下拉選單，可即時切換遊戲語言（預設為「繁體中文」`zh-TW`，亦可切換回原文「English」`en`）。選擇會自動保存在 `localStorage["d2lang"]`。
 - **全面 DOM 翻譯**：透過 `MutationObserver` 監看遊戲畫面，翻譯包含浮動文字、HUD Banner、UI 按鈕標籤、`placeholder`、`title`、`aria-label` 等，並支援數字樣板（例如 `# seconds left` → `剩餘{0}秒`）。切換至 `en` 時利用 `WeakMap` 原文快取精確還原。
 - **翻譯範圍**：使用遊戲原生的翻譯器（遊戲韓文版用的同一套比對規則）查我們的字典；除 DOM 外也翻譯畫在 Canvas 上的文字。遊戲及網頁／桌面修改器共用 `zh-TW.json`；舊版 `locales/zh-TW.json` 僅保留作歷史資料，不再載入。以遊戲 20261101.1 全部 11826 條介面字串比對，繁中全部有譯文（DPS、Discord 保留原文）。切換語言後，已畫在 Canvas 上的文字要等畫面重畫才會更新。
-- **遊戲更新後補字**：執行 `node tools/lang-missing.mjs zh-TW 缺漏.json` 會下載遊戲目前的字串清單與翻譯器（會在本機執行遊戲的翻譯器程式碼），列出翻不到的英文，翻好後補進 `zh-TW.json`，並同步桌面來源。遊戲中也可在主控台執行 `__d2lang.missing()` 查看畫面上出現過但沒翻到的文字。
+- **遊戲更新後補字**：執行 `node lang/tools/lang-missing.mjs zh-TW 缺漏.json` 會下載遊戲目前的字串清單與翻譯器（會在本機執行遊戲的翻譯器程式碼），列出翻不到的英文，翻好後補進 `zh-TW.json`，並同步桌面來源。遊戲中也可在主控台執行 `__d2lang.missing()` 查看畫面上出現過但沒翻到的文字。
 - **即時切換語言**：繁中與 English 雙向即時切換，不重新整理頁面、網頁版也不必再點書籤；遊戲文字畫布都記下原文，切換時以新語言原地重畫。
 - **物品名稱**：魔法物品依「字尾＋字首＋底材」、兩個字的稀有名稱依兩字分別翻譯。
 - **工具聯動**：切換為英文時，輔助器（autobot）介面與修改器（editor）亦會同步切換為英文顯示；切換為繁體中文時全面恢復繁中。
 - **如何擴充新語言**：
-  1. 在 `locales/` 目錄新增語言字典檔（例如 `locales/ja.json`，格式與 `zh-TW.json` 相同：英文原文 → 譯文，數字位置寫 `#`，譯文以 `{0}`、`{1}` 代回）。可先用 `node tools/lang-missing.mjs ja ja-待翻.json` 產生全部待翻字串。
-  2. 在 `lang.js` 的 `LOCALES` 清單常數中加入該語言代碼與名稱，例如：
+  1. 在 `lang/locales/` 目錄新增語言字典檔（例如 `lang/locales/ja.json`，格式與 `zh-TW.json` 相同：英文原文 → 譯文，數字位置寫 `#`，譯文以 `{0}`、`{1}` 代回）。可先用 `node lang/tools/lang-missing.mjs ja ja-待翻.json` 產生全部待翻字串。
+  2. 在 `lang/lang.js` 的 `LOCALES` 清單常數中加入該語言代碼與名稱，例如：
      ```js
      { code: "ja", name: "日本語", file: "locales/ja.json" },
      ```
@@ -71,7 +71,7 @@
 - 戰鬥中按「停止自動戰鬥」只會關閉自動戰鬥；設定面板的「立即停止輔助」會關閉兩個開關；死亡保護、錯誤停機等自動停機不會改掉你存的設定。
 - 畫面上方狀態列顯示目前模式與輔助器正在做什麼；設定面板顯示任務進度。目前模式用不到的設定會自動隱藏。
 - 遊戲版本更新後，輔助器與修改器的設定上方會提示「遊戲已更新」，代表尚未驗證新版，部分功能可能失效。
-- 不保證存活或通關；設計與實測調整見 [AUTOBOT_DESIGN.md](AUTOBOT_DESIGN.md)，遊戲機制分析見 [docs/game-analysis](docs/game-analysis/README.md)。
+- 不保證存活或通關；設計與實測調整見 [AUTOBOT_DESIGN.md](helper/AUTOBOT_DESIGN.md)，遊戲機制分析見 [docs/game-analysis](docs/game-analysis/README.md)。
 
 **實測數據**
 
@@ -163,11 +163,24 @@ node build-web.js https://nojackno2-ctrl.github.io/d2-survivors-toolkit/   # 產
 
 | 位置 | 內容 |
 |---|---|
-| `tests/autobot.cjs` | 輔助器模擬測試（Electron 執行，失敗不中斷，最後列出全部失敗項目） |
+| `helper/tests/autobot.cjs` | 輔助器模擬測試（Electron 執行，失敗不中斷，最後列出全部失敗項目） |
 | `tests/live-harness/` | 實機長跑測試框架：每職業多個全新存檔，一律以 GitHub 連結（書籤方式）載入，輔助器全自動遊玩 |
-| `tools/ladder-learn.js` | 排行榜學習：各職業前 50 位不同玩家，同一玩家只取最高恐懼層紀錄 |
+| `helper/tools/ladder-learn.js` | 排行榜學習：各職業前 50 位不同玩家，同一玩家只取最高恐懼層紀錄 |
 | `docs/game-analysis/` | 遊戲反編譯分析（核心、戰鬥與命中率、物品與掉落、成長與任務、介面、全職業技能），不含遊戲原始碼 |
-| `AI_HANDOFF.md` | 交接紀錄與長期規則（遊戲更新後全部重新驗證、子代理成果整合回倉庫） |
+| `AI_HANDOFF.md`、`docs/ai/` | 交接紀錄與長期規則、AI 文件索引（遊戲更新後全部重新驗證、子代理成果整合回倉庫） |
+
+### 專案資料夾結構（網頁版）
+
+| 位置 | 內容 |
+|---|---|
+| 根目錄 | 共用檔：`d2edit.js`（書籤入口，網址不可變）、`index.html`（轉址到 `site/install.html`）、`version.json`、README、授權、`wrangler.jsonc` |
+| `helper/` | 輔助器：`autobot.js`、設計文件、排行榜學習工具、模擬測試 |
+| `lang/` | 語言：`lang.js`、`d2rfont.js`、字典 `zh-TW.json`、`locales/`、補字與桌面注入工具、測試 |
+| `modifier/` | 存檔修改器：`editor.html`、`engine-page.js`、`patch.mjs`、`signatures.json`、`gamedata.json`、`webapi.js`、`i18n.js`、`zh.js`、測試 |
+| `site/` | 網站：公告站 `index.html` 與書籤安裝頁 `install.html`（Cloudflare 自動部署 `site/`） |
+| `editor/` | 桌面版（Electron）來源與 `build-web.js`（把平放的來源輸出成上面的網頁版資料夾） |
+| `backups/` | 本機備份（不進 Git）：`exe/` 舊版執行檔、`code/` 驗證前程式快照與 `lastgood/`、`saves/` 存檔測試副本、`archive/` 雜項；遊戲快照在 `game-bundles/<版本>/`。桌面版執行時的存檔備份在執行檔旁 `backups/{softcore,hardcore,snapshots}/` |
+| `tests/live-harness/`、`verify/`、`docs/`、`game-bundles/` | 跨模組的實機測試、遊戲更新驗證流程、文件、遊戲快照 |
 
 ## 免責聲明
 

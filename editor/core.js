@@ -68,10 +68,12 @@ async function load(mode) {
   return { save, source, seal: sealState(save) };
 }
 
-function backup(name, text) {
-  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+// 備份依類型放子資料夾：softcore／hardcore（寫入前的自動備份）、snapshots（手動快照）；舊版平放的檔案仍可列出
+function backup(name, text, sub = "snapshots") {
+  const dir = path.join(BACKUP_DIR, sub);
+  fs.mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  fs.writeFileSync(path.join(BACKUP_DIR, `${stamp}_${name}`), text);
+  fs.writeFileSync(path.join(dir, `${stamp}_${name}`), text);
 }
 
 async function store(mode, save) {
@@ -80,7 +82,7 @@ async function store(mode, save) {
   try {
     const k = lsKey(MODES[mode].key);
     try {
-      backup(`${mode}_localStorage.json`, decodeLs(await db.get(k)));
+      backup(`${mode}_localStorage.json`, decodeLs(await db.get(k)), mode);
     } catch {}
     await db.put(k, encodeLs(text));
   } finally {
@@ -92,7 +94,7 @@ async function store(mode, save) {
     let oldMode = "softcore";
     try { if (JSON.parse(old).mode === "hc") oldMode = "hardcore"; } catch {}
     if (oldMode === mode) {
-      backup("save.json", old);
+      backup("save.json", old, mode);
       fs.writeFileSync(SAVE_FILE, text);
     }
   }
@@ -147,13 +149,18 @@ function summarize(text) {
 }
 function listBackups() {
   if (!fs.existsSync(BACKUP_DIR)) return [];
-  return fs.readdirSync(BACKUP_DIR).filter((f) => f.endsWith(".json")).map((f) => {
+  const names = [];
+  for (const e of fs.readdirSync(BACKUP_DIR, { withFileTypes: true })) {
+    if (e.isDirectory()) { for (const f of fs.readdirSync(path.join(BACKUP_DIR, e.name))) names.push(e.name + "/" + f); }
+    else names.push(e.name);
+  }
+  return names.filter((f) => f.endsWith(".json")).map((f) => {
     const p = path.join(BACKUP_DIR, f), st = fs.statSync(p);
     return { file: f, size: st.size, time: st.mtimeMs, ...summarize(fs.readFileSync(p, "utf8")) };
   }).sort((a, b) => b.time - a.time);
 }
 const safeName = (f) => {
-  if (path.basename(f) !== f || !f.endsWith(".json")) throw new Error("檔名不正確。");
+  if (!/^([\w-]+\/)?[^\\/]+$/.test(f) || f.includes("..") || !f.endsWith(".json")) throw new Error("檔名不正確。");
   return path.join(BACKUP_DIR, f);
 };
 function readBackup(f) { return JSON.parse(fs.readFileSync(safeName(f), "utf8")); }

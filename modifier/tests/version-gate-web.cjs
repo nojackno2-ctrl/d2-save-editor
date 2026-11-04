@@ -2,7 +2,7 @@
 // 用法：electron tests/version-gate-web.cjs <最新版程式目錄> <舊版程式目錄> <itemstats.json> [更舊版程式目錄]
 const {app, BrowserWindow, session} = require('electron');
 const fs=require('node:fs'), path=require('node:path'), http=require('node:http'), os=require('node:os'), assert=require('node:assert/strict');
-const [latest,old,stats,older]=process.argv.slice(2), root=path.resolve(__dirname,'..');
+const [latest,old,stats,older]=process.argv.slice(2), root=path.resolve(__dirname,'..','..');
 if (!latest || !old || !stats) { console.error('請提供最新版目錄、舊版目錄及 itemstats.json'); app.exit(1); }
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'d2-web-gate-')); app.setPath('userData',path.join(tmp,'profile'));
 app.on('window-all-closed',()=>{});
@@ -14,8 +14,8 @@ app.whenReady().then(async()=>{
     const u=new URL(req.url,'http://localhost'), name=path.basename(u.pathname);
     if(u.pathname==='/play/' || u.pathname==='/'){res.setHeader('content-type','text/html');res.end(html(selected.game));return}
     if(u.pathname==='/d2/itemstats.json'){res.setHeader('content-type','application/json');fs.createReadStream(stats).pipe(res);return}
-    if(u.pathname==='/tool/autobot.js' || u.pathname==='/tool/lang.js'){res.setHeader('content-type','text/javascript');res.end('export {};');return}
-    let file;if(u.pathname.startsWith('/assets/'))file=path.join(selected.dir,name);else if(u.pathname.startsWith('/tool/'))file=path.join(root,name);else {res.writeHead(404).end();return}
+    if(u.pathname==='/tool/helper/autobot.js' || u.pathname==='/tool/lang/lang.js'){res.setHeader('content-type','text/javascript');res.end('export {};');return}
+    let file;if(u.pathname.startsWith('/assets/'))file=path.join(selected.dir,name);else if(u.pathname.startsWith('/tool/'))file=path.join(root,decodeURIComponent(u.pathname.slice(6)));else {res.writeHead(404).end();return}
     res.setHeader('content-type',name.endsWith('.json')?'application/json':name.endsWith('.html')?'text/html':'text/javascript');
     fs.createReadStream(file).on('error',()=>res.writeHead(404).end()).pipe(res);
   }).listen(0,'127.0.0.1');

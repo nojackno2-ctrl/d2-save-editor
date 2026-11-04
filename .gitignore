@@ -8,9 +8,7 @@ editor/dist/
 
 # 本機備份與暫存
 backups/
-_backup_test/
-verify/backups/
-verify/lastgood/
+
 verify/reports/
 temp_*.html
 

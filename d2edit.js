@@ -59,7 +59,7 @@ function activeGameScript() {
 }
 async function startEngine() {
   engineInfo.step = "讀取程式清單";
-  const [{ patch }, signatures] = await Promise.all([import(at("patch.mjs")), fetch(at("signatures.json")).then((r) => r.json())]);
+  const [{ patch }, signatures] = await Promise.all([import(at("modifier/patch.mjs")), fetch(at("modifier/signatures.json")).then((r) => r.json())]);
   // 從頁面已載入的腳本開始，順著 "./xxx.js" 參照把同資料夾的區塊都抓下來
   const base = new URL("/assets/", location.origin).href;
   const seen = new Set(), files = {};
@@ -113,7 +113,7 @@ async function startEngine() {
   mark("讀取物品資料");
   return w.eval(`(async () => {
     const mods = await Promise.all(__entries.map((u) => import(u)));
-    const { boot } = await import(${JSON.stringify(at("engine-page.js"))});
+    const { boot } = await import(${JSON.stringify(at("modifier/engine-page.js"))});
     return boot(Object.assign({}, ...mods), __itemstats, __gameIdentity);
   })()`);
 }
@@ -173,7 +173,7 @@ const backend = {
   },
   // 中文：與遊戲語言模組共用內建繁體字典。
   async i18n() {
-    const game = structuredClone(await (window.__d2gamedataPromise || fetch(at("gamedata.json")).then((r) => r.json())));
+    const game = structuredClone(await (window.__d2gamedataPromise || fetch(at("modifier/gamedata.json")).then((r) => r.json())));
     let dict = {};
     if (window.__d2zhPromise) {
       const shared = await window.__d2zhPromise;
@@ -181,7 +181,7 @@ const backend = {
     }
     // 實測：手機在網站部署期間或網路不穩時字典偶爾抓不到，整頁底材、物品都退回英文；失敗時重試 3 次。
     for (let i = 0; i < 3 && !Object.keys(dict).length; i++) {
-      try { const response = await fetch(at("zh-TW.json"), i ? { cache: "reload" } : undefined); if (!response.ok) throw new Error("字典讀取失敗"); dict = await response.json(); }
+      try { const response = await fetch(at("lang/zh-TW.json"), i ? { cache: "reload" } : undefined); if (!response.ok) throw new Error("字典讀取失敗"); dict = await response.json(); }
       catch { dict = {}; if (i < 2) await new Promise((r) => setTimeout(r, 800 * (i + 1))); }
     }
     return { dict, game, missing: !Object.keys(dict).length };
@@ -258,7 +258,7 @@ window.__d2editIsOpen = () => !!frame;
 function openEditor() {
   if (frame) return;
   frame = document.createElement("iframe");
-  frame.src = at("editor.html") + "&origin=" + encodeURIComponent(location.origin) + "&mode=" + (localStorage.getItem("d2-survivors/mode/v1") === "hardcore" ? "hardcore" : "softcore");
+  frame.src = at("modifier/editor.html") + "&origin=" + encodeURIComponent(location.origin) + "&mode=" + (localStorage.getItem("d2-survivors/mode/v1") === "hardcore" ? "hardcore" : "softcore");
   frame.style.cssText = "position:fixed;inset:0;width:100vw;width:100dvw;height:100vh;height:100dvh;border:0;z-index:2147483647;background:#14110d";
   window.addEventListener("message", onMessage);
   document.body.appendChild(frame);
@@ -298,9 +298,9 @@ const timer = setInterval(sync, 500); // 保險：遊戲用其他方式切換畫
 window.__d2editStopWatch = () => { observer.disconnect(); clearInterval(timer); };
 sync();
 // 輔助器狀態列與語言模組共用同一份繁中字典與遊戲資料 Promise，避免重複下載與解析 891KB 字典。
-window.__d2zhUrl = at("zh-TW.json");
+window.__d2zhUrl = at("lang/zh-TW.json");
 const loadZhDict = () => (window.__d2zhPromise ??= fetch(window.__d2zhUrl).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch((e) => { window.__d2zhPromise = null; throw e; }));
-const loadGameData = () => (window.__d2gamedataPromise ??= fetch(at("gamedata.json")).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch((e) => { window.__d2gamedataPromise = null; throw e; }));
+const loadGameData = () => (window.__d2gamedataPromise ??= fetch(at("modifier/gamedata.json")).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch((e) => { window.__d2gamedataPromise = null; throw e; }));
 // 依使用者要求：點書籤後預先讀完輔助器、字典、遊戲資料、物品引擎與修改器頁面，畫面中央顯示進度條；
 // 各模組改為並行載入以縮短等待時間，單一步驟失敗不卡住（標示警告後繼續），全部結束才開放「修改器」按鈕。
 (async () => {
@@ -314,10 +314,10 @@ const loadGameData = () => (window.__d2gamedataPromise ??= fetch(at("gamedata.js
   const steps = [
     [zhUI ? "繁中字典" : "Dictionary", loadZhDict],
     [zhUI ? "遊戲資料" : "Game data", loadGameData],
-    [zhUI ? "語言模組" : "Language module", () => import(at("lang.js"))],
-    [zhUI ? "輔助器" : "Assistant", () => import(at("autobot.js"))],
+    [zhUI ? "語言模組" : "Language module", () => import(at("lang/lang.js"))],
+    [zhUI ? "輔助器" : "Assistant", () => import(at("helper/autobot.js"))],
     [zhUI ? "物品引擎（遊戲裝備產生器）" : "Item engine", () => engine()],
-    [zhUI ? "修改器頁面" : "Editor page", () => fetch(at("editor.html")).then((r) => r.text())],
+    [zhUI ? "修改器頁面" : "Editor page", () => fetch(at("modifier/editor.html")).then((r) => r.text())],
   ];
   const warn = [];
   let done = 0;

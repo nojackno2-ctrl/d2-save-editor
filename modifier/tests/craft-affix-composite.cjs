@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict'), fs = require('node:fs');
 (async () => {
-  const { boot } = await import('data:text/javascript,' + encodeURIComponent(fs.readFileSync('engine-page.js', 'utf8')));
-  const all = JSON.parse(fs.readFileSync('../裝備屬性分析/魔法稀有詞綴.json','utf8'));
+  const { boot } = await import('data:text/javascript,' + encodeURIComponent(fs.readFileSync(require('node:path').join(__dirname,'..','engine-page.js'), 'utf8')));
+  const all = JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'..','..','game-data','裝備屬性分析','魔法稀有詞綴.json'),'utf8'));
   const base = {name:'Ogre Gauntlets',type:'gloves',itype:'glov'};
   const names = ['Godly', 'Bronze', "Dragon's", 'of the Leech', 'of the Bat', 'of the Sun', 'Glimmering', 'Glowing'];
   const game = {__setData(){},__uniques:[],__sets:[],__runewords:[],__bases:[base],__affixes:all.filter(a=>names.includes(a.name)),

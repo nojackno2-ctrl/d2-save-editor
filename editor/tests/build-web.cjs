@@ -13,14 +13,15 @@ fs.mkdirSync(path.join(out, '.git'));fs.writeFileSync(path.join(out, '.git', 'se
 fs.writeFileSync(path.join(out, 'stale.js'), '過時輸出');
 const build = () => spawnSync(process.execPath, [path.join(source, 'build-web.js'), 'https://example.test/tool/'], { encoding: 'utf8' });
 let result = build(); assert.equal(result.status, 0, result.stderr);
-for (const file of ['autobot.js', 'AUTOBOT_DESIGN.md', 'tests/autobot.cjs', 'tests/weapon-sets.cjs', 'tests/weapon-sets-ui.cjs', 'tests/version-gate-web.cjs']) assert.deepEqual(fs.readFileSync(path.join(out, file)), fs.readFileSync(path.join(source, file)));
-assert.match(fs.readFileSync(path.join(out, 'd2edit.js'), 'utf8'), /import\(at\("autobot\.js"\)\)/);
+for (const [from, to] of [['autobot.js', 'helper/autobot.js'], ['AUTOBOT_DESIGN.md', 'helper/AUTOBOT_DESIGN.md'], ['lang.js', 'lang/lang.js'], ['engine-page.js', 'modifier/engine-page.js']]) assert.deepEqual(fs.readFileSync(path.join(out, to)), fs.readFileSync(path.join(source, from)));
+assert.match(fs.readFileSync(path.join(out, 'site', 'install.html'), 'utf8'), /d2edit\.js/);
+assert.match(fs.readFileSync(path.join(out, 'd2edit.js'), 'utf8'), /import\(at\("helper\/autobot\.js"\)\)/);
 for (const file of keep) assert.equal(fs.readFileSync(path.join(out, file), 'utf8'), '協作紀錄：' + file);
 assert.equal(fs.readFileSync(path.join(out, '.git', 'sentinel'), 'utf8'), '保留 Git');
 assert.equal(fs.readFileSync(path.join(out, 'stale.js'), 'utf8'), '過時輸出'); // 輸出在根目錄，不可清除其他檔案
-const before = fs.readFileSync(path.join(out, 'autobot.js'));
+const before = fs.readFileSync(path.join(out, 'helper', 'autobot.js'));
 fs.unlinkSync(path.join(source, 'autobot.js'));
 result = build(); assert.notEqual(result.status, 0);
-assert.deepEqual(fs.readFileSync(path.join(out, 'autobot.js')), before);
+assert.deepEqual(fs.readFileSync(path.join(out, 'helper', 'autobot.js')), before);
 assert.equal(fs.readFileSync(path.join(out, 'AI_HANDOFF.md'), 'utf8'), '協作紀錄：AI_HANDOFF.md');
 console.log('建置回歸測試通過：複製、載入行、協作紀錄保存、來源缺檔保護；暫存副本：' + root);

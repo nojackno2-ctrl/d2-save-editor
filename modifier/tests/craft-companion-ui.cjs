@@ -5,7 +5,7 @@ const preload=path.join(temp,'preload.cjs');fs.writeFileSync(preload,`window.api
 const watchdog=setTimeout(()=>{console.error('詞綴介面測試逾時');app.exit(1)},30000);
 app.whenReady().then(async()=>{
  const win=new BrowserWindow({show:false,webPreferences:{preload,contextIsolation:false,nodeIntegration:false}});await win.loadFile(path.join(__dirname,'..','editor.html'));
- const source=fs.readFileSync('engine-page.js','utf8');const all=JSON.parse(fs.readFileSync('../裝備屬性分析/魔法稀有詞綴.json','utf8'));
+ const source=fs.readFileSync(require('node:path').join(__dirname,'..','engine-page.js'),'utf8');const all=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'..','..','game-data','裝備屬性分析','魔法稀有詞綴.json'),'utf8'));
  const result=await win.webContents.executeJavaScript(`(async()=>{
   const {boot}=await import('data:text/javascript,'+encodeURIComponent(${JSON.stringify(source)}));
   const base={name:'Ogre Gauntlets',type:'gloves',itype:'glov',level:1};const names=['Godly','Bronze',"Dragon's",'of the Leech','of the Bat','of the Sun','Glimmering','Glowing'];

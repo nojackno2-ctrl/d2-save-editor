@@ -1,5 +1,5 @@
 ﻿param([string]$Classes, [int]$Copies = 1, [int]$Speed = 1)
-$h = $PSScriptRoot; $env:ELECTRON_RUN_AS_NODE = $null; $env:H_SPEED = "$Speed"; $env:H_BOT = "D:\D2倖存者\web\autobot.js"
+$h = $PSScriptRoot; $env:ELECTRON_RUN_AS_NODE = $null; $env:H_SPEED = "$Speed"; $env:H_BOT = "D:\D2倖存者\helper\autobot.js"
 foreach ($c in $Classes.Split(",")) { foreach ($i in 1..$Copies) {
   $out = if ($Copies -gt 1) { "$h\run-$c-$i" } else { "$h\run-$c" }
   if (Test-Path "$out\pid") { Stop-Process -Id (Get-Content "$out\pid") -Force -ErrorAction SilentlyContinue; Start-Sleep 2 }

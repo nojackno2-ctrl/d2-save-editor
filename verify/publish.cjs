@@ -49,18 +49,19 @@ const committedWebVersion = JSON.parse(run("git", ["show", "HEAD:version.json"],
 const pendingVersion = sourceVersion === pkg.version && versionLogPrepared && committedWebVersion.version !== pkg.version;
 const next = has("no-bump") || pendingVersion ? pkg.version : pkg.version.replace(/\d+$/, (n) => String(Number(n) + 1));
 const RELEASE_PATHS = new Set([
-  "AI_HANDOFF.md", "README.md", "AUTOBOT_DESIGN.md", "autobot.js", "d2edit.js", "d2rfont.js", "editor.html",
-  "gamedata.json", "i18n.js", "index.html", "lang.js", "patch.mjs", "signatures.json", "version.json",
-  "webapi.js", "zh.js", "zh-TW.json", ".nojekyll", "locales/zh-TW.json",
-  "tests/autobot.cjs", "tests/test_lang.cjs", "tests/weapon-sets.cjs", "tests/weapon-sets-ui.cjs", "tests/version-gate-web.cjs",
-  "site/index.html",
+  "AI_HANDOFF.md", "README.md", "d2edit.js", "index.html", "version.json", ".nojekyll",
+  "helper/autobot.js", "helper/AUTOBOT_DESIGN.md", "helper/tests/autobot.cjs",
+  "lang/lang.js", "lang/d2rfont.js", "lang/zh-TW.json", "lang/locales/zh-TW.json", "lang/tests/test_lang.cjs",
+  "modifier/editor.html", "modifier/gamedata.json", "modifier/i18n.js", "modifier/patch.mjs", "modifier/signatures.json", "modifier/webapi.js", "modifier/zh.js", "modifier/engine-page.js",
+  "modifier/tests/weapon-sets.cjs", "modifier/tests/weapon-sets-ui.cjs", "modifier/tests/version-gate-web.cjs",
+  "site/index.html", "site/install.html",
 ]);
 
 const plan = [
   `驗證通過的遊戲版本：${verified.build}（${verified.at}）`,
   `工具包版本：${pkg.version}${pendingVersion ? "（接續尚未完成的發布）" : next === pkg.version ? "（不升版）" : ` → ${next}（改 package.json、index.html、editor.html）`}`,
   `1. 建置網頁版：node editor/build-web.js ${HOST}（更新說明：${note}）`,
-  has("no-desktop") ? "2. （略過）桌面版打包與 Release" : "2. 打包桌面版：npm run dist → 舊執行檔備份到 backups/ → 覆蓋根目錄執行檔 → 記錄 SHA-256",
+  has("no-desktop") ? "2. （略過）桌面版打包與 Release" : "2. 打包桌面版：npm run dist → 舊執行檔備份到 backups/exe/ → 覆蓋根目錄執行檔 → 記錄 SHA-256",
   has("no-push") ? "3. 提交根目錄倉庫（不推送）" : "3. 提交並推送根目錄倉庫到 GitHub（origin）",
   has("no-push") || has("no-desktop") || has("no-release") ? "4. （略過）GitHub Release" : `4. 建立 GitHub Release v${next}（附桌面版執行檔與 SHA-256）`,
   "   同時在公告站與工具內「更新日誌」各加一筆（可用 --log \"項目一|項目二\" 加入自訂內容）",
@@ -117,8 +118,8 @@ const addChangelog = () => {
     const built = path.join(P.editor, "dist", "D2倖存者存檔修改器.exe"), target = path.join(P.root, "D2倖存者存檔修改器.exe");
     if (!fs.existsSync(built)) throw new Error("打包後找不到 " + built);
     const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
-    fs.mkdirSync(path.join(P.root, "backups"), { recursive: true });
-    if (fs.existsSync(target)) fs.copyFileSync(target, path.join(P.root, "backups", `D2倖存者存檔修改器-before-${stamp}-v${pkg.version}.exe`));
+    fs.mkdirSync(path.join(P.root, "backups", "exe"), { recursive: true });
+    if (fs.existsSync(target)) fs.copyFileSync(target, path.join(P.root, "backups", "exe", `D2倖存者存檔修改器-before-${stamp}-v${pkg.version}.exe`));
     fs.copyFileSync(built, target); exe = target; hash = sha256(fs.readFileSync(target));
     console.log("桌面版 SHA-256：" + hash);
   }
