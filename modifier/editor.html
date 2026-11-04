@@ -407,7 +407,7 @@
 
 <script>
 const LOCALE = window.LANG === "en" ? "en-US" : "zh-TW";
-const TESTED_GAME_BUILD = "20261103.2"; // 每次確認新版遊戲相容後更新此值
+const TESTED_GAME_BUILD = "20261104.1"; // 每次確認新版遊戲相容後更新此值
 const BUILD_KEY = "d2edit:gameBuild";
 const TOOLKIT_VERSION = "1.0.6"; // 與 package.json 的 version 一致；發布前由 build-web.js 檢查
 const TOOLKIT_SITE = "https://nojackno2-ctrl.github.io/d2-survivors-toolkit/";
@@ -419,7 +419,7 @@ const DIFF_ZH = {"":"未解鎖", normal:"普通", nightmare:"惡夢", hell:"地�
 const RARITY_ZH = {normal:"普通", magic:"魔法", rare:"稀有", set:"套裝", unique:"暗金", runeword:"符文之語"};
 const SLOT_ZH = {weapon:"武器", shield:"副手", head:"頭盔", body:"盔甲", gloves:"手套", belt:"腰帶", boots:"鞋子", amulet:"項鍊", ring1:"戒指1", ring2:"戒指2"};
 const RANK_ZH = {strength:"力量",dexterity:"敏捷",vitality:"體力",energy:"能量",goldFind:"金幣尋獲",magicFind:"魔法尋獲",damageReduced:"傷害減免",replenish:"生命回復",rerolls:"重抽",skips:"跳過",banishes:"放逐",resurrect:"復活",frw:"跑速",fcr:"施法速度",sellPrice:"賣價",potions:"藥水",experience:"經驗",firePierce:"火焰穿透",coldPierce:"冰冷穿透",lightningPierce:"閃電穿透",poisonPierce:"毒素穿透",physicalPierce:"物理穿透",mercLife:"傭兵生命",mercResist:"傭兵抗性",mercDefense:"傭兵防禦"};
-const GRID = { stash:[10,10], inventory:[10,4], charms:[5,4] };
+const GRID = { stash:[10,12], inventory:[10,4], charms:[5,4] };
 let save = null, A = null, cur = null, sel = null; // cur = 目前容器, sel = 目前物品 key
 let supportsWeaponSets = null; // 由實際載入的遊戲程式判斷；null 表示尚未確認。
 let gameSupported = null;

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { patch } = require('../patch.js');
 const signatures = require('../signatures.json');
-const webSignatures = require('../../signatures.json');
+const webSignatures = require('../../modifier/signatures.json');
 
 (async () => {
   assert.equal(signatures.modDefs, webSignatures.modDefs);

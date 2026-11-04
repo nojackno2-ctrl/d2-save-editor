@@ -6,7 +6,7 @@
 - 靜態網頁工具包（JavaScript，無 Rust）：`d2edit.js` 書籤入口 → 載入 `lang/lang.js`（遊戲內繁中）、`helper/autobot.js`（輔助器）、`modifier/engine-page.js`（物品引擎）、`modifier/editor.html`（修改器）；字典 `lang/zh-TW.json`（13907 筆，網頁／桌面共用）。
 - 發布：GitHub Pages（main）；公告站 `site/` 由 Cloudflare 自動抓 GitHub 部署（`wrangler.jsonc`），不需 API Token。
 - 桌面版來源在本儲存庫的 `editor/`（已整併進倉庫）；它與網頁版資料夾的同名檔案是兩份獨立副本、內容已有漂移，改網頁版檔案後需評估是否同步過去。
-- 遊戲目前驗證版本：`TESTED_GAME_BUILD = "20261103.2"`（`helper/autobot.js`、`modifier/editor.html`）；`verify/state.json` 最後驗證 build 同為 20261103.2（前版快照比對不完整，`comparison.complete=false`）。
+- 遊戲目前驗證版本：`TESTED_GAME_BUILD = "20261104.1"`（`helper/autobot.js`、`modifier/editor.html`，2026-11-04 實機確認後更新）；`verify/state.json` 最後驗證 build 同為 20261103.2（前版快照比對不完整，`comparison.complete=false`）。
 
 ## 長期規則（使用者要求）
 - **遊戲更新後全部重新驗證**（2026-11-01）：不可沿用舊版結論。版本來源為官方 `/changelog.json` 第一筆 `build` 與 `/assets/Game-*.js` 檔名；需重驗修改器 `signatures.json`／`patch.mjs` 特徵、物品產生與原版規則、輔助器各原版函式掛接；官方 changelog 中與合法性、存檔欄位、掉落、經驗有關的改動優先核對。
@@ -50,6 +50,7 @@
 - 2026-11-03：製作裝備（裝備分類、前後綴分開範圍、複合詞綴自動配套與同欄顯示、輸出設定診斷；708 筆詞綴稽核 0 失敗）；輔助器「全部關閉」、獨立停止自動戰鬥、全圖吸金幣、撿寶依原版 `loot()`、選卡加速；繁中字典統一為 `zh-TW.json` 並比對 D2R 官方字串；公告頁改寫；Cloudflare 改自動部署。
 
 ## 近期紀錄
+- 2026-11-04｜Claude：**遊戲 20261104.1 相容（實機已過一輪，未發布）**。已做：`helper/autobot.js` 動態解析 `itemArt-*.js`／`saveTransfer-*.js`，鍵位改依特徵辨認（新版 `j_ as Sa`）；`modifier/editor.html` 倉庫 `[10,12]`；`lang/zh-TW.json` +53 筆；`helper/tests/autobot.cjs` 鍵位夾具改為新版形狀；無限重抽鎖定 99 並測試期待 99。網頁版 `TESTED_GAME_BUILD` 已改 20261104.1。回歸：Node 四項＋`autobot.cjs` 194/0 通過。**實機**：本機伺服器（`localhost:8766`）＋`H_BASE` 注入 harness，官方網址載入使用者存檔（sorceress 99 級地獄），輔助器掛接 `Game-C-lMmM6N.js`、自動戰鬥，無模組載入失敗；另有一個未定位來源的 `Cannot read properties of undefined (reading 'id')`（開局時）。**待辦**：33 項 impact 中 24 項仍待分析或需實機（護符、三把鑰匙與首領流程、傳送門、手機版面、Dark Reader、搖桿等）；`auto-select` 選特殊關卡可能消耗器官（Codex 第 5、6 項）；`pandemonium` 結構與 `pandemoniumDone` 未驗證；修改器 LO=16 存檔的讀寫未實測。**使用者指定**：之後實機一律用此存檔（已解碼為暫存 JSON，原檔不動）。
 - 2026-11-04｜Claude：**遊戲更新流程改版**（使用者要求）。`.agents`／`.claude` 的 `game-update` 技能統一為同一份：①讀官方更新訊息 ②反編譯比對新舊版差異（含官方沒提的）③AI 分析修改器／輔助器／語言是否相符並修改 ④沒變動的部分用 `verify` 腳本快速回歸 ⑤隔離環境實機驗證 `https://d2survivors.lol/play/` ⑥使用者明確確認後才 `publish.cjs --confirm`（原 `.agents` 版「自動發布」與 `.claude` 版「本地模型修復」皆移除）。`verify/README.md` 與 `docs/ai/README.md` 已同步。未實際跑過新流程。
 - 2026-11-04｜Claude：**備份資料夾分類**。倉庫 `backups/`：`exe/`（舊執行檔）、`code/`（原 `verify/backups/` 與 `lastgood/`）、`saves/test-fixture`（原 `_backup_test/game-save`）、`archive/`；`verify/verify.cjs`、`repair.cjs`、`publish.cjs` 路徑已改。桌面版存檔備份（`editor/core.js`）改寫到執行檔旁 `backups/softcore|hardcore|snapshots/`，`listBackups`／`safeName` 支援一層子資料夾並仍可列出舊的平放檔案；以暫存目錄驗證寫入、列出、刪除與路徑穿越防護。未重新封裝桌面版，Electron 介面未實測。
 - 2026-11-04｜Claude：**專案資料夾解耦**（使用者 /goal）。結構見上方「資料夾結構」。改了 `d2edit.js`／`editor/d2edit.js` 載入路徑、`editor/build-web.js`（輸出新配置，不再複製 tests）、`verify/publish.cjs` 發布清單、字典稽核路徑、live-harness 路徑。**舊根目錄網址（如 `/autobot.js`）已不存在**，書籤入口網址不變。驗證：`node --check`、`test_lang`、`craft-limits`、`weapon-sets`、`editor/tests/build-web.cjs` 通過；Electron 測試與實機未跑，未推送。`verify/lib/repair.cjs` 的 EDITABLE 清單與 `editor/` 桌面副本（內容有漂移）未動。
