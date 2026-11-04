@@ -1,0 +1,15 @@
+// 測試登記表。tier：static（純檢查，秒級）／integration（隔離 Electron，數十秒）／full（實機長流程，預設不跑）。
+// kind：node＝一般 node 腳本；electron＝用 editor 的 electron 執行（隔離 TEMP 設定檔，不碰真實存檔）。
+// stale：已確認過時、不納入（原因記在這裡，避免日後再被當成工具包壞掉）。
+module.exports = [
+  { id: "build-web",          tier: "static",      kind: "node",     file: "build-web.cjs",          timeout: 60 },
+  { id: "lang",               tier: "static",      kind: "node",     file: "test_lang.cjs",          timeout: 60 },
+  { id: "runeword-class-base",tier: "static",      kind: "node",     file: "runeword-class-base.cjs",timeout: 60 },
+  { id: "skill-mods",         tier: "static",      kind: "node",     file: "skill-mods.cjs",         timeout: 60 },
+  { id: "weapon-sets",        tier: "static",      kind: "node",     file: "weapon-sets.cjs",        timeout: 60 },
+  { id: "weapon-sets-ui",     tier: "integration", kind: "electron", file: "weapon-sets-ui.cjs",     timeout: 120 },
+  { id: "autobot",            tier: "integration", kind: "electron", file: "autobot.cjs",            timeout: 180 },
+  // 舊測試：遊戲版本封鎖已移除（見 AI_HANDOFF），斷言已不成立。
+  { id: "version-gate",       stale: "版本封鎖已移除，斷言過時", file: "version-gate.cjs" },
+  { id: "version-gate-web",   stale: "需要手動提供新舊版目錄參數，且封鎖已移除", file: "version-gate-web.cjs" },
+];

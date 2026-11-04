@@ -1,2 +1,24 @@
-.wrangler/
+# 相依套件與快取
 node_modules/
+.wrangler/
+
+# 建置產物與執行檔（exe 改用 GitHub Release 發布）
+*.exe
+editor/dist/
+
+# 本機備份與暫存
+backups/
+_backup_test/
+verify/backups/
+verify/lastgood/
+verify/reports/
+temp_*.html
+
+# 實機測試的瀏覽器設定檔、截圖與執行紀錄
+**/live-harness/run-*/
+**/live-harness/profile*/
+shots/
+
+# 本機工具狀態
+.claude/scheduled_tasks.lock
+.claude/settings.local.json

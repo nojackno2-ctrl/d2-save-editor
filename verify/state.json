@@ -1,0 +1,26 @@
+{
+  "lastVerified": {
+    "build": "20261103.2",
+    "at": "2026-11-04T11:02:14.069Z",
+    "changed": [],
+    "fingerprint": "cc72730890eed309b5cbee9c148ee5cf03e3fecc99f18222e7bf1e81b91853a4",
+    "comparison": {
+      "baseline": "20261103.1",
+      "complete": false,
+      "reason": "缺少可驗證的前版或新版快照",
+      "changed": [],
+      "groups": [
+        "unknown"
+      ]
+    },
+    "tested": [
+      "build-web",
+      "lang",
+      "runeword-class-base",
+      "skill-mods",
+      "weapon-sets",
+      "weapon-sets-ui",
+      "autobot"
+    ]
+  }
+}

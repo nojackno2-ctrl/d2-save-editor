@@ -1,0 +1,51 @@
+{
+  "name": "d2-survivors-save-editor",
+  "productName": "D2倖存者存檔修改器",
+  "version": "1.0.6",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "classic-level": "1.4.1"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "local.d2survivors.saveeditor",
+    "files": [
+      "main.js",
+      "preload.js",
+      "core.js",
+      "zh.js",
+      "zh-TW.json",
+      "index.html",
+      "gamedata.json",
+      "package.json",
+      "engine.js",
+      "engine-page.js",
+      "patch.js",
+      "signatures.json",
+      "webapi.js",
+      "i18n.js"
+    ],
+    "asarUnpack": [
+      "node_modules/classic-level/**"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": "portable",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "D2倖存者存檔修改器.exe"
+    }
+  },
+  "allowScripts": {
+    "electron@33.2.1": true
+  }
+}
