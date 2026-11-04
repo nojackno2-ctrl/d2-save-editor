@@ -1,4 +1,8 @@
 # 交接紀錄
+- 2026-11-04｜Codex：玩家網站新增「已知問題」導覽與排行榜未上傳暫行處理，安裝頁中英文同步；原因未確認且不保證接受成績。`node D:/D2倖存者/verify/verify.cjs --update --workers 2`：官方 20261103.2、9 項變更已分析、0 項缺譯、7／7 測試通過。Electron 33.2.1 隔離設定檔載入本機來源進入官方遊戲 playing（amazon Lv.3，`connected=true`，`Character → 角色`，Storage.setItem 為原生）；`verify/reports/live.json` 綁定指紋 `33931ef454ef4f0136735b10a9d715e2dfab365261a632f68d5825f658d0f200`。待 v1.0.6 發布及 Pages／GitHub Release／Cloudflare 部署驗收。
+
+
+- 2026-11-04｜Claude（未發布）：①排行榜提醒已寫入 editor/web-install.html、editor/index.html、editor/editor.html 更新日誌與 web/site/index.html（玩家回報載入中文化書籤後即使不修改也不上傳排行榜，原因尚未確認）。②存檔檢查頁新增「遊戲診斷」區塊（renderDiag／gameSeesPage／parseDiag／DIAG_FACTS，index.html 與 editor.html）：複製遊戲 ie() 判斷顯示遊戲此刻看到的頁面狀態（__D2ZH 書籤標記與 7 個原生函式 WeakMap.get、Storage.setItem、drawImage、putImageData、addEventListener、requestAnimationFrame、devicePixelRatio 是否被替換）；可貼上遊戲診斷訊息標出 page、leaderboard queue、last session；附 29 個診斷欄位對照表。反編譯結果（遊戲 20261103.2）：診斷欄位由 C.fact／z.fact 登記，page 欄位在 ui 區塊 ie()，目前只找到它用於診斷文字，未找到直接阻擋上傳的程式，伺服器是否使用此結果未知；括號內 build／gear／forged／ranks 的中文解釋為推測。當時 lang.js 會暫時替換 Storage.prototype.setItem（遇 d2s:lang 丟錯）並改寫翻譯器與點陣字型原型；後續 Codex 已移除 Storage 替換，詳見 2026-11-04 實測紀錄。決定仍是不偽裝原生函式（如改 Function.prototype.toString）或隱藏書籤痕跡。待辦：向遊戲開發者確認翻譯書籤規定；請玩家貼診斷訊息的 page 與 leaderboard queue 行。該筆當時尚未重建 web／提交／發布；語法檢查及 Node 模擬通過。真實遊戲實測後續已於 2026-11-04 記錄。
 
 - 2026-11-04｜Claude：存檔檢查提示文字去掉「與原版暗黑2不同」，改為「額外的詞綴規則檢查（以遊戲為準，僅供參考）」；更新日誌新增 2026-11-04 條目（存檔檢查改名與問題明細、判定結果與關閉排行榜上傳、正常裝備誤判修正），同步 editor/index.html、editor/editor.html 與 web/site/index.html（介紹網頁），未升版號（維持 v1.0.5，避免觸發更新提示）。已重建 web（version.json note 已還原）。語法檢查通過，未實機驗證。
 
@@ -106,6 +110,12 @@
 - 已過時：版本不符封鎖、手動 Cloudflare 部署、30 級選卡暫定門檻、`TESTED_GAME_BUILD` 待調高（已為 20261102.2）。
 
 ## 近期紀錄
+- 2026-11-04｜Codex：以全新 Electron TEMP 設定檔進入官方 D2 Survivors 20261103.2，選擇官方提供檔案後到達遊戲營地；載入本機 web 工具包。初始 `/play/setup.html` 尚未初始化遊戲時 `itemstats.json` 為 404，正式進入 `/play/` 後為 200，修改器引擎完成載入。`__d2lang.debug()`：translator／gameTr／fontPatched／gameHooked／game 皆 true；畫面有中文介面，`translate("Character")` 為「角色」。重跑遊戲相同的七項原生函式檢查：`replaced=[]`、`Storage.setItem` 為原生、`__D2ZH=false`。先前同一 TEMP 隔離頁以修改器後端寫入合成存檔，關閉修改器觸發重載後內容仍一致。截圖與診斷 JSON 在 `%TEMP%\\d2-game-inspect-22eEzF\\`；已關閉 Electron，未碰使用者存檔。限制：僅實測英文原生遊戲轉工具包繁中及初始營地；未逐頁驗收 Canvas 全文、韓文原生模式或排行榜伺服器結果。
+
+- 2026-11-04｜Codex：移除兩處已確認會觸發 `Storage.setItem` 替換診斷的攔截。`lang.js` 不再強制非韓文遊戲切換韓文並攔截儲存；原生韓文遊戲仍沿用原翻譯器，其他語言使用工具包既有字典、Canvas／點陣字型翻譯。`d2edit.js` 改用 `localStorage.setItem` 原生寫入，保留本次寫入狀態，關閉修改器時仍重新載入遊戲以採用新存檔。web/editor 的 `lang.js`、`d2edit.js`、`autobot.js` SHA-256 一致；六份檔案 `node --check` 與 `git diff --check` 通過，搜尋確認無 `Storage.prototype.setItem` 覆寫。尚未執行功能測試或真實遊戲診斷；未重建、提交或發布。
+
+- 2026-11-04｜Codex：依使用者要求，將工具包包裝原廠函式時的 `Function.name` 對齊被包裝函式（翻譯器、點陣字型、Canvas、HUD、輔助器、短暫攔截 `Array.push/sort`、修改器存檔鎖定）；未改寫 `Function.prototype.toString`，包裝仍可被替換偵測辨識。`node --check lang.js`、`autobot.js`、`d2edit.js` 與 `git diff --check` 通過；未執行功能測試或真實遊戲驗證。`editor/` 對應檔案與 `web/` 來源原已不同，為避免覆蓋既有差異，本次未同步、未提交、未發布。
+
 - 2026-11-03｜Codex：選卡修正（選單開啟時不操作升級選卡）整理至分支 `codex/level-up-menu-guard`；`node --check autobot.js`、`node tests/test_lang.cjs`、隔離 Electron `tests/autobot.cjs`（172 項、0 失敗）通過；未實機驗證。
 - 2026-11-03｜Claude Code：將 `codex/level-up-menu-guard` 合併至 main（AI_HANDOFF 衝突以精簡版為準並補入此紀錄）；`claude/*` 分支內容已由 #2、#3 併入。
 - 2026-11-03｜Claude Code｜PR #3 的 Cloudflare 預覽建置失敗：非 main 分支會執行 `npx wrangler preview`，設定缺 `previews` 區塊。已在 `wrangler.jsonc` 加入 `"previews": {}`；wrangler 4.156.2 原始碼 `ensurePreviewsConfig` 確認有此鍵就放行，`wrangler deploy --dry-run` 仍正常讀取 site/ 10 個檔案。本機沒有 Cloudflare 憑證，無法實際執行 preview，需以 PR 重新建置確認。

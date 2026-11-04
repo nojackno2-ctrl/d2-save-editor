@@ -2,6 +2,13 @@
 // 靜態對照（2026-10-31）：Game-C88Jt16A.js、itemArt--xlb93dv.js、saveTransfer-DCNF5R1f.js。
 (() => {
   "use strict";
+
+  function keepFunctionName(original, replacement) {
+    if (typeof original === "function" && typeof replacement === "function" && replacement.name !== original.name) {
+      try { Object.defineProperty(replacement, "name", { configurable: true, value: original.name }); } catch {}
+    }
+    return replacement;
+  }
   // 熱重載時保留同頁既有 Game 參照，讓遊戲迴圈被殘留選卡遮罩卡住時仍可恢復。
   const priorGame = window.__d2autobot?.game || null;
   window.__d2autobot?.destroy();
@@ -955,7 +962,7 @@
     if (!hud || typeof hud.showTown !== "function") return false;
     if (hud.__d2autobotTown === api) return true;
     const own = Object.prototype.hasOwnProperty.call(hud, "showTown"), original = hud.showTown;
-    hud.showTown = function (...args) { trade = { gold: args[0], wares: args[1] || [], acts: args[2] || {}, gear: args[3] || null }; return Reflect.apply(original, this, args); };
+    hud.showTown = keepFunctionName(original, function (...args) { trade = { gold: args[0], wares: args[1] || [], acts: args[2] || {}, gear: args[3] || null }; return Reflect.apply(original, this, args); });
     hud.__d2autobotTown = api;
     restores.push(() => { if (own) hud.showTown = original; else delete hud.showTown; delete hud.__d2autobotTown; });
     return true;
@@ -1228,14 +1235,14 @@
     const originalSort = Array.prototype.sort, originalPush = Array.prototype.push, pools = [], replacements = [];
     try {
       // 20261102.1 的原版先產生所有合法替換技能，再隨機挑一個加入候選池。
-      Array.prototype.push = function (...items) {
+      Array.prototype.push = keepFunctionName(originalPush, function (...items) {
         for (const item of items) if (item?.type === "respec" && typeof item.id === "string" && typeof item.replaces === "string" && Number.isFinite(item.level) && Number.isFinite(item.banked)) Reflect.apply(originalPush, replacements, [item]);
         return Reflect.apply(originalPush, this, items);
-      };
-      Array.prototype.sort = function (compare) {
+      });
+      Array.prototype.sort = keepFunctionName(originalSort, function (compare) {
         if (this.length && this.every((x) => x && typeof x === "object" && typeof x.type === "string")) pools.push(this.slice());
         return Reflect.apply(originalSort, this, [compare]);
-      };
+      });
       const weapon = nativeWeapon ? nativeWeapon(g.world.player) : undefined;
       nativeLevelChoices(g.build, g.world, levelOfferKind ?? undefined, weapon);
       if (!pools.length) return null;
@@ -1329,11 +1336,11 @@
       questTried.set(quest, now);
       try {
         // 依原版選樹流程：技能樹編號為 1～3，依排行榜權重選尚未取得的樹。
-        hud.chooseTree = function (kit, taken, pick) {
+        hud.chooseTree = keepFunctionName(original, function (kit, taken, pick) {
           hud.d2?.useTreeKit?.(kit); const slots = hud.d2?.treeSlots, weights = [0, 0, 0, 0];
           for (const [id, , weight] of LADDER.classes[cls]?.skills || []) { const page = slots?.get?.(id)?.page; if (page >= 1 && page <= 3) weights[page] += weight; }
           const choices = [1, 2, 3].filter((i) => !taken?.includes(i)); choices.sort((a, b) => weights[b] - weights[a]); if (choices.length) pick(choices[0]);
-        };
+        });
         g.openCharacter(previous, cls);
         if (g.readsHere?.(cls, "tree") || g.readsHere?.(cls, "attribute")) {
           g.useQuest(cls, quest, () => {});

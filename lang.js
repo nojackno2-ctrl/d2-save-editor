@@ -4,6 +4,13 @@
 (() => {
   "use strict";
 
+  function keepFunctionName(original, replacement) {
+    if (typeof original === "function" && typeof replacement === "function" && replacement.name !== original.name) {
+      try { Object.defineProperty(replacement, "name", { configurable: true, value: original.name }); } catch {}
+    }
+    return replacement;
+  }
+
   if (window.__d2lang?.version) return;
 
   const STORAGE_KEY = "d2lang";
@@ -141,7 +148,7 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
       const Game = Object.values(mod).find(v => typeof v === "function" && typeof v.prototype?.tick === "function");
       if (!Game || Game.prototype.tick.__d2langCapture) return;
       const tick = Game.prototype.tick;
-      function wrapped(...args) { capturedGame = this; return tick.apply(this, args); }
+      const wrapped = keepFunctionName(tick, function (...args) { capturedGame = this; return tick.apply(this, args); });
       wrapped.__d2langCapture = true;
       Game.prototype.tick = wrapped;
     } catch (e) { console.warn("[d2lang] 無法取得遊戲物件", e); }
@@ -190,35 +197,27 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
       GameTranslator = Object.values(mod).find((v) => typeof v === "function" && v.prototype && typeof v.prototype.translate === "function" && typeof v.prototype.translateAs === "function") || null;
     } catch (e) { console.warn("[d2lang] 無法使用遊戲翻譯器，改用簡易比對", e); }
   }
-  // 接上遊戲原生翻譯流程：遊戲畫面（含 Canvas 點陣字的選單、物品、技能）在建立時呼叫 lang 模組的翻譯函式，
-  // 但只有遊戲語言是韓文時才建立翻譯器。做法：暫時讓 localStorage 寫入 d2s:lang 失敗，原版設定語言函式就只改記憶體、
-  // 不重新整理頁面；再呼叫原版初始化建立翻譯器，並把翻譯器類別的查詢換成我們目前語言的字典（English 時原文照回）。
+  // 只有遊戲原本使用韓文翻譯器時才接上其原生流程；其他語言使用本模組的字典翻譯，避免切換遊戲語言與攔截原生 Storage API。
   let gameHooked = false;
-  // 本模組為了接上翻譯流程而讓遊戲以為是韓文：遊戲選項的「語言：한국어」改顯示目前語言名稱
-  let forcedKo = false;
   async function hookGameTranslation() {
     if (gameHooked || !GameTranslator) return;
     try {
-      const url = await assetUrl(/\/assets\/lang-[\w-]+\.js(\?|$)/);
-      if (!url) return;
-      const mod = await import(url);
-      const fns = Object.values(mod).filter((v) => typeof v === "function");
-      const setLang = fns.find((f) => /localStorage\.setItem/.test(String(f)) && /location\.reload/.test(String(f)));
-      const init = fns.find((f) => /translatePage/.test(String(f)));
-      if (!setLang || !init) return;
-      // 遊戲本來就是韓文時，選 English 交還原版翻譯器；本模組強制開啟的翻譯模式下 English 則照回原文
       const nativeKo = document.documentElement.lang === "ko";
-      forcedKo = !nativeKo;
+      if (!nativeKo) {
+        document.documentElement.lang = currentLang === "zh-TW" ? "zh-Hant" : currentLang;
+        gameHooked = true;
+        return;
+      }
       const P = GameTranslator.prototype, orig = { translate: P.translate, translateAs: P.translateAs, translateMagic: P.translateMagic };
       const via = (name, self, args, raw) => currentLang === "en" || !gameTr ? (nativeKo ? orig[name].apply(self, args) : raw) : orig[name].apply(gameTr, args);
-      P.translate = function (s) { return cleanCJK(via("translate", this, [s], s)); };
-      P.translateAs = function (kind, s) { return cleanCJK(via("translateAs", this, [kind, s], s)); };
-      P.translateMagic = function (s, base) { return cleanCJK(via("translateMagic", this, [s, base], s)); };
+      P.translate = keepFunctionName(orig.translate, function (s) { return cleanCJK(via("translate", this, [s], s)); });
+      P.translateAs = keepFunctionName(orig.translateAs, function (kind, s) { return cleanCJK(via("translateAs", this, [kind, s], s)); });
+      P.translateMagic = keepFunctionName(orig.translateMagic, function (s, base) { return cleanCJK(via("translateMagic", this, [s, base], s)); });
       // 遊戲把技能名稱串成清單（「A and B」「A, +19% of B, +150% of C」）再代入樣板；原版萬用樣板至少要 3 個大寫字母，
       // 串接詞撐不起來，逐段翻譯後用中文標點組回（只在本模組的字典上，韓文原版不受影響）
       if (typeof P.find === "function") {
         const origFind = P.find;
-        P.find = function (e, depth) {
+        P.find = keepFunctionName(origFind, function (e, depth) {
           const r = origFind.call(this, e, depth);
           if (r !== null || this !== gameTr || depth > 3) return r;
           const sep = LIST_SEP[currentLang] || LIST_SEP.default;
@@ -233,7 +232,7 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
             if (out.every((x) => x !== null)) return out.join(glue);
           }
           return itemName.call(this, e, depth);
-        };
+        });
         // 物品名稱（遊戲只在知道底材時才拆字首字尾，提示框等處拿到的是整串名稱）：
         // 魔法物品「字首 底材 of 字尾」→ 字尾＋字首＋底材；兩個字的稀有名稱 → 兩字分別翻譯
         // 只用字典的精確詞條（不走萬用樣板，免得「Ring of Craftsmanship」這種片段被樣板誤配）
@@ -259,10 +258,6 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
           return null;
         };
       }
-      const ls = Storage.prototype.setItem;
-      Storage.prototype.setItem = function (k, v) { if (k === "d2s:lang") throw new Error("d2lang"); return ls.call(this, k, v); };
-      try { setLang("ko"); } finally { Storage.prototype.setItem = ls; }
-      await init();
       document.documentElement.lang = currentLang === "zh-TW" ? "zh-Hant" : currentLang;
       gameHooked = true;
     } catch (e) { console.warn("[d2lang] 無法接上遊戲翻譯流程，只翻譯 DOM 與 Canvas 文字", e); }
@@ -333,7 +328,7 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     const hud = getGame()?.hud;
     if (!hud || hud.__d2langWrapped || typeof hud.showLevelUp !== "function") return;
     const orig = hud.showLevelUp;
-    hud.showLevelUp = function (...args) { lastLevelUp = args; return orig.apply(this, args); };
+    hud.showLevelUp = keepFunctionName(orig, function (...args) { lastLevelUp = args; return orig.apply(this, args); });
     hud.__d2langWrapped = true;
   }
   function rebuildScreens() {
@@ -443,29 +438,28 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
       let rebuilt;
       try { rebuilt = new Function(`return function ${body}`)(); } catch { continue; }
       let broken = false;
-      P[name] = function (...a) {
+      P[name] = keepFunctionName(orig, function (...a) {
         if (!broken) try { return rebuilt.apply(this, a); } catch (e) { broken = true; console.warn("[d2lang] 點陣字型方法還原原版：" + name, e); }
         return orig.apply(this, a);
-      };
+      });
     }
     // 有些文字在書籤載入前就已取得英文並快取（例如 D2 資料檔的「Level Up」），畫字的入口再翻一次
     for (const name of ["canvas", "width", "wrap", "balance"]) {
       const orig = P[name];
       if (typeof orig !== "function") continue;
-      P[name] = function (text, ...rest) {
-        if (typeof text === "string" && forcedKo && text.includes("한국어")) text = text.replace("한국어", registry.get(currentLang)?.name || currentLang);
+      P[name] = keepFunctionName(orig, function (text, ...rest) {
         const raw = text, out = orig.call(this, typeof text === "string" && currentLang !== "en" ? translateString(text) : text, ...rest);
         // 記下原文與繪製參數，換語言（含切回 English）時可原地以新語言重畫，不必重新整理
         if (name === "canvas" && typeof raw === "string" && out instanceof HTMLCanvasElement) { out.__d2langSrc = { font: this, text: raw, rest }; liveCanvases.add(out); }
         return out;
-      };
+      });
     }
     // 原版換行只在空白處斷行（英文、韓文有空白），中文整句沒有空白會變成一行而超出版面：
     // 含中日文字時改成逐字也可斷行（標點不放行首）
     if (typeof P.wrapLines === "function") {
       const origWrap = P.wrapLines;
       const CJK = /[⺀-鿿豈-﫿＀-￯　-〿]/, NO_HEAD = /^[，。、：；！？）」』】〉》,.:;!?)·]/;
-      P.wrapLines = function (text, max) {
+      P.wrapLines = keepFunctionName(origWrap, function (text, max) {
         if (typeof text !== "string" || !CJK.test(text) || !(max > 0)) return origWrap.call(this, text, max);
         const out = [];
         const fits = (t) => this.measure(t) <= max;
@@ -492,7 +486,7 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
           out.push(line.trimEnd());
         }
         return out;
-      };
+      });
     }
     P.__d2langPatched = true;
     return true;
@@ -812,10 +806,10 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     for (const fn of ["fillText", "strokeText", "measureText"]) {
       const orig = C.prototype[fn];
       if (typeof orig !== "function") continue;
-      C.prototype[fn] = function (text, ...rest) {
+      C.prototype[fn] = keepFunctionName(orig, function (text, ...rest) {
         if (currentLang !== "en" && typeof text === "string" && text.length > 1) text = translateString(text);
         return orig.call(this, text, ...rest);
-      };
+      });
     }
   }
 

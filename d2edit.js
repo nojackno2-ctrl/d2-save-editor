@@ -28,19 +28,6 @@ async function sealState(save) {
   return (await hmac(sealKey(save), JSON.stringify({ ...save, seal: undefined }))) === save.seal ? "sealed" : "broken";
 }
 
-/* ---------- 寫入後擋住遊戲覆寫 ---------- */
-// 遊戲記憶體裡還是舊存檔，離開前可能再存一次；寫入後就擋掉遊戲對存檔 key 的寫入，關閉修改器時重新載入頁面
-// 記住瀏覽器原本的 setItem（同一頁面重複點書籤時，不要拿到上一次攔截過的版本）
-const realSetItem = (window.__d2editRealSetItem ??= Storage.prototype.setItem);
-let written = false;
-function lockSaves() {
-  if (written) return;
-  written = true;
-  if (Storage.prototype.setItem !== realSetItem) return; // 之前已經攔截過
-  const keys = new Set(Object.values(MODES).map((m) => m.key));
-  Storage.prototype.setItem = function (k, v) { if (this === localStorage && keys.has(k)) return; return realSetItem.call(this, k, v); };
-}
-
 /* ---------- 遊戲資料網址 ---------- */
 // 跟遊戲一樣依頁面上的 #d2-files 清單加上 ?h=版本；不加的話會拿到網站上舊版的檔案（例如沒有符文之語）
 let manifestP = null;
@@ -138,6 +125,7 @@ const engine = () => (enginePromise ??= (engineStartedAt = performance.now(), st
 /* ---------- 診斷 ---------- */
 // 上次寫入的紀錄存在遊戲頁面的 sessionStorage（同一個分頁重新載入後還在），用來比對遊戲有沒有採用
 const LAST_WRITE = "d2edit:lastWrite";
+let written = false;
 function summarize(text) {
   try {
     const s = JSON.parse(text);
@@ -165,8 +153,8 @@ const backend = {
   async save(m, save) {
     if (typeof save !== "object" || !save || typeof save.version !== "number") throw new Error("存檔格式不正確。");
     const text = await sealText(save);
-    realSetItem.call(localStorage, mode(m).key, text);
-    lockSaves();
+    localStorage.setItem(mode(m).key, text);
+    written = true;
     const readback = localStorage.getItem(mode(m).key) === text;
     try { sessionStorage.setItem(LAST_WRITE, JSON.stringify({ time: new Date().toISOString(), key: mode(m).key, bytes: text.length, readback, summary: summarize(text) })); } catch {}
     if (!readback) throw new Error("寫入後讀回的內容不一致，存檔可能沒有寫進去。");
