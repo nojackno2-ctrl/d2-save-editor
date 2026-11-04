@@ -1,5 +1,5 @@
 // D2 倖存者遊戲輔助工具。只控制原版輸入與流程，不改角色數值或任務旗標。
-// 靜態對照（2026-10-31）：Game-C88Jt16A.js、itemArt-D5jnKwiJ.js、saveTransfer-0_fTXGTm.js。
+// 靜態對照（2026-10-31）：Game-C88Jt16A.js、itemArt-IboVUP2X.js、saveTransfer-Cma7QL-E.js。
 (() => {
   "use strict";
 
@@ -14,7 +14,7 @@
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
   const BUILD_KEY = "d2autobot:gameBuild";
-  const TESTED_GAME_BUILD = "20261104.1"; // 每次確認新版遊戲相容後更新此值
+  const TESTED_GAME_BUILD = "20261104.2"; // 每次確認新版遊戲相容後更新此值
   const defaults = {
     version: 10, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, fallbackHpSlot: 1 },
@@ -439,7 +439,7 @@
     return { x: target.x, y: target.y, kind: "loot", target };
   }
   // 近戰／遠程：依排行榜該職業高手的力量配點比例判斷（≥25％ 為近戰：野蠻人、聖騎士、刺客、德魯伊）。
-  // 技能攻擊距離（原版 itemArt-D5jnKwiJ.js 靜態分析，2026-11-01）：命中條件為中心距 ≤ 角色半徑＋reach＋怪物半徑，以下為邊緣間距。
+  // 技能攻擊距離（原版 itemArt-IboVUP2X.js 靜態分析，2026-11-01）：命中條件為中心距 ≤ 角色半徑＋reach＋怪物半徑，以下為邊緣間距。
   // 未列出的攻擊技能多以 450 為索敵距離（法術、弓、標槍）；0 表示增益／被動，不影響走位。
   const REACH = {
     jab: 58, powerStrike: 58, chargedStrike: 58, lightningStrike: 58, impale: 58, fend: 84,
@@ -1136,7 +1136,7 @@
   async function loadSkillTables(gameUrl) {
     try {
       // 只載入已驗證版本的相依模組，避免同頁資源紀錄中的舊版模組被誤選。
-      for (const u of [new URL("itemArt-D5jnKwiJ.js", gameUrl).href]) {
+      for (const u of [new URL("itemArt-IboVUP2X.js", gameUrl).href]) {
         const m = await import(u);
         // 目前已辨識版本的 Di 為遊戲實際使用的鍵位讀取函式；先檢查特徵再採用。
         if (typeof m.Di === "function" && m.Di.length === 0 && /localStorage\.getItem/.test(Function.prototype.toString.call(m.Di))) nativeKeyBindings = m.Di;
@@ -1149,7 +1149,7 @@
       }
     } catch { /* 讀不到就只用排行榜權重 */ }
     try {
-      const urls = [new URL("saveTransfer-0_fTXGTm.js", gameUrl).href];
+      const urls = [new URL("saveTransfer-Cma7QL-E.js", gameUrl).href];
       for (const url of urls) {
         const module = await import(url);
         const matches = Object.values(module).filter((fn) => {
