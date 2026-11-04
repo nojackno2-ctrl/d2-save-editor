@@ -1,0 +1,1 @@
+import{C as e}from"./record-DjgxTokN.js";var t=`/api/leaderboard`,n=t=>t.base.n+e(t);export{t as n,n as t};
