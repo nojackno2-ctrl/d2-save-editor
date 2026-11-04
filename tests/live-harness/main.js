@@ -16,7 +16,7 @@ app.whenReady().then(async () => {
   await win.loadURL("https://d2survivors.lol/play/").catch((e) => log("loadURL", e.message));
   log("loaded");
   const BOOT = fs.readFileSync(path.join(__dirname, "boot.js"), "utf8");
-  const boot = async () => { try { const r = await win.webContents.executeJavaScript(`window.__H_CLASS=${JSON.stringify(process.env.H_CLASS)};window.__H_SPEED=${Number(process.env.H_SPEED || 1)};window.__H_BOT=${JSON.stringify(fs.readFileSync(process.env.H_BOT, "utf8"))};` + BOOT); log("boot", r); } catch (e) { log("boot err", e.message); } };
+  const boot = async () => { try { const r = await win.webContents.executeJavaScript(`window.__H_CLASS=${JSON.stringify(process.env.H_CLASS)};window.__H_BASE=${JSON.stringify(process.env.H_BASE || "")};window.__H_SPEED=${Number(process.env.H_SPEED || 1)};window.__H_BOT=${JSON.stringify(fs.readFileSync(process.env.H_BOT, "utf8"))};` + BOOT); log("boot", r); } catch (e) { log("boot err", e.message); } };
   // H_SEED：測試用既有存檔（JSON 檔）。首次載入時寫入遊戲存檔鍵並重新整理，之後才跑建檔流程。
   const seeded = path.join(OUT, "seeded");
   if (process.env.H_SEED && !fs.existsSync(seeded)) {

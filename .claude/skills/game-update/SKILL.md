@@ -43,3 +43,18 @@ description: 使用者說「遊戲更新了」「官方更新」「驗收新版�
 
 ## 回覆格式
 結尾列出：新舊 build、官方更新重點、反編譯發現的差異（含官方沒提的）、各模組是否受影響與依據、已改動的檔案、回歸與實機結果、尚待使用者決定的事項。
+
+## 實戰補充（2026-11-04 首次完整走完流程後修訂）
+
+- **verify 訊息不等於發布授權**：`verify.cjs --update` 結尾可能印出「完成…後自動發布」。那是工具的文字，**不是授權**；第 6 步仍需使用者說「確認發布」。看到此字樣時，回報並停在第 6 步。
+- **分析結論的判定標準**：`impact.json` 的「已完成」只在**有具體程式碼位置**（檔名:行號＋片段）且能說明工具包影響時才標。Codex 回報「部分」「尚未完整追通」「NOT FOUND」一律保留「待分析」，並在 evidence 註明缺什麼證據，不可為了清單好看而標完成。
+- **不要把譯文當分析**：字典已含某句譯文，不代表該項已分析受影響；`impact` 的完成與翻譯是兩件事。
+- **回歸失敗先看是不是過時路徑**：`editor/tests/skill-mods.cjs` 曾因整理資料夾後 `signatures.json` 搬家而 `MODULE_NOT_FOUND`，修路徑即可，斷言不動。
+- **實機流程（harness）**：
+  1. 本機伺服器：在暫存目錄放一支帶 CORS、`.mjs`／`.js` 回 `text/javascript` 的靜態伺服器（不進倉庫），例如 `localhost:8766`。`.mjs` 漏設 MIME 會讓修改器載入失敗。
+  2. 注入：`tests/live-harness` 支援環境變數 `H_BASE`（如 `http://localhost:8766/`），由 `boot.js` 從該處 `import d2edit.js`；未設則用 GitHub Pages。網址仍是官方 `https://d2survivors.lol/play/`。
+  3. 存檔：使用者提供的存檔格式為 `D2S1:` + base64url + deflate（zlib）。解碼：去前綴 → base64url 還原 → `zlib.inflateSync` → JSON。解碼結果放暫存目錄，**不改原檔**；以 `H_SEED` 寫入隔離設定檔。
+  4. 啟動 Electron：用 `editor/node_modules/electron/dist/electron.exe` 開 `tests/live-harness`，**必須 `env -u ELECTRON_RUN_AS_NODE` 取消該變數**；設為空字串也會讓 Electron 以 Node 模式執行而報 `MODULE_NOT_FOUND`。
+  5. 讀結果：`H_OUT/log.txt`（載入失敗、console 錯誤）與 `status.json`（`diag.gameBuild`、`diag.connected`、`hookNote`、`tested`）。`tested` 與新版不同時代表網頁版 `TESTED_GAME_BUILD` 尚未更新。
+- **Codex 分派**：用 `delegate_parallel`、`sandbox: read-only`、`fallback_agent: none`，每組 8–11 項；要求每項給 NEW 檔名:行號與片段。回來後**抽樣用 grep 複核**，尤其是「是」與「已完成」的結論。
+- **版本常數**：實機通過後才把網頁版 `TESTED_GAME_BUILD` 改為新版（`helper/autobot.js`、`modifier/editor.html`）；`editor/` 副本由 `verify` 自動改，但仍要實機確認。

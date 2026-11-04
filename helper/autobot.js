@@ -14,7 +14,7 @@
   window.__d2autobot?.destroy();
   const KEY = "d2autobot:settings";
   const BUILD_KEY = "d2autobot:gameBuild";
-  const TESTED_GAME_BUILD = "20261103.2"; // 每次確認新版遊戲相容後更新此值
+  const TESTED_GAME_BUILD = "20261104.1"; // 每次確認新版遊戲相容後更新此值
   const defaults = {
     version: 10, enabled: false, progressEnabled: false,
     potion: { autoHp: true, hpThreshold: 50, lethalProtection: true, lethalLookaheadSec: 0.3, hpCooldownMs: 1200, fallbackHpSlot: 1 },
@@ -740,7 +740,10 @@
         await g.startReplay(g.kit, t.targetFarmTier);
       } else {
         if (!Array.isArray(record.offers) || !record.offers.length) return;
-        const offer = record.offers.findIndex((e) => !e.affixes?.includes("nobelt"));
+        // 超級首領選項（offer.uber）會消耗鑰匙或器官（遊戲 itemArt 的 Kl(…, uber)），自動流程優先避開；只剩它時才退回原行為。
+        const usable = (e) => !e.affixes?.includes("nobelt");
+        const plain = record.offers.findIndex((e) => usable(e) && !e.uber);
+        const offer = plain >= 0 ? plain : record.offers.findIndex(usable);
         g.tierDone = null;
         lastAction = "推進恐怖 " + record.open + " 層";
         await g.startTerror(g.kit, Math.max(0, offer));
@@ -1134,13 +1137,17 @@
   // 原版技能表（itemArt 模組匯出：技能含 maxLevel／evolution{passive,into}／synergies[{from}]；被動含 maxLevel）。
   let SKILLS = null, PASSIVES = null, SKILL_BY_NAME = null, PASSIVE_BY_NAME = null, nativeLevelChoices = null, nativeWeapon = null, nativeKeyBindings = null;
   async function loadSkillTables(gameUrl) {
+    // 相依模組檔名含每版不同的雜湊，從遊戲入口的 import 動態解析，不寫死檔名（2026-11-04 起）。
+    let gameSource = "";
+    try { gameSource = await (await fetch(gameUrl, { signal: abort.signal })).text(); } catch { /* 讀不到就走各自的降級 */ }
     try {
-      // 只載入已驗證版本的相依模組，避免同頁資源紀錄中的舊版模組被誤選。
-      for (const u of [new URL("itemArt--xlb93dv.js", gameUrl).href]) {
+      const itemArtName = /["']\.\/(itemArt-[\w-]+\.js)["']/.exec(gameSource)?.[1];
+      for (const u of itemArtName ? [new URL(itemArtName, gameUrl).href] : []) {
         const m = await import(u);
-        // 目前已辨識版本的 Di 為遊戲實際使用的鍵位讀取函式；先檢查特徵再採用。
-        if (typeof m.Di === "function" && m.Di.length === 0 && /localStorage\.getItem/.test(Function.prototype.toString.call(m.Di))) nativeKeyBindings = m.Di;
+        // 鍵位讀取函式的匯出名每版都會變（20261103.2 為 V_ 陣列 as Di，20261104.1 為 j_ as Sa），改依特徵辨認：
+        // 零參數、以 JSON.parse(localStorage.getItem(…)) 讀取 d2s:keys。
         for (const v of Object.values(m)) {
+          if (typeof v === "function" && !nativeKeyBindings && v.length === 0 && /JSON\.parse\(localStorage\.getItem\(/.test(Function.prototype.toString.call(v))) { nativeKeyBindings = v; continue; }
           if (!v || typeof v !== "object" || Array.isArray(v)) continue;
           if (!SKILLS && v.doubleSwing?.name && v.magicArrow?.name) { SKILLS = v; SKILL_BY_NAME = new Map(Object.entries(v).map(([k, d]) => [String(d?.name || "").toLowerCase(), k])); }
           if (!PASSIVES && v.innerSight?.name && v.criticalStrike?.name) { PASSIVES = v; PASSIVE_BY_NAME = new Map(Object.entries(v).map(([k, d]) => [String(d?.name || "").toLowerCase(), k])); }
@@ -1149,7 +1156,8 @@
       }
     } catch { /* 讀不到就只用排行榜權重 */ }
     try {
-      const urls = [new URL("saveTransfer-DCNF5R1f.js", gameUrl).href];
+      const saveTransferName = /["']\.\/(saveTransfer-[\w-]+\.js)["']/.exec(gameSource)?.[1];
+      const urls = saveTransferName ? [new URL(saveTransferName, gameUrl).href] : [];
       for (const url of urls) {
         const module = await import(url);
         const matches = Object.values(module).filter((fn) => {
@@ -1628,10 +1636,11 @@
 
     // 7. 選技能重抽無限次數 (Infinite Rerolls)
     if (settings.cheat.enabled && settings.cheat.infiniteRerolls) {
+      // 存檔載入時戰局的重抽／跳過／排除次數上限為 99，超過會被判定無法讀取（A saved run could not be read）；不可寫 9999。
       if (g.build) {
-        g.build.rerolls = 9999;
-        g.build.skips = 9999;
-        g.build.banishes = 9999;
+        g.build.rerolls = 99;
+        g.build.skips = 99;
+        g.build.banishes = 99;
       }
       if (g.save?.ranks) {
         g.save.ranks.rerolls = Math.max(g.save.ranks.rerolls || 0, 999);
