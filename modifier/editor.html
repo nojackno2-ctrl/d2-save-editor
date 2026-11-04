@@ -688,7 +688,16 @@ async function renderCollection(c, v) {
   $("#fQ").oninput = refilter;
   // 這個模式做不出來的（網頁版的符文之語）不補，已有的也保持原樣
   $("#unlockAll").onclick = () => unlockAndMax(rows.filter(r => r.idx === undefined && !r.unavailable), new Set(cat.filter(x => !x.unavailable).map(ckey)));
-  for (const b of v.querySelectorAll("[data-unlock]")) b.onclick = (e) => { e.stopPropagation(); unlock(rows.filter(r => ckey(r) === b.dataset.unlock)); };
+  // 單顆解鎖：失敗要跳提示；成功後重繪，清單才會看到已收藏
+  for (const b of v.querySelectorAll("[data-unlock]")) b.onclick = async (e) => {
+    e.stopPropagation();
+    try {
+      const r = await unlock(rows.filter(x => ckey(x) === b.dataset.unlock));
+      if (!r.n) { status("沒有產生任何物品，這件目前遊戲版本做不出來" + r.msg, "bad"); return; }
+      refresh();
+      status(`已解鎖 ${r.n} 件${r.msg}；記得按「寫入存檔」`, "ok");
+    } catch (err) { fail(err); }
+  };
   for (const el of v.querySelectorAll("[data-k]")) el.onclick = () => { sel = Number(el.dataset.k); renderView(); renderEditor(); };
 }
 // 用遊戲自己的產生器做出最高數值的物品
