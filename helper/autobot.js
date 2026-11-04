@@ -740,7 +740,10 @@
         await g.startReplay(g.kit, t.targetFarmTier);
       } else {
         if (!Array.isArray(record.offers) || !record.offers.length) return;
-        const offer = record.offers.findIndex((e) => !e.affixes?.includes("nobelt"));
+        // 超級首領選項（offer.uber）會消耗鑰匙或器官（遊戲 itemArt 的 Kl(…, uber)），自動流程優先避開；只剩它時才退回原行為。
+        const usable = (e) => !e.affixes?.includes("nobelt");
+        const plain = record.offers.findIndex((e) => usable(e) && !e.uber);
+        const offer = plain >= 0 ? plain : record.offers.findIndex(usable);
         g.tierDone = null;
         lastAction = "推進恐怖 " + record.open + " 層";
         await g.startTerror(g.kit, Math.max(0, offer));
