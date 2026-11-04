@@ -546,6 +546,11 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
         if (parts.join(" ") !== words.join(" ")) r = parts.join(" · ");
       }
     }
+    // 怪物類型名（例如冠軍怪標題「Enslaved」）在字典裡以 monster: 前綴存放，遊戲畫面直接用原名畫出時要補查
+    if (r === str && gameTr?.translateAs && /^[A-Z][A-Za-z' -]{1,40}$/.test(str.trim())) {
+      const mon = gameTr.translateAs("monster", str.trim());
+      if (mon && mon !== str.trim()) r = str.replace(str.trim(), mon);
+    }
     // 已含中日韓文字的（我們自己的工具介面、已翻好的）不算缺漏
     // 缺漏清單只供除錯，限制數量避免長時間遊玩（例如持續變動的數字字串）讓記憶體無限成長
     if (r === str && missing.size < 5000 && str.trim().length > 1 && !HAS_CJK.test(str)) missing.add(str.trim());
