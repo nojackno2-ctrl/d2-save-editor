@@ -1507,13 +1507,8 @@ async function invalidItems(items) {
   if (!Array.isArray(r)) throw new Error("無法檢查物品屬性：" + (r?.error ?? "物品引擎沒有回應") + "。如需強制修改，請到「設定」開啟解除修改限制。");
   return items.map((item, i) => ({ item, problems: r[i] ?? [] })).filter(x => x.problems.length);
 }
-async function assertLegal(items) {
-  if (unlocked()) return;
-  const bad = await invalidItems(items);
-  if (!bad.length) return;
-  const lines = bad.slice(0, 5).map(x => `「${(x.item.name && nameZh(x.item)) || baseZh(x.item)}」：${x.problems.slice(0, 4).map(problemText).join("；")}`);
-  throw new Error(`不符合原版屬性規則，已拒絕：${lines.join("　")}${bad.length > 5 ? `　…等 ${bad.length} 件` : ""}（如需強制修改，請到「設定」開啟解除修改限制，後果自負）`);
-}
+// 已移除存檔的原版規則檢查（依使用者要求）：寫入與製作不再因此被拒絕；遊戲本身的檢查（faults）仍保留
+async function assertLegal() { return; }
 // 從遊戲讀取時的原始物品：沒改過的遊戲物品不擋，其他（修改、匯入、原始資料）寫入前都要檢查
 let BASELINE = new Set();
 const itemKey = (it) => { const { id, at, ...rest } = it; return JSON.stringify(rest); };
@@ -1736,10 +1731,6 @@ function detect() {
     note: faultyItems ? "遊戲檢查" : "近似檢查",
     fix: async () => { if (regen.length) await maxItems(regen); for (const it of other) { it.rarity = "unique"; delete it.stats; delete it.roll; } }, fixText: "重新產生為合法物品" }
     : { ok: true, text: "物品合法性檢查通過", note: faultyItems ? "遊戲檢查" : "近似檢查" });
-  // 以遊戲自己的資料與檢查為準：額外的詞綴規則（itemstats 推算）只作參考，不當成「會被偵測」
-  if (!ruleBad) out.push({ unknown: true, text: "額外的詞綴規則檢查無法使用" });
-  else out.push(ruleBad.length ? { ok: true, advisory: true, text: `${ruleBad.length} 件物品未通過額外的詞綴規則檢查（以遊戲為準，${faultyItems ? "遊戲檢查接受" : "遊戲檢查不可用，無法確認"}）：${ruleBad.slice(0, 5).map(x => nameZh(x.item)).join("、")}${ruleBad.length > 5 ? "…" : ""}`, note: "僅供參考" }
-    : { ok: true, text: "所有物品通過額外的詞綴規則檢查" });
   const badLv = [];
   for (const [c, h] of Object.entries(s.heroes ?? {})) for (const k of ["kept", "run"]) { const lv = h?.[k]?.build?.level; if (lv !== undefined && !(Number.isInteger(lv) && lv >= 1 && lv <= 99)) badLv.push([c, k]); }
   out.push(badLv.length ? { ok: false, text: `角色等級超出 1–99：${badLv.map(([c]) => CLASS_ZH[c]).join("、")}`, fix: () => { for (const [c, k] of badLv) s.heroes[c][k].build.level = 99; }, fixText: "設為 99" }
@@ -1762,7 +1753,7 @@ async function renderGuard() {
   const items = allItems(save), f = await window.api.engine("faults", items);
   // 賭博商店清單是遊戲自己以普通品質底材展示（含戒指、護身符），買下時才決定品質，不算玩家物品
   const gamble = new Set(Object.values(save.gambleByClass ?? {}).flatMap(v => v ?? []));
-  try { ruleBad = await invalidItems(items.filter(it => !gamble.has(it))); } catch { ruleBad = null; }
+  ruleBad = null; // 已移除原版規則檢查（依使用者要求），不再計算額外的詞綴規則提示
   faultyItems = Array.isArray(f) ? items.filter((_, i) => f[i]) : null;
   const t = await window.api.traces($("#mode").value, false);
   traceKeys = Array.isArray(t) ? t : [];
