@@ -526,7 +526,26 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     const build = /^(\s*)Build (\d+(?:\.\d+)*)(\s*·\s*[a-f\d]+)(\s*)$/i.exec(str), word = dict["Build (version)"];
     if (typeof exact === "string" && exact) r = str.replace(key, exact);
     else if (build && word) r = build[1] + word + " " + build[2] + build[3] + build[4];
-    else r = look(str);
+    else {
+      r = look(str);
+      // 遊戲用空白串起來的整行（例如 Boss 詞綴 "Demon Extra Strong Aura Enchanted"）整句查不到時，逐段查字典再接回
+      // 原版在韓文模式下才會逐項翻譯，中文模式會原樣保留英文
+      if (r === str && /^[A-Za-z][A-Za-z' -]*$/.test(str.trim()) && str.includes(" ")) {
+        const words = str.trim().split(/\s+/);
+        const parts = [];
+        for (let i = 0; i < words.length;) {
+          let hit = null, used = 1;
+          for (let j = words.length; j > i; j--) {
+            const cand = words.slice(i, j).join(" "), t = look(cand);
+            if (t !== cand) { hit = t; used = j - i; break; }
+          }
+          parts.push(hit ?? words[i]);
+          i += used;
+        }
+        // 中文字之間的空白會被 cleanCJK 刪掉，所以改用「 · 」分隔（與遊戲其他清單一致）
+        if (parts.join(" ") !== words.join(" ")) r = parts.join(" · ");
+      }
+    }
     // 已含中日韓文字的（我們自己的工具介面、已翻好的）不算缺漏
     // 缺漏清單只供除錯，限制數量避免長時間遊玩（例如持續變動的數字字串）讓記憶體無限成長
     if (r === str && missing.size < 5000 && str.trim().length > 1 && !HAS_CJK.test(str)) missing.add(str.trim());
