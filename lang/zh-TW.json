@@ -14084,5 +14084,7 @@
  "Curses your gear casts on striking land on the monster you hit, not the nearest one": "裝備擊中敵人時施放的詛咒，現在會作用於被擊中的怪物，而非最近的怪物",
  "Attract's Lure totem is a pillar of bone that rises and crumbles, no longer a flat pale bar": "致命吸引的誘引圖騰現在是一根升起後碎裂的骨柱，不再是扁平的淡色條狀圖形",
  "Wirt's Leg is used up only when your hero walks into the cow portal, so a portal left unused no longer costs the leg": "只有英雄走進牛關傳送門時才會消耗維特的腿，因此未使用的傳送門不再耗掉它",
- "A Redemption aura from an item such as Phoenix now heals your hero when monsters die nearby, whatever your class": "不論職業為何，來自鳳凰等物品的救贖靈氣，現在都會在附近怪物死亡時治療英雄"
+ "A Redemption aura from an item such as Phoenix now heals your hero when monsters die nearby, whatever your class": "不論職業為何，來自鳳凰等物品的救贖靈氣，現在都會在附近怪物死亡時治療英雄",
+  "A Hardcore hero who clears many tiers in a row is no longer marked as played from an older copy of the save": "硬核英雄連續通過多個恐懼層後，不再被標記為使用舊版存檔副本",
+  "The ubers are fought at your open Terror tier up to Terror 100, so a hero past it fights them at 100": "超級首領會在你目前開放的恐懼層戰鬥，最高到恐懼 100 層；超過 100 層的英雄會在 100 層與其戰鬥"
 }

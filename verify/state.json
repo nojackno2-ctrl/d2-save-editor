@@ -1,17 +1,11 @@
 {
   "lastVerified": {
-    "build": "20261104.1",
-    "at": "2026-11-04T14:31:33.346Z",
-    "changed": [
-      "editor\\autobot.js",
-      "editor\\tests\\autobot.cjs",
-      "editor\\autobot.js",
-      "editor\\index.html",
-      "editor\\editor.html"
-    ],
-    "fingerprint": "2a4bbde7447ac064c3dcc4c0f6ab21aa2d894a37aba824a4bbfc7a4b1298ca1b",
+    "build": "20261104.2",
+    "at": "2026-11-04T22:27:01.443Z",
+    "changed": [],
+    "fingerprint": "92b216beb607f627fd4524dcdf448297c50b2e639efe2cc145e3737b7220fbac",
     "comparison": {
-      "baseline": "20261103.2",
+      "baseline": "20261104.1",
       "complete": true,
       "changed": [
         {
@@ -20,128 +14,73 @@
         },
         {
           "module": "game.js",
-          "before": "game-b3rjieT4.js",
-          "after": "game-DD7BPNZ8.js"
-        },
-        {
-          "module": "CanvasRenderer.js",
-          "before": "CanvasRenderer-DZjumSz7.js",
-          "after": "CanvasRenderer-CcIX4wQS.js"
-        },
-        {
-          "module": "CanvasRenderer.js",
-          "before": "CanvasRenderer-DgKfuGg0.js",
-          "after": "CanvasRenderer-DEDthYdj.js"
+          "before": "game-DD7BPNZ8.js",
+          "after": "game-BjSmEPSY.js"
         },
         {
           "module": "lang.js",
-          "before": "lang-7wcN3BsF.js",
-          "after": "lang-C3XIIVfU.js"
-        },
-        {
-          "module": "RenderTargetSystem.js",
-          "before": "RenderTargetSystem-D9-AkKCL.js",
-          "after": "RenderTargetSystem-BH3KfuEA.js"
+          "before": "lang-C3XIIVfU.js",
+          "after": "lang-RJgbQOrt.js"
         },
         {
           "module": "ui.js",
-          "before": "ui-B5k570pi.js",
-          "after": "ui-Bt-lAmwm.js"
+          "before": "ui-Bt-lAmwm.js",
+          "after": "ui-Cx7cnYDZ.js"
         },
         {
           "module": "moved.js",
-          "before": "moved-B888svRk.js",
-          "after": "moved-K8s2_EQD.js"
-        },
-        {
-          "module": "getTexelRangeRects.js",
-          "before": "getTexelRangeRects-Cw_Rn9BX.js",
-          "after": "getTexelRangeRects-BPmSyZoz.js"
-        },
-        {
-          "module": "record.js",
-          "before": "record-BQwjc6P9.js",
-          "after": "record-Ds9IRtoY.js"
+          "before": "moved-K8s2_EQD.js",
+          "after": "moved-BvvYzHqc.js"
         },
         {
           "module": "uniquesTab.js",
-          "before": "uniquesTab-BMWQ3L05.js",
-          "after": "uniquesTab-C45DZ4Xj.js"
-        },
-        {
-          "module": "chains.js",
-          "before": "chains-EvEpfuF2.js",
-          "after": "chains-D5wXZT2e.js"
+          "before": "uniquesTab-C45DZ4Xj.js",
+          "after": "uniquesTab-ZYX9js4Y.js"
         },
         {
           "module": "report.js",
-          "before": "report-DLhlNfh8.js",
-          "after": "report-DKBEi5lj.js"
-        },
-        {
-          "module": "game.css",
-          "before": "game-D-0yy1F3.css",
-          "after": "game-Dx9ILo7X.css"
-        },
-        {
-          "module": "WebGPURenderer.js",
-          "before": "WebGPURenderer-DMpOJcF3.js",
-          "after": "WebGPURenderer-BEWLab2H.js"
-        },
-        {
-          "module": "WebGPURenderer.js",
-          "before": "WebGPURenderer-BN2QUPSB.js",
-          "after": "WebGPURenderer-BLPjHDxc.js"
-        },
-        {
-          "module": "WebGLRenderer.js",
-          "before": "WebGLRenderer-CiOHrZh_.js",
-          "after": "WebGLRenderer-BqF49RUY.js"
-        },
-        {
-          "module": "WebGLRenderer.js",
-          "before": "WebGLRenderer-DKU680vC.js",
-          "after": "WebGLRenderer-C0JkMGpO.js"
+          "before": "report-DKBEi5lj.js",
+          "after": "report-DIDweKmc.js"
         },
         {
           "module": "saveTransfer.js",
-          "before": "saveTransfer-DCNF5R1f.js",
-          "after": "saveTransfer-0_fTXGTm.js"
+          "before": "saveTransfer-0_fTXGTm.js",
+          "after": "saveTransfer-Cma7QL-E.js"
         },
         {
           "module": "itemArt.js",
-          "before": "itemArt--xlb93dv.js",
-          "after": "itemArt-D5jnKwiJ.js"
+          "before": "itemArt-D5jnKwiJ.js",
+          "after": "itemArt-IboVUP2X.js"
         },
         {
           "module": "surface.js",
-          "before": "surface-BIEWl9M2.js",
-          "after": "surface-CjsAgAHC.js"
+          "before": "surface-CjsAgAHC.js",
+          "after": "surface-jR-WLmWc.js"
         },
         {
           "module": "screens.js",
-          "before": "screens-0fXEGp30.js",
-          "after": "screens-DuSZsCd9.js"
+          "before": "screens-DuSZsCd9.js",
+          "after": "screens-CZhA3osp.js"
         },
         {
           "module": "plain.js",
-          "before": "plain-DbWGECbO.js",
-          "after": "plain-s4YoVlb8.js"
+          "before": "plain-s4YoVlb8.js",
+          "after": "plain-DpiK-C-L.js"
         },
         {
           "module": "Game.js",
-          "before": "Game-DYfMoexm.js",
-          "after": "Game-C-lMmM6N.js"
+          "before": "Game-C-lMmM6N.js",
+          "after": "Game-_fAFHQD1.js"
         },
         {
           "module": "dom.js",
-          "before": "dom-DBnptHom.js",
-          "after": "dom-Du8-t62N.js"
+          "before": "dom-Du8-t62N.js",
+          "after": "dom-gBvewNao.js"
         },
         {
           "module": "ko.js",
-          "before": "ko-Ct7vXVhy.js",
-          "after": "ko-0sG8aNF1.js"
+          "before": "ko-0sG8aNF1.js",
+          "after": "ko-hYkO02BR.js"
         }
       ],
       "groups": [
@@ -149,7 +88,6 @@
         "game",
         "language",
         "ui",
-        "style",
         "choices",
         "items"
       ]

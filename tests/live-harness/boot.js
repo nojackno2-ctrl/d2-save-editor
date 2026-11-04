@@ -3,6 +3,7 @@
   const CLS = window.__H_CLASS, SPEED = window.__H_SPEED || 1;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const hosted = [...document.querySelectorAll("button")].find((b) => /hosted/i.test(b.textContent));
+  // 注意：setup 頁的 hosted 按鈕會先載入遊戲資產；它也會在未選職業時呼叫遊戲 startRun，產生 reading 'id'（堆疊已確認，為 harness 路徑特有、非玩家路徑）。
   if (hosted) { hosted.click(); return "hosted"; }
   if (!window.__d2autobot) {
     const st = JSON.parse(localStorage.getItem("d2autobot:settings") || "{}");

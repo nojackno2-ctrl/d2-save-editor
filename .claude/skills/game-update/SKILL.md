@@ -58,3 +58,10 @@ description: 使用者說「遊戲更新了」「官方更新」「驗收新版�
   5. 讀結果：`H_OUT/log.txt`（載入失敗、console 錯誤）與 `status.json`（`diag.gameBuild`、`diag.connected`、`hookNote`、`tested`）。`tested` 與新版不同時代表網頁版 `TESTED_GAME_BUILD` 尚未更新。
 - **Codex 分派**：用 `delegate_parallel`、`sandbox: read-only`、`fallback_agent: none`，每組 8–11 項；要求每項給 NEW 檔名:行號與片段。回來後**抽樣用 grep 複核**，尤其是「是」與「已完成」的結論。
 - **版本常數**：實機通過後才把網頁版 `TESTED_GAME_BUILD` 改為新版（`helper/autobot.js`、`modifier/editor.html`）；`editor/` 副本由 `verify` 自動改，但仍要實機確認。
+
+## 兩階段流程（2026-11-04 使用者指定）
+
+- **階段 A：先讓工具包上線**（本次必做）：①官方更新中影響工具包的修正（存檔、首領、選關）②翻譯：新字串全部補上，`language.json` 的遊戲與新聞未翻譯項歸零 ③原有功能回歸：`verify --update --force` 全部套件、`helper/tests/autobot.cjs`、實機用使用者存檔載入（輔助器掛接、修改器可開、存檔可讀寫）④全部通過後發布。
+- **階段 B：遊戲新增內容**（另案）：新 uber、新地點、新機制等，只做分析與記錄，不阻擋階段 A 的發布。
+- **發布授權**：使用者在指令中明說「通過即發布」時，階段 A 完成後直接執行 `publish.cjs --confirm`；否則仍停在第 6 步等「確認發布」。
+- **選關安全**：自動推層一律避開 `uber`、`finale` 選項（會消耗鑰匙與器官）。

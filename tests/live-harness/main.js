@@ -13,6 +13,9 @@ app.whenReady().then(async () => {
   win.webContents.on("did-fail-load", (e, c, d, u) => log("FAIL", c, d, u));
   win.webContents.on("did-navigate", (e, u) => log("nav", u));
   win.webContents.on("render-process-gone", (e, d) => log("GONE", JSON.stringify(d)));
+  // 診斷：每次頁面載入後掛上全域錯誤監聽，把未處理例外的完整堆疊寫進 log（console error 等級）。
+  const DIAG = "window.addEventListener('unhandledrejection',e=>console.error('UNH',e.reason&&e.reason.stack||String(e.reason)));window.addEventListener('error',e=>console.error('ERR',e.error&&e.error.stack||e.message));";
+  win.webContents.on("did-finish-load", () => win.webContents.executeJavaScript(DIAG).catch(() => {}));
   await win.loadURL("https://d2survivors.lol/play/").catch((e) => log("loadURL", e.message));
   log("loaded");
   const BOOT = fs.readFileSync(path.join(__dirname, "boot.js"), "utf8");
