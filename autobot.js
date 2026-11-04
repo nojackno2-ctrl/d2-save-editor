@@ -53,8 +53,8 @@
   // 兩個分頁各有總開關：戰鬥輔助（enabled）、自動戰鬥（progressEnabled）。
   const questOn = () => settings.progressEnabled && settings.quest.autoProgress;
   const terrorMode = () => settings.progressEnabled ? settings.terror.mode : "off";
-  // 依使用者回報：只開自動戰鬥時角色不走位、不喝水，自動戰鬥跑不起來；自動戰鬥開著就包含戰鬥輔助（走位、閃避、喝水、撿物）。
-  const assistOn = () => settings.enabled || settings.progressEnabled;
+  // 各分頁只受自己的總開關控制；自動戰鬥不會隱含開啟戰鬥輔助。
+  const assistOn = () => settings.enabled;
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) || "{}");
     settings = merge(defaults, stored);
@@ -916,8 +916,8 @@
   }
   const isCharm = (item) => !!item?.base && /charm/i.test(String(item.type || "") + " " + String(item.base));
   function autoEquip(g, now) {
-    // 依使用者要求：任一總開關（戰鬥輔助或自動戰鬥）開著就自動換裝、賣用不到的裝備。
-    if ((!settings.enabled && !settings.progressEnabled) || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
+    // 自動穿裝只受自動戰鬥總開關控制；戰鬥輔助分頁不會啟用換裝。
+    if (!settings.progressEnabled || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
     if (!["playing", "camp"].includes(g.state) || typeof g.gearActions !== "function" || typeof g.heroNumbers !== "function" || typeof g.makePlayer !== "function") return;
     gearAt = now;
     const p = g.world.player;
@@ -1061,8 +1061,8 @@
   };
   let townSince = 0;
   function campShop(g, now) {
-    // 依使用者要求：任一總開關開著，回營地就買水、賣裝、存倉、升級（不必開推層）。
-    if ((!settings.enabled && !settings.progressEnabled) || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
+    // 營地整備屬於自動戰鬥分頁，只受自動戰鬥總開關控制。
+    if (!settings.progressEnabled || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
     if (g.state === "playing") { shop = null; townSince = 0; return false; }
     // 依原版對話流程：阿卡拉對話先呼叫 akaraSearch，嘗試翻譯卷軸。
     if (g.state === "camp" && !g.trade && !g.swapping && !g.save?.cursor && g.kit && typeof g.akaraSearch === "function") {
@@ -1267,8 +1267,7 @@
     });
   }
   function canReroll(g) {
-    const unlimited = settings.cheat.enabled && settings.cheat.infiniteRerolls;
-    if (!settings.build.autoReroll || (!unlimited && levelRerollCount >= 2)) return false;
+    if (!settings.progressEnabled || !settings.build.autoReroll || levelRerollCount >= 2) return false;
     const rerollBtn = document.getElementById("reroll") || document.querySelector("#level-up button#reroll, #level-up .reroll, button[data-action='reroll']");
     if (rerollBtn && rerollBtn.disabled) return false;
     if (g?.build && typeof g.build.rerolls === "number" && g.build.rerolls <= 0) return false;
@@ -1628,7 +1627,7 @@
     }
 
     // 7. 選技能重抽無限次數 (Infinite Rerolls)
-    if (settings.cheat.infiniteRerolls) {
+    if (settings.cheat.enabled && settings.cheat.infiniteRerolls) {
       if (g.build) {
         g.build.rerolls = 9999;
         g.build.skips = 9999;

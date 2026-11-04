@@ -25,7 +25,7 @@
 <main data-lang="zh">
   <h1>D2倖存者工具包（網頁版）</h1>
   <p class="dim">給在瀏覽器（電腦或手機）玩 d2survivors.lol 的玩家。用書籤在遊戲頁面上開啟修改器，直接讀寫瀏覽器裡的存檔，不經過遊戲的匯入功能，不會留下匯入紀錄。 <a href="#" data-switch="en" style="color:var(--gold)">English</a></p>
-  <section id="known-issues" style="border-color:#a66b35"><h2>已知問題：排行榜成績可能未上傳</h2><p>有玩家回報，載入工具書籤後，即使沒有修改存檔，成績也可能未上傳排行榜；原因尚未確認。</p><p><b>暫行解法：</b>關閉已載入工具的遊戲分頁，另開一個乾淨的新分頁，直接進入<a href="https://d2survivors.lol/play/" target="_blank" rel="noopener" style="color:var(--gold)">原版遊戲頁面</a>，遊玩期間不要載入 D2 工具或其他書籤工具。此方式不能保證遊戲端一定接受成績。</p></section>
+  <section id="known-issues" style="border-color:#a66b35"><h2>排行榜：載入工具書籤後不會上傳</h2><p><b>原廠排行榜會偵測遊戲頁是否載入書籤，以及原生函式是否遭替換。</b>載入 D2 倖存者工具包書籤後，該遊戲頁的成績不會上傳排行榜；這與存檔是否修改無關，修改器的「解除修改限制」開啟或關閉都一樣。</p><p>診斷頁可能顯示「bookmarklet」或「replaced …」，這是原廠頁面環境檢查的結果。想遊玩並提交排行榜成績，請關閉已載入工具的遊戲分頁，再另開乾淨的新分頁直接進入<a href="https://d2survivors.lol/play/" target="_blank" rel="noopener" style="color:var(--gold)">原版遊戲頁面</a>，全程不要載入任何書籤工具。工具中的環境診斷只顯示在「存檔檢查」頁，不會放進狀態列。</p></section>
 
   <section>
     <h2>1. 複製書籤程式碼</h2>
