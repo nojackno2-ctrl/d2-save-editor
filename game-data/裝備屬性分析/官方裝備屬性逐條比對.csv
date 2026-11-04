@@ -1,0 +1,136 @@
+﻿屬性代碼,遊戲英文樣板,修改器顯示範例（數值25）,官方顯示範例（數值25）,比對結果
+allSkills,+# to All Skills,所有技能 +25,+25 所有技能,不同
+fireSkills,+# to Fire Skills,+25 火焰技能,+25 火焰技能,一致
+coldSkills,+# to Cold Skills,+25 冰寒技能,+25 冰寒技能,一致
+lightningSkills,+# to Lightning Skills,+25 閃電技能,+25 閃電技能,一致
+damage,+#% Damage,傷害 +25%,,無精確對應
+attackDamage,+#% Attack Damage,攻擊傷害 +25%,,無精確對應
+damageReduction,Damage Reduced by #%,傷害降低25%,,無精確對應
+strength,+# to Strength,力量 +25,+25 力量,不同
+dexterity,+# to Dexterity,敏捷 +25,+25 敏捷,不同
+energy,+# to Energy,能量 +25,+25 能量,不同
+life,+# to Life,生命 +25,+25 生命,不同
+regen,Replenish Life +#,生命回復 +25,生命回復 +25,一致
+fcr,+#% Faster Cast Rate,+25% 施法速度,+25% 施法速度,一致
+frw,+#% Faster Run/Walk,+25% 跑步 / 行走速度,+25% 跑步 / 行走速度,一致
+goldFind,#% Extra Gold from Monsters,怪物金幣掉落量提高 25%,怪物金幣掉落量提高 25%,一致
+magicFind,#% Better Chance of Getting Magic Items,尋獲魔法物品機率提高 25%,尋獲魔法物品機率提高 25%,一致
+pickup,+#% Pickup Radius,+25% 拾取範圍,,無精確對應
+vitality,+# to Vitality,體能 +25,+25 體能,不同
+lifePerLevel,+# to Life per Level,+25 生命（每級）,,無精確對應
+fireResist,Fire Resist +#%,火焰抗性 +25%,火焰抗性 +25%,一致
+coldResist,Cold Resist +#%,冰寒抗性 +25%,冰寒抗性 +25%,一致
+lightningResist,Lightning Resist +#%,電擊抗性 +25%,電擊抗性 +25%,一致
+poisonResist,Poison Resist +#%,毒素抗性 +25%,毒素抗性 +25%,一致
+maxFireResist,+#% to Maximum Fire Resist,火焰抗性上限 +25%,火焰抗性上限 +25%,一致
+maxColdResist,+#% to Maximum Cold Resist,冰寒抗性上限 +25%,冰寒抗性上限 +25%,一致
+maxLightningResist,+#% to Maximum Lightning Resist,電擊抗性上限 +25%,電擊抗性上限 +25%,一致
+maxPoisonResist,+#% to Maximum Poison Resist,毒素抗性上限 +25%,毒素抗性上限 +25%,一致
+fireMastery,+#% to Fire Skill Damage,火焰技能傷害 +25%,+25% 火焰技能傷害,不同
+coldMastery,+#% to Cold Skill Damage,冰寒技能傷害 +25%,+25% 冰寒技能傷害,不同
+lightningMastery,+#% to Lightning Skill Damage,閃電技能傷害 +25%,+25% 閃電技能傷害,不同
+poisonMastery,+#% to Poison Skill Damage,毒素技能傷害 +25%,+25% 毒素技能傷害,不同
+firePierce,-#% to Enemy Fire Resistance,敵人火焰抗性 -25%,敵人火焰抗性 -25%,一致
+coldPierce,-#% to Enemy Cold Resistance,敵人冰寒抗性 -25%,敵人冰寒抗性 -25%,一致
+lightningPierce,-#% to Enemy Lightning Resistance,敵人電擊抗性 -25%,敵人電擊抗性 -25%,一致
+poisonPierce,-#% to Enemy Poison Resistance,敵人毒素抗性 -25%,敵人毒素抗性 -25%,一致
+attackRating,+#% Bonus to Attack Rating,準確率加成 +25%,,無精確對應
+deadlyStrike,#% Deadly Strike,致命打擊 25%,,無精確對應
+deadlyPerLevel,#% Deadly Strike per Level,25% 致命打擊（每級）,,無精確對應
+crushingBlow,#% Chance of Crushing Blow,粉碎打擊機率 25%,,無精確對應
+openWounds,#% Chance of Open Wounds,開放傷口機率 25%,,無精確對應
+lifeLeech,#% Life Stolen Per Hit,擊中竊取生命 25%,,無精確對應
+pierce,#% Piercing Attack,穿透攻擊 25%,,無精確對應
+undeadDamage,+#% Damage to Undead,對不死怪物的傷害 +25%,+25% 對不死怪物的傷害,不同
+demonDamage,+#% Damage to Demons,對惡魔的傷害 +25%,+25% 對惡魔的傷害,不同
+flatDamage,+# Average Damage,平均傷害 +25,,無精確對應
+enhancedDamage,+#% Enhanced Damage,傷害強化 +25%,+25% 傷害強化,不同
+minDamage,+# to Minimum Damage,最小傷害 +25,+25 最小傷害,不同
+maxDamage,+# to Maximum Damage,最大傷害 +25,+25 最大傷害,不同
+fireMinDamage,+# to Minimum Fire Damage,火焰傷害最小值 +25,+25 火焰傷害最小值,不同
+fireMaxDamage,+# to Maximum Fire Damage,火焰傷害最大值 +25,+25 火焰傷害最大值,不同
+coldMinDamage,+# to Minimum Cold Damage,冰寒傷害最小值 +25,+25 冰寒傷害最小值,不同
+coldMaxDamage,+# to Maximum Cold Damage,冰寒傷害最大值 +25,+25 冰寒傷害最大值,不同
+lightningMinDamage,+# to Minimum Lightning Damage,電擊傷害最小值 +25,+25 電擊傷害最小值,不同
+lightningMaxDamage,+# to Maximum Lightning Damage,電擊傷害最大值 +25,+25 電擊傷害最大值,不同
+magicMinDamage,+# to Minimum Magic Damage,魔法傷害最小值 +25,,無精確對應
+magicMaxDamage,+# to Maximum Magic Damage,魔法傷害最大值 +25,+25 魔法傷害最大值,不同
+attackSpeed,+#% Increased Attack Speed,攻擊速度 +25%,攻擊速度 +25%,一致
+manaLeech,#% Mana Stolen Per Hit,擊中竊取法力 25%,,無精確對應
+attackRatingPoints,+# to Attack Rating,準確率 +25,+25 準確率,不同
+enhancedDefense,+#% Enhanced Defense,提高防禦 +25%,+25% 防禦強化,不同
+mana,+# to Mana,法力 +25,+25 法力,不同
+damageReduced,Damage Reduced by #,傷害降低 25,傷害降低 25,一致
+replenishLife,Replenish Life +#,生命回復 +25,生命回復 +25,一致
+poisonMinDamage,+# to Minimum Poison Damage,毒素傷害最小值 +25,+25 毒素傷害最小值,不同
+poisonMaxDamage,+# to Maximum Poison Damage,毒素傷害最大值 +25,+25 毒素傷害最大值,不同
+thorns,Attacker Takes Damage of #,攻擊者反傷 25,攻擊者反傷：25,不同
+lightningThorns,Attacker Takes Lightning Damage of #,攻擊者受到電擊傷害 25,攻擊者受到 25 點電擊傷害,不同
+lifeAfterKill,+# Life after each Kill,擊殺生命恢復 +25,+25 擊殺生命恢復,不同
+lifeAfterDemonKill,+# Life after each Demon Kill,擊殺惡魔生命恢復 +25,+25 擊殺惡魔生命恢復,不同
+cannotBeFrozen,Cannot Be Frozen,無法凍結,無法凍結,一致
+halfFreeze,Half Freeze Duration,被凍結的時效減半,被凍結的時效減半,一致
+poisonLength,Poison Length Reduced by #%,中毒時效縮短 25%,中毒的時效縮短 25%,不同
+lightRadius,+# to Light Radius,照亮範圍 +25,照亮範圍 +25,一致
+block,#% Increased Chance of Blocking,格擋機率提高 25%,格擋機率提高 25%,一致
+shield,Shield,盾牌,,無精確對應
+fasterBlock,+#% Faster Block Rate,格擋速度 +25%,+25% 格擋速度,不同
+absorbFire,+# Fire Absorb,火焰吸收 +25,+25 火焰吸收,不同
+absorbCold,+# Cold Absorb,冰寒吸收 +25,+25 冰寒吸收,不同
+absorbLightning,+# Lightning Absorb,電擊吸收 +25,+25 電擊吸收,不同
+absorbMagic,+# Magic Absorb,魔法吸收 +25,+25 魔法吸收,不同
+absorbFirePercent,Fire Absorb #%,火焰吸收 25%,,無精確對應
+absorbColdPercent,Cold Absorb #%,冰寒吸收 25%,,無精確對應
+absorbLightningPercent,Lightning Absorb #%,電擊吸收 25%,,無精確對應
+absorbFirePerLevel,Absorbs Fire Damage (+# per Character Level),火焰傷害吸收（每角色等級 +25）,,無精確對應
+absorbColdPerLevel,Absorbs Cold Damage (+# per Character Level),冰寒傷害吸收（每角色等級 +25）,,無精確對應
+absorbLightningPerLevel,Absorbs Lightning Damage (+# per Character Level),電擊傷害吸收（每角色等級 +25）,,無精確對應
+magicReduced,Magic Damage Reduced by #,魔法傷害降低 25,魔法傷害降低 25,一致
+missileReduction,Missile Damage Reduced by #%,遠程傷害降低25%,,無精確對應
+meleeReduction,Melee Damage Reduced by #%,近戰傷害降低25%,,無精確對應
+lifePercent,Increase Maximum Life #%,提高生命上限 25%,生命上限提高 25%,不同
+addExperience,+#% to Experience Gained,獲得的經驗值 +25%,獲得的經驗值 +25%,一致
+blindTarget,Hit Blinds Target,擊中使目標目盲,擊中使目標目盲,一致
+freezeTarget,Freezes Target +#,凍結目標 +25,,無精確對應
+slowTarget,Slows Target by #%,使目標減慢 25%,使目標減慢 25%,一致
+fleeTarget,Hit Causes Monster to Flee #%,擊中使怪物逃跑 25%,,無精確對應
+knockback,Knockback,擊退,擊退,一致
+ignoreDefense,Ignore Target's Defense,無視目標防禦,無視目標防禦,一致
+targetDefense,-#% Target Defense,目標防禦 -25%,-25% 目標防禦,不同
+defensePerHit,-# to Monster Defense Per Hit,擊中使怪物防禦 -25,,無精確對應
+preventHeal,Prevent Monster Heal,防止怪物自療,防止怪物自療,一致
+restInPeace,Slain Monsters Rest in Peace,殺死的怪物就此安息,殺死的怪物就此安息,一致
+undeadAttackRating,+#% Attack Rating against Undead,+25% 對不死怪物的準確率,,無精確對應
+demonAttackRating,+#% Attack Rating against Demons,+25% 對惡魔的準確率,,無精確對應
+magicArrows,Fires Magic Arrows,射出魔法箭矢,射出魔法箭矢,一致
+explosiveArrows,Fires Explosive Arrows or Bolts,射出爆炸的弓矢或弩箭,射出爆炸的弓矢或弩箭,一致
+manaPerLevel,+# to Mana per Level,+25 法力（每級）,,無精確對應
+vitalityPerLevel,+# to Vitality per Level,+25 體能（每級）,,無精確對應
+maxDamagePerLevel,+# to Maximum Damage per Level,+25 最大傷害（每級）,,無精確對應
+fireMaxDamagePerLevel,+# to Maximum Fire Damage per Level,火焰傷害最大值 +25（每級）,,無精確對應
+coldMaxDamagePerLevel,+# to Maximum Cold Damage per Level,冰寒傷害最大值 +25（每級）,,無精確對應
+lightningMaxDamagePerLevel,+# to Maximum Lightning Damage per Level,電擊傷害最大值 +25（每級）,,無精確對應
+defensePerLevel,+# Defense per Level,+25 防禦（每級）,,無精確對應
+magicFindPerLevel,#% Better Chance of Getting Magic Items per Level,尋獲魔法物品機率提高 25%（每級）,,無精確對應
+demonDamagePerLevel,+#% Damage to Demons per Level,+25% 對惡魔的傷害（每級）,,無精確對應
+lightningResistPerLevel,Lightning Resist #% per Level,電擊抗性 25%（每級）,,無精確對應
+thornsPerLevel,Attacker Takes Damage of # per Level,攻擊者反傷：25（每級）,,無精確對應
+attackRatingPerLevel,+# to Attack Rating per Level,準確率 +25（每級）,,無精確對應
+attackRatingPercentPerLevel,+#% Bonus to Attack Rating per Level,準確率加成 +25%（每級）,,無精確對應
+strengthPerLevel,+# to Strength per Level,力量 +25（每級）,,無精確對應
+dexterityPerLevel,+# to Dexterity per Level,敏捷 +25（每級）,,無精確對應
+maxDamagePercentPerLevel,+#% Enhanced Maximum Damage per Level,最大傷害強化 +25%（每級）,,無精確對應
+undeadDamagePerLevel,+#% Damage to Undead per Level,對不死怪物的傷害 +25%（每級）,,無精確對應
+goldFindPerLevel,#% Extra Gold from Monsters per Level,怪物金幣掉落量提高 25%（每級）,,無精確對應
+undeadAttackRatingPerLevel,+# to Attack Rating against Undead per Level,對不死怪物的準確率 +25（每級）,,無精確對應
+demonAttackRatingPerLevel,+# to Attack Rating against Demons per Level,對惡魔的準確率 +25（每級）,,無精確對應
+defense,+# Defense,+25 防禦,+25 防禦,一致
+fhr,+#% Faster Hit Recovery,+25% 打擊恢復,+25% 打擊恢復,一致
+stamina,+# Maximum Stamina,+25 精力上限,+25 精力上限,一致
+reducedPrices,Reduces all Vendor Prices #%,所有商人的價格降低 25%,所有商人的價格降低 25%,一致
+base:damageReduction,Base Damage Reduction: #%,基礎傷害降低：25%,,無精確對應
+base:damage,Base Damage: +#%,基礎傷害：+25%,,無精確對應
+base:attackDamage,Attack Damage: +#%,攻擊傷害 +25%,,無精確對應
+base:lifePerLevel,+# to Life #,生命 +25,,無精確對應
+base:manaPerLevel,+# to Mana #,法力 +25,,無精確對應
+base:vitalityPerLevel,+# to Vitality #,體能 +25,,無精確對應
