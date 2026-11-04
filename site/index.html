@@ -549,7 +549,7 @@
     /* Gallery / Actual Screenshots Section */
     .gallery-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
       gap: 20px;
       margin-top: 20px;
     }
@@ -636,6 +636,11 @@
       border-radius: 2px;
       border: 1px solid rgba(62, 230, 176, 0.25);
     }
+
+    /* Inline feature screenshots */
+    .feature-shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 32px; }
+    .feature-shot { margin: 0; background: var(--bg-surface); border: 1px solid var(--border-dim); border-radius: 4px; padding: 12px; }
+    .feature-shot figcaption { margin-top: 10px; font-size: 0.88rem; color: var(--text-main); font-weight: 500; }
 
     /* Simple Lightbox */
     .lightbox-modal {
@@ -1458,19 +1463,6 @@
     </div>
   </section>
 
-  <section class="section" id="known-issues">
-    <div class="container">
-      <div class="section-title-wrap">
-        <div class="section-tag">// PLAYER NOTICE</div>
-        <h2 class="section-title">已知問題</h2>
-      </div>
-      <div class="alert-card">
-        <h3>排行榜成績可能未上傳</h3>
-        <p>有玩家回報，載入工具書籤後，即使沒有修改存檔，成績也可能未上傳排行榜；原因尚未確認。</p>
-        <p><b>暫行解法：</b>關閉已載入工具的遊戲分頁，另開乾淨的新分頁，直接進入<a href="https://d2survivors.lol/play/" target="_blank" rel="noopener">原版遊戲頁面</a>，遊玩期間不要載入 D2 工具或其他書籤工具。此方式不能保證遊戲端一定接受成績。</p>
-      </div>
-    </div>
-  </section>
   <!-- Editor Section -->
   <section class="section" id="editor">
     <div class="container">
@@ -1598,6 +1590,26 @@
           </ul>
         </div>
       </div>
+    <div class="feature-shots">
+      <figure class="feature-shot">
+        <button type="button" class="gallery-img-wrap" data-src="img/editor-overview.jpg" data-caption="存檔修改器：共用倉庫與分頁總覽（實機畫面）">
+          <img src="img/editor-overview.jpg" alt="存檔修改器實機畫面" loading="lazy" onerror="this.closest('.feature-shot').style.display='none';">
+        </button>
+        <figcaption>存檔修改器：共用倉庫與分頁總覽（實機畫面）</figcaption>
+      </figure>
+      <figure class="feature-shot">
+        <button type="button" class="gallery-img-wrap" data-src="img/craft-form.jpg" data-caption="製作裝備：選底材與品質後，逐條填入前綴與後綴數值">
+          <img src="img/craft-form.jpg" alt="製作裝備實機畫面" loading="lazy" onerror="this.closest('.feature-shot').style.display='none';">
+        </button>
+        <figcaption>製作裝備：選底材與品質後，逐條填入前綴與後綴數值</figcaption>
+      </figure>
+      <figure class="feature-shot">
+        <button type="button" class="gallery-img-wrap" data-src="img/craft-result.jpg" data-caption="製作裝備：製作成功，物品詳情顯示每條詞綴的遊戲範圍">
+          <img src="img/craft-result.jpg" alt="製作成功的裝備詳情實機畫面" loading="lazy" onerror="this.closest('.feature-shot').style.display='none';">
+        </button>
+        <figcaption>製作裝備：製作成功，物品詳情顯示每條詞綴的遊戲範圍</figcaption>
+      </figure>
+    </div>
     </div>
   </section>
 
@@ -1795,6 +1807,20 @@
         </table>
       </div>
       <p class="sub-desc" style="margin-top:10px">畫面下方狀態列會顯示目前模式與輔助器正在做什麼；設定面板顯示任務進度。遊戲改版時面板最上方會提示「遊戲已更新」。</p>
+    <div class="feature-shots">
+      <figure class="feature-shot">
+        <button type="button" class="gallery-img-wrap" data-src="img/assist-panel.jpg" data-caption="輔助器：戰鬥輔助與自動戰鬥開關（實機畫面）">
+          <img src="img/assist-panel.jpg" alt="輔助器設定面板實機畫面" loading="lazy" onerror="this.closest('.feature-shot').style.display='none';">
+        </button>
+        <figcaption>輔助器：戰鬥輔助與自動戰鬥開關（實機畫面）</figcaption>
+      </figure>
+      <figure class="feature-shot">
+        <button type="button" class="gallery-img-wrap" data-src="img/assist-auto.jpg" data-caption="輔助器：自動戰鬥分頁，可選任務、固定關卡或天梯模式（實機畫面）">
+          <img src="img/assist-auto.jpg" alt="輔助器自動戰鬥分頁實機畫面" loading="lazy" onerror="this.closest('.feature-shot').style.display='none';">
+        </button>
+        <figcaption>輔助器：自動戰鬥分頁，可選任務、固定關卡或天梯模式（實機畫面）</figcaption>
+      </figure>
+    </div>
     </div>
   </section>
 
@@ -1837,52 +1863,70 @@
 
       <div class="gallery-grid">
         <div class="gallery-item">
-          <button type="button" class="gallery-img-wrap" data-src="img/battle1.jpg" data-caption="自動戰鬥中：走位閃避">
-            <img src="img/battle1.jpg" alt="自動戰鬥中：走位閃避" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          <button type="button" class="gallery-img-wrap" data-src="img/live-sorceress.jpg" data-caption="自動戰鬥：第五章，法師在精英怪群中施放閃電與火焰">
+            <img src="img/live-sorceress.jpg" alt="自動戰鬥：第五章，法師在精英怪群中施放閃電與火焰" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
           </button>
-          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 01</span><span>自動戰鬥中：走位閃避</span></div>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 01</span><span>自動戰鬥：第五章，法師在精英怪群中施放閃電與火焰</span></div>
         </div>
-
         <div class="gallery-item">
-          <button type="button" class="gallery-img-wrap" data-src="img/battle2.jpg" data-caption="自動戰鬥：遭遇第一幕頭目血鴉">
-            <img src="img/battle2.jpg" alt="自動戰鬥：遭遇第一幕頭目血鴉" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          <button type="button" class="gallery-img-wrap" data-src="img/live-druid.jpg" data-caption="自動戰鬥：惡夢第一章，德魯伊以火焰清理狼群">
+            <img src="img/live-druid.jpg" alt="自動戰鬥：惡夢第一章，德魯伊以火焰清理狼群" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
           </button>
-          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 02</span><span>自動戰鬥：遭遇第一幕頭目血鴉</span></div>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 02</span><span>自動戰鬥：惡夢第一章，德魯伊以火焰清理狼群</span></div>
         </div>
-
         <div class="gallery-item">
-          <button type="button" class="gallery-img-wrap" data-src="img/panel.jpg" data-caption="輔助器設定面板">
-            <img src="img/panel.jpg" alt="輔助器設定面板" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          <button type="button" class="gallery-img-wrap" data-src="img/live-necromancer.jpg" data-caption="自動戰鬥：第五章雪地，死靈召喚骷髏大軍作戰">
+            <img src="img/live-necromancer.jpg" alt="自動戰鬥：第五章雪地，死靈召喚骷髏大軍作戰" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
           </button>
-          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 03</span><span>輔助器設定面板</span></div>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 03</span><span>自動戰鬥：第五章雪地，死靈召喚骷髏大軍作戰</span></div>
         </div>
-
         <div class="gallery-item">
-          <button type="button" class="gallery-img-wrap" data-src="img/editor.jpg" data-caption="存檔修改器：點選倉庫裡的裝備，即可檢視與編輯屬性及遊戲範圍">
-            <img src="img/editor.jpg" alt="存檔修改器：點選倉庫裡的裝備，即可檢視與編輯屬性及遊戲範圍" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          <button type="button" class="gallery-img-wrap" data-src="img/live-assassin.jpg" data-caption="自動戰鬥：第五章，刺客與冰凍附魔精英交戰">
+            <img src="img/live-assassin.jpg" alt="自動戰鬥：第五章，刺客與冰凍附魔精英交戰" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
           </button>
-          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 04</span><span>存檔修改器：點選倉庫裡的裝備，即可檢視與編輯屬性及遊戲範圍</span></div>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 04</span><span>自動戰鬥：第五章，刺客與冰凍附魔精英交戰</span></div>
         </div>
-
         <div class="gallery-item">
-          <button type="button" class="gallery-img-wrap" data-src="img/craft1.jpg" data-caption="製作裝備：稀有法珠（+2 魔法使技能、20% 施法速度）">
-            <img src="img/craft1.jpg" alt="製作裝備：稀有法珠（+2 魔法使技能、20% 施法速度）" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          <button type="button" class="gallery-img-wrap" data-src="img/live-paladin.jpg" data-caption="自動戰鬥：第五章雪原，聖騎士與精英怪交戰">
+            <img src="img/live-paladin.jpg" alt="自動戰鬥：第五章雪原，聖騎士與精英怪交戰" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
           </button>
-          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 05</span><span>製作裝備：稀有法珠（+2 魔法使技能、20% 施法速度）</span></div>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 05</span><span>自動戰鬥：第五章雪原，聖騎士與精英怪交戰</span></div>
         </div>
-
         <div class="gallery-item">
-          <button type="button" class="gallery-img-wrap" data-src="img/craft2.jpg" data-caption="製作裝備：稀有統御者鎧甲，屬性依原版規則把關">
-            <img src="img/craft2.jpg" alt="製作裝備：稀有統御者鎧甲，屬性依原版規則把關" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          <button type="button" class="gallery-img-wrap" data-src="img/live-barbarian.jpg" data-caption="自動戰鬥：第五章雪原，清理骷髏與精英並撿取掉落物">
+            <img src="img/live-barbarian.jpg" alt="自動戰鬥：第五章雪原，清理骷髏與精英並撿取掉落物" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
           </button>
-          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 06</span><span>製作裝備：稀有統御者鎧甲，屬性依原版規則把關</span></div>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 06</span><span>自動戰鬥：第五章雪原，清理骷髏與精英並撿取掉落物</span></div>
         </div>
-
         <div class="gallery-item">
-          <button type="button" class="gallery-img-wrap" data-src="img/paused.jpg" data-caption="暫停畫面左上角的修改器與輔助按鈕">
-            <img src="img/paused.jpg" alt="暫停畫面左上角的修改器與輔助按鈕" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          <button type="button" class="gallery-img-wrap" data-src="img/assist-panel.jpg" data-caption="輔助器：戰鬥輔助與自動戰鬥開關">
+            <img src="img/assist-panel.jpg" alt="輔助器：戰鬥輔助與自動戰鬥開關" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
           </button>
-          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 07</span><span>暫停畫面左上角的修改器與輔助按鈕</span></div>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 07</span><span>輔助器：戰鬥輔助與自動戰鬥開關</span></div>
+        </div>
+        <div class="gallery-item">
+          <button type="button" class="gallery-img-wrap" data-src="img/assist-auto.jpg" data-caption="輔助器：自動戰鬥分頁，選擇任務、固定關卡或天梯模式">
+            <img src="img/assist-auto.jpg" alt="輔助器：自動戰鬥分頁，選擇任務、固定關卡或天梯模式" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 08</span><span>輔助器：自動戰鬥分頁，選擇任務、固定關卡或天梯模式</span></div>
+        </div>
+        <div class="gallery-item">
+          <button type="button" class="gallery-img-wrap" data-src="img/editor-overview.jpg" data-caption="存檔修改器：共用倉庫與分頁總覽">
+            <img src="img/editor-overview.jpg" alt="存檔修改器：共用倉庫與分頁總覽" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 09</span><span>存檔修改器：共用倉庫與分頁總覽</span></div>
+        </div>
+        <div class="gallery-item">
+          <button type="button" class="gallery-img-wrap" data-src="img/craft-form.jpg" data-caption="製作裝備：選底材與品質後，逐條填入前綴與後綴數值">
+            <img src="img/craft-form.jpg" alt="製作裝備：選底材與品質後，逐條填入前綴與後綴數值" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 10</span><span>製作裝備：選底材與品質後，逐條填入前綴與後綴數值</span></div>
+        </div>
+        <div class="gallery-item">
+          <button type="button" class="gallery-img-wrap" data-src="img/craft-result.jpg" data-caption="製作裝備：製作成功，物品詳情顯示每條詞綴的遊戲範圍">
+            <img src="img/craft-result.jpg" alt="製作裝備：製作成功，物品詳情顯示每條詞綴的遊戲範圍" loading="lazy" onerror="this.closest('.gallery-item').style.display='none';">
+          </button>
+          <div class="gallery-caption"><span class="gallery-caption-tag">IMG 11</span><span>製作裝備：製作成功，物品詳情顯示每條詞綴的遊戲範圍</span></div>
         </div>
       </div>
     </div>
@@ -1936,6 +1980,7 @@
         <p class="section-desc">網頁版是書籤小程式（Bookmarklet），電腦與手機瀏覽器皆免安裝；Windows 另有可攜版</p>
       </div>
 
+      <p class="section-desc" style="margin-bottom:24px">⚠️ 排行榜注意：載入工具書籤後該遊戲頁的成績不會上傳，詳見 <a href="#known-issues">已知問題</a>。</p>
       <div class="steps-grid">
         <div class="step-box">
           <div class="step-num">01</div>
@@ -2001,6 +2046,19 @@
     </div>
   </section>
 
+  <section class="section" id="known-issues">
+    <div class="container">
+      <div class="section-title-wrap">
+        <div class="section-tag">// PLAYER NOTICE</div>
+        <h2 class="section-title">已知問題</h2>
+      </div>
+      <div class="alert-card">
+        <h3>排行榜：載入工具書籤後不會上傳</h3>
+        <p><b>原廠排行榜會偵測遊戲頁是否載入書籤，以及原生函式是否遭替換。</b>載入 D2 倖存者工具包書籤後，該遊戲頁的成績不會上傳排行榜；這與存檔是否修改無關，修改器的「解除修改限制」開啟或關閉都一樣。</p>
+        <p>診斷頁可能顯示「bookmarklet」或「replaced …」，這是原廠頁面環境檢查的結果。想遊玩並提交排行榜成績，請關閉已載入工具的遊戲分頁，再另開乾淨的新分頁直接進入<a href="https://d2survivors.lol/play/" target="_blank" rel="noopener">原版遊戲頁面</a>，全程不要載入任何書籤工具。工具中的環境診斷只顯示在「存檔檢查」頁，不會放進狀態列。</p>
+      </div>
+    </div>
+  </section>
   <!-- FAQ Section -->
   <section class="section" id="faq">
     <div class="container">
@@ -2027,7 +2085,7 @@
         </details>
         <details>
           <summary>為什麼不能製作暗金、套裝或符文之語？</summary>
-          <div class="answer"><p>預設的合規模式依原版規則把關，不允許直接製作這三種品質。如果只在單機遊玩，可到修改器「設定」開啟「解除修改限制」，但存檔將不適合上傳排行榜。</p></div>
+          <div class="answer"><p>預設模式會依原版規則限制裝備製作。請注意，載入工具書籤後原廠會偵測頁面標記及原生函式替換，該遊戲頁的成績不會上傳排行榜，不論是否開啟「解除修改限制」。解除限制只供單機遊玩。</p></div>
         </details>
         <details>
           <summary>製作裝備時提示「可能配套」或要我確認？</summary>
@@ -2080,7 +2138,7 @@
           <ul>
             <li><b>存檔檢查</b>：「反修改偵測」改名「存檔檢查」，新增問題明細，列出問題的位置、原因與修正方式，並顯示整體結果與一鍵關閉排行榜上傳。</li>
             <li><b>修正</b>：正常從遊戲打到的裝備不再被誤判為不合法；合法性改以遊戲自己的資料與檢查為準，額外的詞綴規則檢查只作參考。</li>
-            <li><b>排行榜提醒</b>：遊戲會偵測被書籤改動的頁面。有玩家回報載入書籤後，即使沒有修改存檔，成績也沒有上傳排行榜，原因尚未確認；想上榜請用未載入任何書籤的遊戲頁面。</li>
+            <li><b>排行榜說明</b>：原廠排行榜會偵測遊戲頁是否載入書籤及原生函式是否遭替換；載入工具書籤後該頁成績不會上傳，與存檔是否修改、是否開啟「解除修改限制」無關。診斷只顯示在「存檔檢查」頁，不顯示於狀態列。</li>
           </ul>
         </div>
         <div class="log-entry">
@@ -2151,12 +2209,12 @@
               <li>屬性點不超過等級應得上限；屬性下拉選單只列出依規則還能加入的屬性。</li>
               <li>金幣與恰西單次升級花費不超過 100 億。</li>
             </ul>
-            <p style="color:#f59e0b;margin-top:12px"><strong>⚠️ 但不保證絕對安全：</strong>遊戲隨時可能更新排行榜的檢查方式，也可能有未公開的偵測，修改過的存檔仍可能被排行榜拒絕、移除紀錄或停權，是否上傳請自行評估。修改器不提供任何繞過遊戲檢查的功能。</p>
+            <p style="color:#f59e0b;margin-top:12px"><strong>⚠️ 重要：合規模式不代表可上傳排行榜。</strong>原廠排行榜會偵測遊戲頁是否載入書籤及原生函式是否遭替換，因此只要在該遊戲頁載入本工具，成績就不會上傳；「解除修改限制」開啟或關閉皆相同。修改器不提供繞過遊戲檢查的功能。</p>
           </div>
           <div class="comp-col">
             <h4>解除限制模式（單機爽玩）</h4>
             <p>
-              若你只想在單人模式體驗毀天滅地的爽快感，可以在修改器「設定」打開「解除修改限制」。解除後裝備製作不再受原版詞綴、數量、數值與品質限制，可製作任何屬性、任何數量、超越原版數值的裝備。此狀態下的存檔無法上傳排行榜，屬玩家自行選擇。
+              若你只想在單人模式體驗毀天滅地的爽快感，可以在修改器「設定」打開「解除修改限制」。解除後裝備製作不再受原版詞綴、數量、數值與品質限制，可製作任何屬性、任何數量、超越原版數值的裝備。請注意：載入工具書籤本身就會觸發原廠頁面環境偵測，該頁成績不會上傳；解除限制並非唯一原因。
             </p>
           </div>
         </div>

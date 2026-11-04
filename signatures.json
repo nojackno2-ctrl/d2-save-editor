@@ -6,7 +6,7 @@
   "makeRuneword": "function (N)\\(e,t,n,r,i\\)\\{let a=N\\(e\\.name,e\\.runes,N\\(t\\),i\\)",
   "affixes": "(N)=\\[\\.\\.\\.N\\(\\),\\.\\.\\.N\\(\\),\\{name:`of Attraction`",
   "affixApplies": "function (N)\\(e,t,n\\)\\{return e\\.cls&&e\\.cls!==\\(t\\.cls\\?\\?n\\)",
-  "makeAffix": "function (N)\\(e,t,n,r,i\\)\\{t===`normal`&&\\(e\\.type===`ring`",
+  "makeAffix": "function (N)\\(e,t,n,r,i(?:,a=2)?\\)\\{t===`normal`&&\\(e\\.type===`ring`",
   "classKits": "function N\\(e\\)\\{return Object\\.hasOwn\\((N),e\\)\\?N\\[e\\]\\?\\?null:null\\}",
   "modDefs": "(N)=\\{fireBolt:\\[\\{id:`split`,name:`Split`,describe:",
   "weaponSetActive": "function (N)\\(e,t\\)\\{return e\\.weaponSets\\?\\.\\[t\\]\\?\\.active===2\\?2:1\\}",
