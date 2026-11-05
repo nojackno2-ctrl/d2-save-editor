@@ -59,6 +59,7 @@
 - 2026-11-05｜Claude：怪物名稱與詞綴列的分隔符。`lang/lang.js`（來源 `editor/lang.js`）新增 `tidyMonsterText`，在 `translateString` 最後套用：純英文怪物名的中文間「 - 」移除（`石塊蛆蟲巫異`）；含詞綴關鍵字（Cursed、Extra Fast、Enchanted 等）的屬性列改為每項之間一個空格（`施加詛咒 靈氣強化 特別快速`）。驗證：`node lang/tests/test_lang.cjs` 通過；實機（本機 `H_BASE` 注入、隔離設定檔、存檔副本）在頁面內呼叫真實 `translateString`：`Stone - Maggot - the Witch`→`石塊蛆蟲巫異`、`Cursed - Aura Enchanted - Extra Fast…`→`施加詛咒 靈氣強化 特別快速…`，原尺寸截圖確認屬性列為單空格分隔。未發布、未推送。原版 " - " 來源未查明，此前「來自原版翻譯器」之說法不成立。全面掃描：字典內 `monster:`／`unique:`／`affix:` 共 709 個英文名稱，經頁面內真實 `translate` 輸出，皆無「·」、「-」、中文間空格或殘留英文（0 筆可疑）。物品（使用者 2026-11-05 要求一併修正）：`Chain Boots - of Precision` 由 `鎖鍊靴 - 精密之` 改為 `鎖鍊靴精密之`，移除先前的「of」排除條件；實機頁面內驗證通過。介面提示（如 `Enter：選擇 - Esc：返回`）不受影響。Codex 唯讀審查（job 54bff56d9116）：字典條目無直接受影響項目，風險僅在動態組合，已依需求接受。
 
 - 2026-11-05｜Claude（/goal 名稱顯示對齊原版）：`composeFind` 組合規則修正：物品重排只在字尾為「of …」時進行（`精密之鎖鍊靴`）；怪物稱號與稀有名稱維持原順序（`石塊蛆蟲巫異`、`兇殘扣環`）；詞綴列優先判斷、單一空格分隔（`施加詛咒 靈氣強化 特別快速`）。另修：詞綴列空格原本會被 `cleanCJK` 刪除，改以不換行空白（U+00A0）連接並讓 `CJK_GAP`／`MULTI_SPACE` 略過它。驗證：`test_lang` 通過；實機（Electron 隔離設定檔載入官方 /play、本機 `d2edit.js` 注入、`gameHooked:true`）頁面內 `__d2lang.translate` 10 例全對。未用使用者存檔（翻譯不依賴存檔）、未發布。
+- 2026-11-05｜Claude：使用者手機實測仍見「 - 」。根因：遊戲把屬性與唯一怪名以空白串成整串（`ix()`：`traits.map(H).join(" ")`），`translateString` 逐段拆解後以「 · 」接回，點陣字型畫成「-」，且最長比對把相鄰屬性黏在一起。修正：整串可完全切成屬性時逐項翻譯、以 U+00A0 分隔；其餘全譯完的名稱直接相接（`妖鬼饗宴「號哭者」`）；含 of 的整串先套物品規則，底材不得以 of/the 開頭（`八目鰻之戒指`）。實機（官方 /play、本機注入、gameHooked）10 例全對。
 
 ## 較早紀錄（已封存）
 - 2026-11-03～11-04 的各代理紀錄（專案最佳化、Cloudflare 自動部署、字典統一、更新驗證流程改版、實機長跑檢查、選卡修正、存檔檢查頁等）：`docs/ai/handoff-archive-2026-11.md`。

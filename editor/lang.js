@@ -215,6 +215,7 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
       if (words.length < 2 || words.length > 8 || !words.every((w) => /^(of|the|[A-Z][\w'’-]*)$/.test(w))) return null;
       for (let len = words.length - 1; len >= 1; len--) {
         for (let i = 0; i + len <= words.length; i++) {
+          if (/^(of|the)$/.test(words[i])) continue; // 底材不會以 of／the 開頭（否則「Ring of the Lamprey」會把字尾當底材）
           const base = exactOf(this, "item", words.slice(i, i + len).join(" "));
           if (base === null) continue;
           const pre = words.slice(0, i).join(" "), suf = words.slice(i + len).join(" ");
@@ -249,6 +250,8 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
         const out = segs.map(part);
         if (out.every((x) => x !== null)) return out.join("");
       }
+      // 「底材 of 字尾」整串：萬用樣板會照英文順序翻（戒指八目鰻之），先套物品規則（八目鰻之戒指）
+      if (/ of /.test(e)) { const it = itemName.call(this, e); if (it !== null) return it; }
       const r = origFind.call(this, e, depth);
       if (r !== null) return r;
       for (const [re, glue] of [[/, (?:and )?/, sep.comma], [/ and /, sep.and], [/ or /, sep.or]]) {
@@ -578,6 +581,16 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
       // 原版在韓文模式下才會逐項翻譯，中文模式會原樣保留英文
       if (r === str && /^[A-Za-z][A-Za-z' -]*$/.test(str.trim()) && str.includes(" ")) {
         const words = str.trim().split(/\s+/);
+        // 冠軍怪、唯一怪的屬性列（遊戲把各屬性以空白串起）：逐項切開，屬性之間保留一個空格（不換行空白，cleanCJK 不刪）
+        const traits = [];
+        for (let i = 0; i < words.length;) {
+          let j = Math.min(words.length, i + 4);
+          while (j > i && !isTrait(words.slice(i, j).join(" "))) j--;
+          if (j === i) { traits.length = 0; break; }
+          traits.push(words.slice(i, j).join(" ")); i = j;
+        }
+        const tr = traits.map((t) => look(t));
+        if (traits.length > 1 && tr.every((t, k) => t !== traits[k])) { r = tr.join("\u00a0"); words.length = 0; }
         const parts = [];
         for (let i = 0; i < words.length;) {
           let hit = null, used = 1;
@@ -589,7 +602,8 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
           i += used;
         }
         // 中文字之間的空白會被 cleanCJK 刪掉，所以改用「 · 」分隔（與遊戲其他清單一致）
-        if (parts.join(" ") !== words.join(" ")) r = parts.join(" · ");
+        // 全部譯好的名稱（怪物名＋稱號等）照原版直接相接；仍夾英文時才用空格（不再用「 · 」，點陣字型會畫成「-」）
+        if (words.length && parts.join(" ") !== words.join(" ")) r = parts.some((p) => /[A-Za-z]/.test(p)) ? parts.join(" ") : parts.join("");
       }
     }
     // 怪物類型名（例如冠軍怪標題「Enslaved」）在字典裡以 monster: 前綴存放，遊戲畫面直接用原名畫出時要補查
