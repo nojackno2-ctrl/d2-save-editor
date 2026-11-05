@@ -2110,11 +2110,18 @@ function detect() {
     fix: () => { for (const c of unranked) delete s.heroes[c].unranked; for (const c of lives) delete s.lives[c].why; }, fixText: "清除標記" });
   out.push(traceKeys.length ? { ok: false, text: "瀏覽器存放區留有遊戲匯入前的舊存檔", fix: async () => { await window.api.traces($("#mode").value, true); traceKeys = []; }, fixText: "立即刪除" }
     : { ok: true, text: "瀏覽器存放區沒有匯入痕跡" });
+  // 遊戲自己的存檔總檢查（saveFaults）：逐條明細見 renderDetails
+  out.push(gameSaveFaults == null ? { unknown: true, text: "遊戲存檔總檢查未驗證：引擎無法使用遊戲的檢查（saveFaults）" }
+    : gameSaveFaults.length ? { ok: false, text: `遊戲存檔檢查判定 ${gameSaveFaults.length} 項問題（遊戲判定，詳見下方明細）`, note: "遊戲檢查" }
+    : { ok: true, text: "遊戲存檔總檢查通過（saveFaults）", note: "遊戲檢查" });
   return out;
 }
-let faultyItems = null, ruleBad = null;
+let faultyItems = null, ruleBad = null, gameSaveFaults = null;
 async function renderGuard() {
   const items = allItems(save), f = await window.api.engine("faults", items);
+  // 遊戲自己的存檔總檢查（saveFaults，與排行榜合規性校驗同一套規則）；引擎不可用時為 null
+  const sf = await window.api.engine("saveFaults", JSON.parse(JSON.stringify(save))).catch(() => null);
+  gameSaveFaults = Array.isArray(sf) ? sf.map(String) : null;
   // 賭博商店清單是遊戲自己以普通品質底材展示（含戒指、護身符），買下時才決定品質，不算玩家物品
   const gamble = new Set(Object.values(save.gambleByClass ?? {}).flatMap(v => v ?? []));
   ruleBad = null; // 已移除原版規則檢查（依使用者要求），不再計算額外的詞綴規則提示
@@ -2134,7 +2141,8 @@ async function renderGuard() {
 // 詳細問題清單：列出每個問題的位置與原因，不截斷
 function renderDetails(list) {
   const rows = [];
-  for (const x of list) if (!x.ok && !x.unknown && !/物品|原版屬性規則/.test(x.text)) rows.push({ where: "存檔欄位", what: x.text, fix: x.fixText ?? "" });
+  for (const x of list) if (!x.ok && !x.unknown && !/物品|原版屬性規則|遊戲存檔檢查/.test(x.text)) rows.push({ where: "存檔欄位", what: x.text, fix: x.fixText ?? "" });
+  for (const f of gameSaveFaults ?? []) rows.push({ where: "遊戲存檔檢查（saveFaults）", what: `遊戲判定：${f}`, fix: "遊戲原文，目前沒有自動修正；請依內容到對應位置處理" });
   const gamble = new Set(Object.values(save.gambleByClass ?? {}).flatMap(v => v ?? []));
   const where = new Map(itemsWithWhere(save).map(w => [w.item, w.where]));
   const notes = [];
