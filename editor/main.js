@@ -25,7 +25,7 @@ ipcMain.handle("save", wrap(async (m, save) => {
 }));
 ipcMain.handle("assets", () => core.assets());
 ipcMain.handle("engine", wrap((fn, ...args) => {
-  if (!["capabilities", "catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName", "validateItems", "allowedStatsMany", "affixSlots"].includes(fn)) throw new Error("不支援的操作");
+  if (!["capabilities", "catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName", "validateItems", "allowedStatsMany", "affixSlots", "fixedInfo", "fixedBuild"].includes(fn)) throw new Error("不支援的操作");
   return engine.call(fn, ...args);
 }));
 ipcMain.handle("i18n", () => core.i18n());

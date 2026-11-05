@@ -162,6 +162,16 @@
   <section>
     <h2>更新日誌</h2>
     <p class="dim">介紹網頁：<a href="https://d2-survivors-toolkit.nojackno2.workers.dev/#changelog" target="_blank" rel="noopener" style="color:var(--gold)">d2-survivors-toolkit.nojackno2.workers.dev</a></p>
+    <h3>2026-11-05 v1.0.7</h3>
+    <ul>
+      <li>未解除修改限制也能製作暗金、套裝與符文之語：屬性種類與數量固定為原版定義，不能新增或刪除。</li>
+      <li>只能調整原版範圍內的數值（例如護身符全屬性 10～20），超出範圍會被拒絕；做出的物品通過遊戲本身的檢查。</li>
+      <li>可調整原版本來就隨機的項目：地獄火炬的職業、奧瑪斯長袍的隨機技能、符文之語的法杖技能與底材固有加成、是否無形。</li>
+      <li>符文之語可選底材，但只列出原版允許的底材（類型符合、孔數足夠）。</li>
+      <li>裝備庫的「數值」新增「自訂（限原版範圍）」；「製作裝備」頁選暗金／套裝／符文之語後挑選物品即可調整。</li>
+      <li>修正隨機製作帶法杖技能的符文之語，重新載入後被遊戲判定種子不符的問題。</li>
+      <li>修正地獄火炬選非預設職業、符文之語帶法杖技能時被誤判不符原版規則的問題。</li>
+    </ul>
     <h3>2026-11-05 修改器修正</h3>
     <ul>
       <li>暗金收藏「一鍵解鎖」：修正套裝物品被做成暗金的問題（造成收藏數量對不上、已收藏的套裝顯示未收藏）。</li>
@@ -297,6 +307,11 @@
       <span>品質</span><select id="xRar"></select>
     </div>
     <p id="c-companion-note" class="note" hidden></p>
+    <div id="c-sec-fixed" style="margin-top:10px" hidden>
+      <p class="dim">暗金、套裝、符文之語的屬性種類與數量固定為原版定義，只能在原版範圍內調整數值與隨機項目；符文之語可改底材（限原版允許的底材）。</p>
+      <div class="craftform"><span>物品</span><select id="xName"></select></div>
+      <div id="xFixedBox"></div>
+    </div>
     <div id="c-affix-total" class="bar" style="margin:10px 0 4px;font-weight:bold" hidden></div>
     <div id="c-sec-pre" style="margin-top:10px" hidden>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
@@ -431,9 +446,9 @@
 
 <script>
 const LOCALE = window.LANG === "en" ? "en-US" : "zh-TW";
-const TESTED_GAME_BUILD = "20261104.1"; // 每次確認新版遊戲相容後更新此值
+const TESTED_GAME_BUILD = "20261104.2"; // 每次確認新版遊戲相容後更新此值
 const BUILD_KEY = "d2edit:gameBuild";
-const TOOLKIT_VERSION = "1.0.6"; // 與 package.json 的 version 一致；發布前由 build-web.js 檢查
+const TOOLKIT_VERSION = "1.0.7"; // 與 package.json 的 version 一致；發布前由 build-web.js 檢查
 const TOOLKIT_SITE = "https://nojackno2-ctrl.github.io/d2-survivors-toolkit/";
 const TOOLKIT_RELEASES = "https://github.com/nojackno2-ctrl/d2-survivors-toolkit/releases/latest";
 const CLASSES = ["amazon","sorceress","necromancer","paladin","barbarian","druid","assassin"];
@@ -901,9 +916,7 @@ function updateCraftRarities() {
   const cRar = $("#cRar");
   if (cRar) {
     const prevC = cRar.value;
-    const cOpts = unlocked()
-      ? [["all", "全部品質"], ["unique", "暗金"], ["set", "套裝"], ["runeword", "符文之語"], ["rare", "稀有（選底材）"], ["magic", "魔法（選底材）"]]
-      : [["all", "全部品質"], ["rare", "稀有（選底材）"], ["magic", "魔法（選底材）"]];
+    const cOpts = [["all", "全部品質"], ["unique", "暗金"], ["set", "套裝"], ["runeword", "符文之語"], ["rare", "稀有（選底材）"], ["magic", "魔法（選底材）"]];
     cRar.innerHTML = cOpts.map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
     if (cOpts.some(([k]) => k === prevC)) cRar.value = prevC;
     else cRar.value = cOpts[0][0];
@@ -912,18 +925,12 @@ function updateCraftRarities() {
   const xRar = $("#xRar");
   if (xRar) {
     const prevX = xRar.value;
-    const xOpts = Object.entries(RARITY_ZH).filter(([k]) => unlocked() || !FORBIDDEN_CRAFT_RARITIES.has(k));
+    const xOpts = Object.entries(RARITY_ZH);
     // 未解除限制時預設稀有（普通品質不能有詞綴，當預設會讓加上的屬性全被標成不符合規則）
     const defX = unlocked() ? "unique" : "rare";
     const targetX = xOpts.some(([k]) => k === prevX) ? prevX : defX;
     xRar.innerHTML = xOpts.map(([k, v]) => `<option value="${k}" ${k === targetX ? "selected" : ""}>${v}</option>`).join("");
     if (targetX) xRar.value = targetX;
-  }
-  // 未解除限制時若已選取的目錄物品為暗金／套裝／符文之語，清除選取
-  if (!unlocked() && craftSel && FORBIDDEN_CRAFT_RARITIES.has(craftSel.rarity)) {
-    craftSel = null;
-    const cp = $("#cPick");
-    if (cp) cp.innerHTML = '<p class="dim">從左邊選一件物品。</p>';
   }
   // 底材與目錄資料已載入時重繪清單與相關介面
   if (typeof BASES !== "undefined" && BASES) {
@@ -962,6 +969,7 @@ async function renderCraft() {
     $("#xAddSuf").onclick = () => { $("#cmods-suf tbody").insertAdjacentHTML("beforeend", craftModRow("suffix")); updateCraftRanges(); };
     $("#xAddImp").onclick = () => { $("#cmods-imp tbody").insertAdjacentHTML("beforeend", craftModRow("imp")); updateCraftRanges(); };
     $("#xBase").onchange = $("#xRar").onchange = updateCraftRanges;
+    $("#xName").onchange = () => renderCraftFixed();
     const onCraftInput = async (e) => {
       const tr = e.target.closest("tr"); if (!tr) return;
       if (e.target.classList.contains("val")) delete tr.dataset.auto;
@@ -1007,17 +1015,11 @@ async function renderCraft() {
 function renderCraftList() {
   const r = $("#cRar").value, t = $("#cType").value, q = $("#cQ").value.toLowerCase();
   // 魔法／稀有沒有固定物品：改列出底材，詞綴由遊戲隨機產生；未解除限制且選全部品質時改列出所有可用底材
-  const affix = r === "magic" || r === "rare" || (!unlocked() && r === "all");
+  const affix = r === "magic" || r === "rare";
   const src = affix
-    ? (r === "all"
-        ? BASES.filter(b => b.type !== "quest").flatMap(b => [
-            { rarity: "rare", name: b.name, base: b.name, type: b.type, lvl: b.level, affix: true },
-            { rarity: "magic", name: b.name, base: b.name, type: b.type, lvl: b.level, affix: true }
-          ])
-        : BASES.filter(b => b.type !== "quest").map(b => ({ rarity: r, name: b.name, base: b.name, type: b.type, lvl: b.level, affix: true })))
+    ? BASES.filter(b => b.type !== "quest").map(b => ({ rarity: r, name: b.name, base: b.name, type: b.type, lvl: b.level, affix: true }))
     : CATALOG;
   const list = src.filter(x => !x.unavailable
-    && (!unlocked() ? !FORBIDDEN_CRAFT_RARITIES.has(x.rarity) : true)
     && (affix || r === "all" || x.rarity === r)
     && (t === "all" || (TYPE_ZH[x.type] ? x.type : "other") === t)
     && (!q || (x.name + nameZh(x) + (x.base ?? "") + baseZh(x)).toLowerCase().includes(q)));
@@ -1034,26 +1036,90 @@ async function renderCraftPick() {
   box.innerHTML = `<h2 class="r-${x.rarity}">${x.affix ? esc(baseZh(x)) : zhName(x)}</h2><p class="dim" style="margin:-6px 0 8px">${esc(baseZh(x))}・${rarityZh[x.rarity]}${x.set ? "・" + esc(T(x.set)) : ""}</p>
     ${x.affix ? '<p class="note">詞綴跟遊戲掉落一樣隨機（合法）。做好可在「物品」頁修改屬性，或多做幾件挑喜歡的。</p>' : ""}
     <div class="f">
-      ${x.affix ? "" : '<span>數值</span><select id="pMax"><option value="1">全部最高（合法）</option><option value="0">隨機（跟掉落一樣）</option></select>'}
+      ${x.affix ? "" : '<span>數值</span><select id="pMax"><option value="1">全部最高（合法）</option><option value="0">隨機（跟掉落一樣）</option><option value="2">自訂（限原版範圍）</option></select>'}
       ${x.rarity === "runeword" ? `<span>底材</span><select id="pBase">${rwBases.map(b => `<option value="${esc(b)}" ${b === x.base ? "selected" : ""}>${esc(baseZh({ base: b }))}</option>`).join("")}</select>` : ""}
       <span>數量</span><input id="pN" type="number" value="1" min="1" ${unlocked() ? "" : 'max="40"'}>
       ${unlocked() ? '<span>數值倍率</span><input id="pMul" type="number" value="1" min="0" step="0.5">' : ""}
       <span>放到</span><select id="pDest">${destOptions()}</select>
     </div>
+    <div id="pFixed" hidden></div>
     <div class="bar"><button class="primary" id="pMake">製作</button></div>
     <div id="pPrev" class="note"></div>`;
   $("#pMake").onclick = makePicked;
+  if (!x.affix) {
+    const sync = async () => {
+      const custom = $("#pMax").value === "2";
+      $("#pFixed").hidden = !custom;
+      if (custom) await fixedEditor($("#pFixed"), x, $("#pBase")?.value ?? x.base);
+      else $("#pFixed")._st = null;
+    };
+    $("#pMax").onchange = sync;
+    if ($("#pBase")) $("#pBase").onchange = () => { if ($("#pMax").value === "2") sync(); };
+  }
+}
+/* ---------- 暗金／套裝／符文之語：只能在原版範圍內調整（數值範圍、隨機項目、符文之語底材） ---------- */
+const modName = (m) => modZh({ stat: m.stat, value: "#", ...(m.implicit && { implicit: true }) });
+const rand = (list) => list[Math.floor(Math.random() * list.length)];
+// 在 box 內畫出可調整項目；回傳狀態，st.spec() 取得目前設定，st.build() 以遊戲產生器產生物品
+async function fixedEditor(box, x, baseName, eth = false) {
+  box.hidden = false;
+  box.innerHTML = '<p class="dim">讀取原版範圍中…</p>';
+  const info = await window.api.engine("fixedInfo", x.rarity, x.name, baseName, eth);
+  if (!info || info.error) { box._st = null; box.innerHTML = `<p class="bad">${esc(info?.error ?? "讀取失敗")}</p>`; return null; }
+  const st = { x, info, eth, base: info.base };
+  const rows = info.groups.map((g, i) => {
+    const names = [...new Set(g.labels.map(modName))], same = g.labels.length > 0 && g.labels.every(l => l.hi === g.hi && l.lo === g.lo);
+    const label = names.length ? names.join("、") : g.rawStat;
+    const effect = !same && g.labels.length ? `（實際效果 ${[...new Set(g.labels.map(l => `${+l.lo.toFixed(2)}～${+l.hi.toFixed(2)}`))].join("／")}）` : "";
+    return `<tr><td>${esc(label)}</td><td><input class="fxv" type="number" data-g="${i}" min="${g.lo}" max="${g.hi}" step="1" value="${g.hi}"></td><td class="dim">原版範圍 ${g.lo}～${g.hi}${esc(effect)}</td></tr>`;
+  }).join("");
+  const rnd = info.params.map((p, i) => `<tr><td>隨機項目</td><td colspan="2"><select class="fxp" data-p="${i}"><option value="">（隨機，跟掉落一樣）</option>${p.options.map(o => `<option value="${o.param}">${esc((o.mods.length ? o.mods.map(s => modName({ stat: s })) : [`#${o.param}`]).join("、"))}</option>`).join("")}</select></td></tr>`).join("");
+  const staff = info.staff ? [0, 1, 2].map(i => `<tr><td>法杖技能 ${i + 1}</td><td colspan="2"><select class="fxs" data-s="${i}"><option value="">（無）</option>${info.staff.options.map(s => `<option value="${esc(s)}">${esc(modName({ stat: s }))}</option>`).join("")}</select> +<select class="fxsv" data-s="${i}"><option>1</option><option>2</option><option>3</option></select></td></tr>`).join("") : "";
+  const autoRow = info.autos ? `<tr><td>底材固有加成（隨機）</td><td colspan="2"><select class="fxa"><option value="">（隨機，跟掉落一樣）</option>${info.autos.map((a, i) => `<option value="${i}">${esc(a.mods.map(m => modZh(m)).join("、"))}</option>`).join("")}</select></td></tr>` : "";
+  const ethRow = info.canEth ? `<label style="display:block;margin:6px 0"><input type="checkbox" id="fxEth" ${eth ? "checked" : ""}> 無形（原版符文之語可為無形底材）</label>` : "";
+  box.innerHTML = `${ethRow}<table class="fx"><thead><tr><th>屬性</th><th>數值</th><th>範圍</th></tr></thead><tbody>${rows}${rnd}${autoRow}${staff}</tbody></table>
+    ${info.groups.length || info.params.length || info.staff ? "" : '<p class="dim">這件物品在原版沒有可調整的隨機範圍，屬性全部固定。</p>'}
+    <div class="note fxprev"></div>`;
+  const prev = box.querySelector(".fxprev");
+  st.spec = () => ({
+    rarity: x.rarity, name: x.name, base: info.base, eth: !!box.querySelector("#fxEth")?.checked,
+    values: info.groups.map((g, i) => { const el = box.querySelector(`.fxv[data-g="${i}"]`); const v = Math.min(g.hi, Math.max(g.lo, Math.round(Number(el.value)) || g.hi)); return { idx: g.idx, value: v }; }),
+    params: Object.fromEntries(info.params.map((p, i) => { const v = box.querySelector(`.fxp[data-p="${i}"]`).value; return [p.index, v === "" ? rand(p.options).param : Number(v)]; })),
+    ...(info.autos && { auto: box.querySelector(".fxa").value === "" ? Math.floor(Math.random() * info.autos.length) : Number(box.querySelector(".fxa").value) }),
+    ...(info.staff && { staff: [0, 1, 2].map(i => ({ stat: box.querySelector(`.fxs[data-s="${i}"]`).value, value: Number(box.querySelector(`.fxsv[data-s="${i}"]`).value) })).filter(m => m.stat) }),
+  });
+  st.build = async () => { const r = await window.api.engine("fixedBuild", st.spec()); if (!r || r.error) throw new Error(r?.error ?? "製作失敗"); return r.item; };
+  const preview = async () => {
+    try { const it = await st.build(); prev.innerHTML = it.mods.map(m => esc(modZh(m))).join("<br>"); }
+    catch (e) { prev.innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+  };
+  box.onchange = (e) => {
+    if (e.target.id === "fxEth") { fixedEditor(box, x, baseName, e.target.checked); return; }
+    if (e.target.classList.contains("fxv")) { const g = info.groups[e.target.dataset.g]; e.target.value = Math.min(g.hi, Math.max(g.lo, Math.round(Number(e.target.value)) || g.hi)); }
+    preview();
+  };
+  preview();
+  box._st = st;
+  return st;
 }
 async function makePicked() {
   const x = craftSel;
   if (!x) return;
-  // 未解除限制時禁止製作暗金、套裝、符文之語
-  if (!unlocked() && FORBIDDEN_CRAFT_RARITIES.has(x.rarity)) {
-    return status("未解除限制時不能製作暗金、套裝或符文之語", "bad");
-  }
   const n = Math.max(1, Math.min(unlocked() ? 999 : 40, Number($("#pN").value) || 1)), max = $("#pMax")?.value === "1";
   const mul = unlocked() ? Number($("#pMul")?.value) || 1 : 1;
   const base = x.affix ? x.base : $("#pBase")?.value, dest = $("#pDest").value;
+  // 自訂（限原版範圍）：每件各自以遊戲產生器依設定製作，隨機項目未指定時各自重新隨機
+  if ($("#pMax")?.value === "2") {
+    const st = $("#pFixed")._st;
+    if (!st) return status("原版範圍尚未讀取完成，或這件物品無法自訂", "bad");
+    status("製作中…");
+    let made = 0, last;
+    try { for (let i = 0; i < n; i++) { last = await st.build(); placeInto(dest, last); made++; } }
+    catch (e) { status(`做好 ${made} 件後：${e.message}`, "bad"); return; }
+    $("#pPrev").innerHTML = last.mods.map(m => esc(modZh(m))).join("<br>");
+    status(`已製作 ${made} 件「${nameZh(last)}」（尚未寫入存檔）`, "ok");
+    return;
+  }
   if (x.affix && !((await window.api.engine("affixOk")) === true)) return status("這個版本的遊戲找不到魔法／稀有物品的產生函式", "bad");
   status("製作中…");
   const out = await window.api.engine("generateMany", Array.from({ length: n }, () => ({ rarity: x.rarity, name: x.name, base, max, free: unlocked() })), max);
@@ -1260,10 +1326,33 @@ async function filterCraftSplit(item, kinds, db) {
     if (!cur.stat && !list.length) tr.querySelector(".limit").textContent = "依原版規則已無法再加入屬性";
   });
 }
+// 訂製頁選暗金／套裝／符文之語：列出此底材原版允許的物品，屬性只能在原版範圍內調整
+let RW_BASES = null, craftFixedRequest = 0;
+async function renderCraftFixed() {
+  const request = ++craftFixedRequest, rarity = $("#xRar").value, base = $("#xBase").value, sel = $("#xName"), box = $("#xFixedBox");
+  await catalog();
+  let list;
+  if (rarity === "runeword") {
+    RW_BASES ??= Object.fromEntries(await Promise.all(CATALOG.filter(c => c.rarity === "runeword" && !c.unavailable).map(async c => [c.name, await window.api.engine("runewordBases", c.name)])));
+    list = CATALOG.filter(c => c.rarity === rarity && !c.unavailable && Array.isArray(RW_BASES[c.name]) && RW_BASES[c.name].includes(base));
+  } else list = CATALOG.filter(c => c.rarity === rarity && c.base === base);
+  if (request !== craftFixedRequest) return;
+  const prev = sel.value;
+  sel.innerHTML = list.length ? list.map(c => `<option value="${esc(c.name)}">${esc(nameZh(c))}</option>`).join("") : '<option value="">（此底材沒有對應物品）</option>';
+  if (list.some(c => c.name === prev)) sel.value = prev;
+  if (!list.length) { box._st = null; box.innerHTML = `<p class="dim">原版沒有這個底材的${RARITY_ZH[rarity]}，請換一個底材。</p>`; return; }
+  await fixedEditor(box, list.find(c => c.name === sel.value), base);
+}
 let craftRangeRequest = 0;
 async function updateCraftRanges() {
   const request = ++craftRangeRequest;
   const item = { base: $("#xBase").value, rarity: $("#xRar").value };
+  const fixedKind = !unlocked() && FORBIDDEN_CRAFT_RARITIES.has(item.rarity);
+  $("#c-sec-fixed").hidden = !fixedKind;
+  if (fixedKind) {
+    for (const id of ["#c-affix-total", "#c-sec-pre", "#c-sec-suf", "#c-sec-imp", "#c-sec-flat"]) $(id).hidden = true;
+    return renderCraftFixed();
+  }
   const isSplit = item.rarity === "magic" || item.rarity === "rare";
   $("#c-affix-total").hidden = !isSplit;
   $("#c-sec-pre").hidden = !isSplit;
@@ -1373,9 +1462,16 @@ async function makeCraftDiagnostic() {
 }
 async function makeCustom() {
   const rarity = $("#xRar").value;
-  // 未解除限制時禁止製作暗金、套裝、符文之語
+  // 暗金、套裝、符文之語（未解除限制）：屬性固定為原版，只能調整原版範圍內的數值與隨機項目
   if (!unlocked() && FORBIDDEN_CRAFT_RARITIES.has(rarity)) {
-    return status("未解除限制時不能製作暗金、套裝或符文之語", "bad");
+    const st = $("#xFixedBox")._st;
+    if (!st) return status("此底材沒有可製作的對應物品，請換底材或品質", "bad");
+    try {
+      const it = await st.build();
+      placeInto($("#xDest").value, it);
+      status(`已製作「${nameZh(it)}」（尚未寫入存檔）`, "ok");
+    } catch (e) { fail(e); }
+    return;
   }
   const b = BASES.find(b => b.name === $("#xBase").value);
   const num = (v) => (v.trim() !== "" && !isNaN(v) ? Number(v) : v);

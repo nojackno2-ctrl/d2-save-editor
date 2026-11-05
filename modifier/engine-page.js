@@ -22,17 +22,17 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
     ok.sort((a, b) => { const [la, da] = rank(a), [lb, db] = rank(b); return lb - la || db - da; });
     return ok[0] ?? null;
   }
-  function make(rarity, name, baseName) {
+  function make(rarity, name, baseName, eth = false) {
     const def = defs[rarity].get(name);
     if (!def) return null;
     if (rarity === "unique") return G.__makeUnique(def, ILVL, ILVL);
     if (rarity === "set") return G.__makeSet(def, ILVL, ILVL);
     const base = (baseName && bases.get(baseName)) || runewordBase(def);
-    return base ? G.__makeRuneword(def, base, false, ILVL, ILVL) : null;
+    return base ? G.__makeRuneword(def, base, !!eth, ILVL, ILVL) : null;
   }
   // 與遊戲掉落相同：以種子產生並附上 roll，遊戲可重現驗證
-  function seededMake(seed, rarity, name, baseName) {
-    const it = G.__seeded(seed, () => make(rarity, name, baseName));
+  function seededMake(seed, rarity, name, baseName, eth = false) {
+    const it = G.__seeded(seed, () => make(rarity, name, baseName, eth));
     if (it?.stats) it.roll = [1, seed, ILVL];
     return it;
   }
@@ -89,6 +89,109 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
     best.id = newId();
     delete best.roll;
     return { item: best, legit: true, max: true };
+  }
+
+  // ---------- 固定品質（暗金／套裝／符文之語）自訂 ----------
+  // 遊戲以 stats（原始屬性列）為準重新計算 mods，且只逐列檢查「在該列原版範圍內」。
+  // 所以自訂只改 stats 的數值／隨機參數，再交給遊戲自己的整理函式重算 mods，最後用遊戲的檢查確認。
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const cleaned = (it) => { try { return G.__sanitize ? G.__sanitize(clone(it)) : clone(it); } catch (_) { return null; } };
+  const staffOf = (it) => (it?.mods ?? []).filter((m) => m.staff);
+  function samples(rarity, name, baseName, n, eth) {
+    const out = [];
+    for (let i = 0; i < n; i++) { const it = seededMake(Math.floor(Math.random() * 4294967296), rarity, name, baseName, eth); if (it) out.push(it); }
+    return out;
+  }
+  function fixedInfo(rarity, name, baseName, eth = false) {
+    if (!defs[rarity]?.has(name)) return { error: "找不到這件固定物品" };
+    const def = defs[rarity].get(name);
+    const base = rarity === "runeword" ? (baseName && bases.get(baseName)) || runewordBase(def) : bases.get(def.base);
+    if (!base) return { error: "找不到可用的底材" };
+    const lo = pinned(() => make(rarity, name, base.name, eth), 0), hi = pinned(() => make(rarity, name, base.name, eth));
+    if (!lo || !hi || !Array.isArray(hi.stats)) return { error: "這件物品沒有可自訂的原始屬性" };
+    const n = hi.stats.length, probe = samples(rarity, name, base.name, 16, eth).filter((x) => x.stats?.length === n);
+    const varIdx = [];
+    for (let i = 0; i < n; i++) if (lo.stats[i]?.stat === hi.stats[i].stat && lo.stats[i].value !== hi.stats[i].value) varIdx.push(i);
+    // 同一組屬性共用一次擲值（例如四項屬性相同）：兩端與取樣都完全一致才併成一組
+    const groups = [];
+    for (const i of varIdx) {
+      const g = groups.find((g) => { const j = g.idx[0]; return lo.stats[j].value === lo.stats[i].value && hi.stats[j].value === hi.stats[i].value && probe.every((p) => p.stats[j].value === p.stats[i].value); });
+      if (g) g.idx.push(i); else groups.push({ idx: [i], lo: Math.min(lo.stats[i].value, hi.stats[i].value), hi: Math.max(lo.stats[i].value, hi.stats[i].value) });
+    }
+    const hiC = cleaned(hi);
+    for (const g of groups) {
+      const t = clone(hi); for (const i of g.idx) t.stats[i].value = g.lo;
+      const tc = cleaned(t); g.labels = [];
+      if (hiC && tc && tc.mods.length === hiC.mods.length) hiC.mods.forEach((m, k) => { const o = tc.mods[k]; if (o && o.stat === m.stat && o.value !== m.value) g.labels.push({ stat: m.stat, ...(m.implicit && { implicit: true }), hi: m.value, lo: o.value }); });
+      g.rawStat = hi.stats[g.idx[0]].stat;
+      g.at = hi.stats[g.idx[0]].value;
+    }
+    // 隨機項目一：stats 的參數每次掉落不同（例如奧瑪斯長袍的隨機技能、地獄火炬的職業）
+    const wide = samples(rarity, name, base.name, 500, eth).filter((x) => x.stats?.length === n), params = [];
+    for (let i = 0; i < n; i++) {
+      const set = new Map();
+      for (const p of wide) if (p.stats[i].param !== undefined && !set.has(p.stats[i].param)) set.set(p.stats[i].param, p);
+      if (set.size < 2) continue;
+      const opts = [...set.entries()].sort((a, b) => a[0] - b[0]);
+      const sig = opts.map(([, it]) => (it.mods ?? []).map((m) => m.stat));
+      params.push({ index: i, rawStat: hi.stats[i].stat, options: opts.map(([param], k) => ({ param, mods: sig[k].filter((s) => !sig.every((x) => x.includes(s))) })) });
+    }
+    // 隨機項目二：符文之語的法杖技能（StaffMods，最多 3 項、每項最高 +3）
+    let staff = null;
+    const staffSeen = new Set();
+    for (const p of wide) for (const m of staffOf(p)) staffSeen.add(m.stat);
+    if (staffSeen.size) staff = { max: 3, valueMax: 3, options: [...staffSeen].sort() };
+    // 隨機項目三：符文之語的底材固有加成（automagic），每次掉落隨機選一列；各列取取樣中數值最高的一組
+    let autos = null;
+    if (rarity === "runeword") {
+      const best = new Map();
+      for (const p of wide) {
+        const a = (p.mods ?? []).filter((m) => m.auto);
+        if (!a.length) continue;
+        const sig = a.map((m) => m.stat).sort().join("|"), sum = a.reduce((t, m) => t + (m.value || 0), 0);
+        if (!best.has(sig) || best.get(sig).sum < sum) best.set(sig, { sum, mods: a.map(({ stat, value }) => ({ stat, value, auto: true })) });
+      }
+      if (best.size > 1) autos = [...best.values()].map((x) => ({ mods: x.mods }));
+    }
+    return { base: base.name, rarity, name, groups, params, staff, autos, canEth: rarity === "runeword", eth: !!eth };
+  }
+  // spec: { rarity, name, base, eth, values: [{ idx:[...], value }], params: { 索引: 參數 }, staff: [{ stat, value }] }
+  function fixedBuild(spec) {
+    const { rarity, name } = spec;
+    if (!defs[rarity]?.has(name)) return { error: "找不到這件固定物品" };
+    const info = fixedInfo(rarity, name, spec.base, spec.eth);
+    if (info.error) return info;
+    const it = pinned(() => make(rarity, name, info.base, spec.eth));
+    if (!it?.stats) return { error: "無法產生這件物品" };
+    for (const v of spec.values ?? []) {
+      const g = info.groups.find((g) => g.idx.join() === v.idx.join());
+      if (!g) return { error: "找不到對應的屬性" };
+      const value = Math.round(Number(v.value));
+      if (!Number.isFinite(value) || value < g.lo || value > g.hi) return { error: `數值 ${v.value} 超出原版範圍 ${g.lo}～${g.hi}` };
+      for (const i of v.idx) it.stats[i].value = value;
+    }
+    for (const [i, param] of Object.entries(spec.params ?? {})) {
+      const p = info.params.find((p) => p.index === Number(i));
+      if (!p || !p.options.some((o) => o.param === param)) return { error: "隨機項目不在原版可選範圍" };
+      it.stats[Number(i)].param = param;
+    }
+    if (rarity === "runeword") {
+      const list = spec.staff ?? staffOf(it).map(({ stat, value }) => ({ stat, value }));
+      if (list.length > 3) return { error: "法杖技能最多 3 項" };
+      for (const m of list) if (!info.staff?.options.includes(m.stat) || !Number.isInteger(m.value) || m.value < 1 || m.value > 3) return { error: "法杖技能不在原版可選範圍" };
+      it.mods = [...it.mods.filter((m) => !m.staff), ...list.map((m) => ({ stat: m.stat, value: m.value, staff: true }))];
+      if (spec.auto !== undefined) {
+        const row = info.autos?.[spec.auto];
+        if (!row) return { error: "底材固有加成不在原版可選範圍" };
+        it.mods = [...it.mods.filter((m) => !m.auto), ...row.mods.map((m) => ({ ...m }))];
+      }
+    }
+    delete it.roll; it.id = newId();
+    const out = cleaned(it);
+    if (!out) return { error: "遊戲不接受這組屬性" };
+    const bad = G.__itemFault ? G.__itemFault(clone(out)) : null;
+    if (bad) return { error: `遊戲判定不合規則：${bad.why ?? bad.fault}` };
+    return { item: out };
   }
 
   // 詞綴比對：回傳每個詞綴可涵蓋的屬性列（含 alike／also 複合屬性）
@@ -155,7 +258,12 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
   function fixedProblems(rarity, def, base, item) {
     const low = pinned(() => make(rarity, def.name, base.name), 0), high = pinned(() => make(rarity, def.name, base.name));
     if (!low || !high) return ["error.generate"];
-    const out = [], remaining = (item.mods ?? []).filter(m => !m.auto);
+    const out = [], remaining = (item.mods ?? []).filter(m => !m.auto && !m.staff);
+    // 符文之語的法杖技能（StaffMods）：最多 3 項、單一技能、每項最高 +3（遊戲規則）
+    const staff = (item.mods ?? []).filter(m => m.staff);
+    if (staff.length && item.rarity !== "runeword") out.push({ code: "extra", stat: staff[0].stat });
+    if (staff.length > 3) out.push({ code: "error", why: "法杖技能超過 3 項" });
+    for (const m of staff) if (!/^skill:[A-Za-z]+$/.test(m.stat) || !Number.isInteger(m.value) || m.value < 1 || m.value > 3) out.push({ code: "range", stat: m.stat, value: m.value, min: 1, max: 3 });
     // 職業底材的固有詞綴可隨機選擇不同組合，不能用最低與最高擲值的陣列索引配對。
     const autoMods = (item.mods ?? []).filter(m => m.auto), autoSeen = new Set();
     if (autoMods.length && !G.__makeAffix) return [{ code: "error", why: "缺少遊戲詞綴產生器，無法驗證職業底材屬性。" }];
@@ -175,7 +283,7 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
       if (!h) { out.push({ code: "error", why: "遊戲產生的固定屬性不一致，無法驗證。" }); return; }
       const lo = Math.min(m.value, h.value), hi = Math.max(m.value, h.value) * (m.implicit && typeof m.value === "number" ? eth : 1) + (m.implicit && eth > 1 ? 1 : 0);
       // 隨機技能類屬性（例如奧瑪斯長袍）每次產生的技能不同：只要同一類即可
-      const kind = (s) => s.split(":")[0], random = m.stat !== h?.stat && m.stat.includes(":");
+      const classSkill = (s) => /^classskills\d+$/.test(s), kind = (s) => classSkill(s) ? "classskills" : s.split(":")[0], random = m.stat !== h?.stat && (m.stat.includes(":") || classSkill(m.stat));
       // 觸發／充能技能的等級隨物品等級變化（例如 proc:struck:blizzard:20 → 低等級掉落為 16）：同技能、等級不超過原版最高即可
       const lv = /^(proc|charge):(.+):(\d+)$/.exec(m.stat), lvOk = (x) => { const k = /^(proc|charge):(.+):(\d+)$/.exec(x.stat); return k && k[1] === lv[1] && k[2] === lv[2] && Number(k[3]) >= 1 && Number(k[3]) <= Number(lv[3]); };
       const same = remaining.filter(x => (random ? kind(x.stat) === kind(m.stat) : lv ? lvOk(x) : x.stat === m.stat) && !!x.implicit === !!m.implicit);
@@ -605,6 +713,8 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
     },
     bases() { return G.__bases.map((b) => ({ name: b.name, type: b.type, itype: b.itype, level: b.level ?? 0, size: b.size })); },
     // 可以做成這個符文之語的底材
+    fixedInfo(rarity, name, baseName, eth) { try { return fixedInfo(rarity, name, baseName, eth); } catch (e) { return { error: String(e.message ?? e) }; } },
+    fixedBuild(spec) { try { return fixedBuild(spec); } catch (e) { return { error: String(e.message ?? e) }; } },
     runewordBases(name) {
       const def = defs.runeword.get(name);
       if (!def) return [];
