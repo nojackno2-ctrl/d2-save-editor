@@ -6,7 +6,7 @@
 - 靜態網頁工具包（JavaScript，無 Rust）：`d2edit.js` 書籤入口 → 載入 `lang/lang.js`（遊戲內繁中）、`helper/autobot.js`（輔助器）、`modifier/engine-page.js`（物品引擎）、`modifier/editor.html`（修改器）；字典 `lang/zh-TW.json`（13907 筆，網頁／桌面共用）。
 - 發布：GitHub Pages（main）；公告站 `site/` 由 Cloudflare 自動抓 GitHub 部署（`wrangler.jsonc`），不需 API Token。
 - 桌面版來源在本儲存庫的 `editor/`（已整併進倉庫）；它與網頁版資料夾的同名檔案是兩份獨立副本、內容已有漂移，改網頁版檔案後需評估是否同步過去。
-- 遊戲目前驗證版本：`TESTED_GAME_BUILD = "20261104.1"`（`helper/autobot.js`、`modifier/editor.html`，2026-11-04 實機確認後更新）；`verify/state.json` 最後驗證 build 同為 20261103.2（前版快照比對不完整，`comparison.complete=false`）。
+- 遊戲目前驗證版本：`TESTED_GAME_BUILD = "20261104.2"`（`helper/autobot.js`、`modifier/editor.html`、`editor/` 三檔，2026-11-05 實機確認後更新）；`verify/state.json` 最後驗證 build 同為 20261104.2（比對前版 20261104.1，快照不完整，`comparison.complete=false`）。
 
 ## 反覆發生的問題（必讀，2026-11-05 由全部對話紀錄整理）
 使用者在不同對話中重複糾正過下列事項，接手前先看：

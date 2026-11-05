@@ -1,7 +1,7 @@
 {
   "name": "d2-survivors-save-editor",
   "productName": "D2倖存者存檔修改器",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "private": true,
   "main": "main.js",
   "scripts": {
