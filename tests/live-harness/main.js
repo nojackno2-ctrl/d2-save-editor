@@ -8,6 +8,21 @@ app.commandLine.appendSwitch("disable-background-timer-throttling");
 app.setPath("userData", path.join(OUT, "profile"));
 const log = (...a) => fs.appendFileSync(path.join(OUT, "log.txt"), new Date().toISOString().slice(11, 19) + " " + a.join(" ") + "\n");
 app.whenReady().then(async () => {
+  // H_LOCAL：把 GitHub Pages 的請求改由本機檔案回應（測試未發布的本機修改；與 craft-live.cjs 相同做法）。
+  if (process.env.H_LOCAL) {
+    const { session, net } = require("electron");
+    const ROOT = path.resolve(__dirname, "..", ".."), PAGES = "https://nojackno2-ctrl.github.io/d2-survivors-toolkit/";
+    const MIME = { ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json", ".html": "text/html", ".css": "text/css", ".svg": "image/svg+xml" };
+    session.defaultSession.protocol.handle("https", (req) => {
+      if (req.url.startsWith(PAGES)) {
+        const rel = decodeURIComponent(new URL(req.url).pathname.slice("/d2-survivors-toolkit/".length));
+        const file = path.join(ROOT, rel);
+        if (!file.startsWith(ROOT) || !fs.existsSync(file)) return new Response("not found", { status: 404 });
+        return new Response(fs.readFileSync(file), { headers: { "content-type": (MIME[path.extname(file)] ?? "application/octet-stream") + "; charset=utf-8", "access-control-allow-origin": "*", "cache-control": "no-store" } });
+      }
+      return net.fetch(req, { bypassCustomProtocolHandlers: true });
+    });
+  }
   const win = new BrowserWindow({ width: 960, height: 600, show: true, x: -2000, y: 0, webPreferences: { backgroundThrottling: false } });
   win.webContents.on("console-message", (e, lvl, msg) => { if (lvl >= 2) log("console", msg.slice(0, 300)); });
   win.webContents.on("did-fail-load", (e, c, d, u) => log("FAIL", c, d, u));
@@ -19,7 +34,7 @@ app.whenReady().then(async () => {
   await win.loadURL("https://d2survivors.lol/play/").catch((e) => log("loadURL", e.message));
   log("loaded");
   const BOOT = fs.readFileSync(path.join(__dirname, "boot.js"), "utf8");
-  const boot = async () => { try { const r = await win.webContents.executeJavaScript(`window.__H_CLASS=${JSON.stringify(process.env.H_CLASS)};window.__H_BASE=${JSON.stringify(process.env.H_BASE || "")};window.__H_SPEED=${Number(process.env.H_SPEED || 1)};window.__H_BOT=${JSON.stringify(fs.readFileSync(process.env.H_BOT, "utf8"))};` + BOOT); log("boot", r); } catch (e) { log("boot err", e.message); } };
+  const boot = async () => { try { const r = await win.webContents.executeJavaScript(`window.__H_CLASS=${JSON.stringify(process.env.H_CLASS)};window.__H_SETTINGS=${process.env.H_SETTINGS || "{}"};window.__H_BASE=${JSON.stringify(process.env.H_BASE || "")};window.__H_SPEED=${Number(process.env.H_SPEED || 1)};window.__H_BOT=${JSON.stringify(fs.readFileSync(process.env.H_BOT, "utf8"))};` + BOOT); log("boot", r); } catch (e) { log("boot err", e.message); } };
   // H_SEED：測試用既有存檔（JSON 檔）。首次載入時寫入遊戲存檔鍵並重新整理，之後才跑建檔流程。
   const seeded = path.join(OUT, "seeded");
   if (process.env.H_SEED && !fs.existsSync(seeded)) {

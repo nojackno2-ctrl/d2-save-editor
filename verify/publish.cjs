@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // 發布：只在驗證通過且你確認後執行。預設只列出計畫，不做任何事。
 //   node verify/publish.cjs                列出將要做的事（不執行）
-//   node verify/publish.cjs --confirm      升版號 → 建置網頁版 → 打包桌面版 → 提交推送 → 建立 GitHub Release（附執行檔）
-//   --no-bump      不升版號        --no-desktop  略過桌面版打包與 Release
+//   node verify/publish.cjs --confirm      升版號 → 建置網頁版 → 提交推送（加 --desktop 才另外打包桌面版並建立 Release）
+//   --no-bump      不升版號        --desktop     另外打包桌面版（只有啟動器程式 editor/ 改動時才需要）並建立 Release
 //   --no-push      只建置與提交    --no-release  不建立 GitHub Release
 //   --note "說明"  更新說明（預設：相容官方遊戲版本）
 // Cloudflare 公告網站已連 GitHub：推送後由 Cloudflare 自動建置，請到後台 Deployments 確認成功。
@@ -45,7 +45,7 @@ if (has("confirm") && (!live?.ok || live.build !== verified.build || live.finger
 const pkgFile = path.join(P.editor, "package.json");
 const pkg = JSON.parse(fs.readFileSync(pkgFile, "utf8"));
 const note = opt("note", `相容官方遊戲 ${verified.build}`);
-const sourceIndex = fs.readFileSync(path.join(P.editor, "index.html"), "utf8");
+const sourceIndex = fs.readFileSync(path.join(P.root, "modifier", "editor.html"), "utf8");
 const sourceVersion = sourceIndex.match(/const TOOLKIT_VERSION = "([^"]+)"/)?.[1];
 const versionLogPrepared = new RegExp(`<h3>[^<]*v${pkg.version.replaceAll(".", "\\.")}</h3>`).test(sourceIndex);
 const committedWebVersion = JSON.parse(run("git", ["show", "HEAD:version.json"], P.web));
@@ -57,19 +57,19 @@ const RELEASE_PATHS = new Set([
   "lang/lang.js", "lang/d2rfont.js", "lang/zh-TW.json", "lang/locales/zh-TW.json", "lang/tests/test_lang.cjs",
   "modifier/editor.html", "modifier/gamedata.json", "modifier/i18n.js", "modifier/patch.mjs", "modifier/signatures.json", "modifier/webapi.js", "modifier/zh.js", "modifier/engine-page.js",
   "modifier/tests/weapon-sets.cjs", "modifier/tests/weapon-sets-ui.cjs", "modifier/tests/version-gate-web.cjs",
-  "site/index.html", "site/install.html", "verify/state.json",
+  "site/index.html", "site/install.html", "site/install.template.html", "tools/build-web.js", "lang/tools/desktop-lang.mjs", "lang/tools/lang-missing.mjs", "tools/tests/build-web.cjs", "modifier/tests/item-db.cjs", "modifier/tests/skill-mods.cjs", "modifier/tests/runeword-class-base.cjs", "modifier/tests/load-patch.cjs", "verify/state.json",
 ]);
-// 發布流程本身會改動的桌面版來源（升版號、更新日誌、verify 自動換模組檔名與 TESTED_GAME_BUILD）。
+// 桌面啟動器（editor/）的程式與版號（editor/package.json）；只有啟動器改動時才會一起提交。
 const RELEASE_PREFIXES = ["editor/"];
 const releasable = (f) => RELEASE_PATHS.has(f) || RELEASE_PREFIXES.some((p) => f.startsWith(p));
 
 const plan = [
   `驗證通過的遊戲版本：${verified.build}（${verified.at}）`,
-  `工具包版本：${pkg.version}${pendingVersion ? "（接續尚未完成的發布）" : next === pkg.version ? "（不升版）" : ` → ${next}（改 package.json、index.html、editor.html）`}`,
-  `1. 建置網頁版：node editor/build-web.js ${HOST}（更新說明：${note}）`,
-  has("no-desktop") ? "2. （略過）桌面版打包與 Release" : "2. 打包桌面版：npm run dist → 舊執行檔備份到 backups/exe/ → 覆蓋根目錄執行檔 → 記錄 SHA-256",
+  `工具包版本：${pkg.version}${pendingVersion ? "（接續尚未完成的發布）" : next === pkg.version ? "（不升版）" : ` → ${next}（改 editor/package.json 與 modifier/editor.html）`}`,
+  `1. 建置網頁版：node tools/build-web.js ${HOST}（更新說明：${note}）`,
+  has("desktop") ? "2. 打包桌面版：npm run dist → 舊執行檔備份到 backups/exe/ → 覆蓋根目錄執行檔 → 記錄 SHA-256" : "2. （略過）桌面版（只有 --desktop 才打包；啟動器程式不變時不需要）",
   has("no-push") ? "3. 提交根目錄倉庫（不推送）" : "3. 提交並推送根目錄倉庫到 GitHub（origin）",
-  has("no-push") || has("no-desktop") || has("no-release") ? "4. （略過）GitHub Release" : `4. 建立 GitHub Release v${next}（附桌面版執行檔與 SHA-256）`,
+  !has("desktop") || has("no-push") || has("no-release") ? "4. （略過）GitHub Release" : `4. 建立 GitHub Release v${next}（附桌面版執行檔與 SHA-256）`,
   "   同時在公告站與工具內「更新日誌」各加一筆（可用 --log \"項目一|項目二\" 加入自訂內容）",
   "5. 推送後 Cloudflare 公告網站會自動建置（需到後台 Deployments 確認成功）",
 ];
@@ -78,8 +78,8 @@ if (!has("confirm")) { console.log("【發布計畫，尚未執行】\n" + plan.
 const bump = () => {
   if (next === pkg.version) return;
   pkg.version = next; fs.writeFileSync(pkgFile, JSON.stringify(pkg, null, 2) + "\n");
-  for (const f of ["index.html", "editor.html"]) {
-    const p = path.join(P.editor, f), s = fs.readFileSync(p, "utf8");
+  for (const f of ["modifier/editor.html"]) {
+    const p = path.join(P.root, f), s = fs.readFileSync(p, "utf8");
     fs.writeFileSync(p, s.replace(/(const TOOLKIT_VERSION = ")[^"]*(")/, `$1${next}$2`));
   }
 };
@@ -94,13 +94,13 @@ const addChangelog = () => {
   const coverage = verified.tested?.length ? `已執行 ${verified.tested.length} 項自動測試` : "已執行自動測試";
   const items = [`<b>相容性</b>：針對官方遊戲 ${esc(verified.build)}${areas.length ? ` 的${areas.join("、")}變動` : ""}，${coverage}。`, ...opt("log", "").split("|").filter(Boolean).map(esc)];
   const done = [];
-  for (const f of ["index.html", "editor.html"]) {
-    const p = path.join(P.editor, f), s = fs.readFileSync(p, "utf8");
+  for (const f of ["modifier/editor.html"]) {
+    const p = path.join(P.root, f), s = fs.readFileSync(p, "utf8");
     if (s.includes(`<h3>${date} v${v}</h3>`)) continue;
     const at = s.indexOf("<h3>", s.indexOf("<h2>更新日誌</h2>"));
     if (at < 0) throw new Error(f + " 找不到更新日誌區塊");
     const html = `<h3>${date} v${v}</h3>\n    <ul>\n${items.map((i) => `      <li>${i.replace(/<\/?b>/g, "")}</li>`).join("\n")}\n    </ul>\n    `;
-    fs.writeFileSync(p, s.slice(0, at) + html + s.slice(at)); done.push("editor/" + f);
+    fs.writeFileSync(p, s.slice(0, at) + html + s.slice(at)); done.push(f);
   }
   const sp = path.join(P.web, "site", "index.html"), s = fs.readFileSync(sp, "utf8");
   if (!s.includes(`<span class="log-ver">v${v}</span>`)) {
@@ -115,12 +115,11 @@ const addChangelog = () => {
 (async () => {
   const official = await game.latestBuild();
   if (official.build !== verified.build) throw new Error(`官方最新版已前進至 ${official.build}，驗證紀錄為 ${verified.build}；請先重新比對與驗收。`);
-  require(path.join(P.editor, "sync-from-web.js")).sync(); // 根目錄為唯一來源，建置前先同步 editor/ 副本
   bump(); console.log("工具包版本：" + pkg.version);
   console.log("更新日誌：" + (addChangelog().join("、") || "已存在，略過"));
-  console.log("建置網頁版…"); run("node", ["build-web.js", HOST, note], P.editor);
+  console.log("建置網頁版…"); run("node", [path.join("tools", "build-web.js"), HOST, note], P.root);
   let exe = null, hash = "";
-  if (!has("no-desktop")) {
+  if (has("desktop")) {
     console.log("打包桌面版（需要數分鐘）…"); run("npm", ["run", "dist"], P.editor, { timeout: 900000 });
     const built = path.join(P.editor, "dist", "D2倖存者存檔修改器.exe"), target = path.join(P.root, "D2倖存者存檔修改器.exe");
     if (!fs.existsSync(built)) throw new Error("打包後找不到 " + built);

@@ -25,7 +25,7 @@ for (const [name, mutateFn, check] of cases) {
   try { check(adapt.analyze(build, d)); console.log("  ✓", name); } catch (e) { bad++; console.log("  ✗", name, "→", e.message.split("\n")[0]); }
 }
 const stableFingerprint = verificationFingerprint();
-const runOutput = path.join(P.editor, "tests", "live-harness", `run-fingerprint-${process.pid}`);
+const runOutput = path.join(P.root, "tests", "live-harness", `run-fingerprint-${process.pid}`);
 const reportOutput = path.join(P.reports, `fingerprint-selftest-${process.pid}.json`);
 try {
   fs.mkdirSync(runOutput, { recursive: true }); fs.writeFileSync(path.join(runOutput, "status.json"), "{}\n");

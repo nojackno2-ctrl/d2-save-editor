@@ -21,17 +21,9 @@
       "main.js",
       "preload.js",
       "core.js",
-      "zh.js",
-      "zh-TW.json",
-      "index.html",
-      "gamedata.json",
-      "package.json",
       "engine.js",
-      "engine-page.js",
-      "patch.js",
-      "signatures.json",
-      "webapi.js",
-      "i18n.js"
+      "remote.js",
+      "package.json"
     ],
     "asarUnpack": [
       "node_modules/classic-level/**"

@@ -1,11 +1,11 @@
 {
   "lastVerified": {
-    "build": "20261104.2",
-    "at": "2026-11-05T07:10:23.112Z",
+    "build": "20261105.1",
+    "at": "2026-11-05T10:14:27.423Z",
     "changed": [],
-    "fingerprint": "56f56c9e2bc5475960d1d2ca592e0a18a851943d5b6243af4f5624bf375b3e6c",
+    "fingerprint": "87c238b19ff0338968003ce2d50b1b9a66633982611c1f0fa623044361843bf3",
     "comparison": {
-      "baseline": "20261104.1",
+      "baseline": "20261104.2",
       "complete": false,
       "reason": "缺少可驗證的前版或新版快照",
       "changed": [],
@@ -20,6 +20,7 @@
       "item-db",
       "skill-mods",
       "weapon-sets",
+      "selfcheck",
       "weapon-sets-ui",
       "autobot"
     ]

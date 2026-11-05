@@ -1,17 +1,19 @@
 // 測試登記表。tier：static（純檢查，秒級）／integration（隔離 Electron，數十秒）／full（實機長流程，預設不跑）。
-// kind：node＝一般 node 腳本；electron＝用 editor 的 electron 執行（隔離 TEMP 設定檔，不碰真實存檔）。
+// kind：node＝一般 node 腳本；electron＝用 editor/ 的 electron 執行（隔離 TEMP 設定檔，不碰真實存檔）。
+// file：以根目錄為基準的測試檔路徑（測試跟著它測的模組放，不再集中在 editor/）。
 // stale：已確認過時、不納入（原因記在這裡，避免日後再被當成工具包壞掉）。
 module.exports = [
-  { id: "build-web",          tier: "static",      kind: "node",     file: "build-web.cjs",          timeout: 60 },
-  { id: "lang",               tier: "static",      kind: "node",     file: "test_lang.cjs",          timeout: 60 },
-  { id: "runeword-class-base",tier: "static",      kind: "node",     file: "runeword-class-base.cjs",timeout: 60 },
+  { id: "build-web",          tier: "static",      kind: "node",     file: "tools/tests/build-web.cjs",        timeout: 60 },
+  { id: "lang",               tier: "static",      kind: "node",     file: "lang/tests/test_lang.cjs",         timeout: 60 },
+  { id: "runeword-class-base",tier: "static",      kind: "node",     file: "modifier/tests/runeword-class-base.cjs", timeout: 60 },
   // 裝備資料庫完整檢查：每次更新必跑（always），逐件驗證一鍵解鎖與製作裝備
-  { id: "item-db",            tier: "static",      kind: "node",     file: "item-db.cjs",            timeout: 300, always: true },
-  { id: "skill-mods",        tier: "static",      kind: "node",     file: "skill-mods.cjs",         timeout: 60 },
-  { id: "weapon-sets",        tier: "static",      kind: "node",     file: "weapon-sets.cjs",        timeout: 60 },
-  { id: "weapon-sets-ui",     tier: "integration", kind: "electron", file: "weapon-sets-ui.cjs",     timeout: 120 },
-  { id: "autobot",            tier: "integration", kind: "electron", file: "autobot.cjs",            timeout: 180 },
-  // 舊測試：遊戲版本封鎖已移除（見 AI_HANDOFF），斷言已不成立。
-  { id: "version-gate",       stale: "版本封鎖已移除，斷言過時", file: "version-gate.cjs" },
-  { id: "version-gate-web",   stale: "需要手動提供新舊版目錄參數，且封鎖已移除", file: "version-gate-web.cjs" },
+  { id: "item-db",            tier: "static",      kind: "node",     file: "modifier/tests/item-db.cjs",       timeout: 300, always: true },
+  { id: "skill-mods",         tier: "static",      kind: "node",     file: "modifier/tests/skill-mods.cjs",    timeout: 60 },
+  { id: "weapon-sets",        tier: "static",      kind: "node",     file: "modifier/tests/weapon-sets.cjs",   timeout: 60 },
+  { id: "selfcheck",          tier: "static",      kind: "node",     file: "helper/tests/selfcheck.cjs",       timeout: 60 },
+  { id: "weapon-sets-ui",     tier: "integration", kind: "electron", file: "modifier/tests/weapon-sets-ui.cjs", timeout: 120 },
+  { id: "autobot",            tier: "integration", kind: "electron", file: "helper/tests/autobot.cjs",         timeout: 180 },
+  // 舊測試：遊戲版本封鎖已移除（見 AI_HANDOFF），斷言已不成立。檔案已從 editor/ 移除，不再執行。
+  { id: "version-gate",       stale: "版本封鎖已移除，斷言過時", file: "（已移除）version-gate.cjs" },
+  { id: "version-gate-web",   stale: "需要手動提供新舊版目錄參數，且封鎖已移除", file: "modifier/tests/version-gate-web.cjs" },
 ];

@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const sources = [path.resolve(__dirname, '../editor.html'), path.resolve(__dirname, '../../editor/index.html')].filter(fs.existsSync);
+const sources = [path.resolve(__dirname, '../editor.html')].filter(fs.existsSync); // 只有根目錄一份來源（editor/ 副本已移除）
 assert(sources.length, '找不到修改器頁面');
 for (const file of sources) {
   const src = fs.readFileSync(file, 'utf8');

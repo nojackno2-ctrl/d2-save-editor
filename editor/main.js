@@ -3,13 +3,21 @@ const fs = require("fs");
 const path = require("path");
 const core = require("./core");
 const engine = require("./engine");
+const remote = require("./remote");
 
+// 啟動器：介面、引擎資源都從 GitHub Pages 載入（remote.js），這個 exe 只負責本機存檔讀寫與物品引擎。
 const mode = (m) => (m === "hardcore" ? "hardcore" : "softcore");
-const wrap = (fn) => async (_e, ...args) => {
+const safeName = (f) => {
+  if (typeof f !== "string" || f !== path.basename(f) || !/\.json$/i.test(f)) throw new Error("備份檔名不正確。");
+  return f;
+};
+// 只處理工具包網站頁面發出的呼叫（頁面是遠端載入的，不能讓任何網頁碰到本機檔案）
+const wrap = (fn) => async (e, ...args) => {
   try {
+    if (!remote.trusted(e.senderFrame?.url)) throw new Error("不允許的呼叫來源。");
     return await fn(...args);
-  } catch (e) {
-    return { error: e.message };
+  } catch (err) {
+    return { error: err.message };
   }
 };
 const checkSave = (save) => {
@@ -23,21 +31,26 @@ ipcMain.handle("save", wrap(async (m, save) => {
   checkSave(save);
   return { ok: true, bytes: await core.store(mode(m), save) };
 }));
-ipcMain.handle("assets", () => core.assets());
+ipcMain.handle("assets", wrap(() => core.assets()));
 ipcMain.handle("engine", wrap((fn, ...args) => {
-  if (!["capabilities", "catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName", "validateItems", "allowedStatsMany", "affixSlots", "fixedInfo", "fixedBuild"].includes(fn)) throw new Error("不支援的操作");
+  // 函式名稱會直接代入引擎頁面執行，只接受合法識別字，其餘由引擎頁面判定是否存在
+  if (typeof fn !== "string" || !/^[A-Za-z_]\w*$/.test(fn)) throw new Error("不支援的操作");
   return engine.call(fn, ...args);
 }));
-ipcMain.handle("i18n", () => core.i18n());
-ipcMain.handle("openBackups", () => {
+ipcMain.handle("i18n", wrap(async () => {
+  const game = JSON.parse(await remote.text("modifier/gamedata.json"));
+  try { return { dict: JSON.parse(await remote.text("lang/zh-TW.json")), game }; }
+  catch { return { dict: {}, game, missing: true }; }
+}));
+ipcMain.handle("openBackups", wrap(() => {
   fs.mkdirSync(core.BACKUP_DIR, { recursive: true });
   return shell.openPath(core.BACKUP_DIR);
-});
+}));
 ipcMain.handle("diag", wrap(() => core.diag()));
 ipcMain.handle("traces", wrap((m, remove) => core.traces(mode(m), !!remove)));
 ipcMain.handle("listBackups", wrap(() => core.listBackups()));
-ipcMain.handle("readBackup", wrap((f) => ({ save: core.readBackup(f) })));
-ipcMain.handle("deleteBackup", wrap((f) => (core.deleteBackup(f), { ok: true })));
+ipcMain.handle("readBackup", wrap((f) => ({ save: core.readBackup(safeName(f)) })));
+ipcMain.handle("deleteBackup", wrap((f) => (core.deleteBackup(safeName(f)), { ok: true })));
 ipcMain.handle("snapshot", wrap((save, label) => (checkSave(save), core.snapshot(save, label), { ok: true })));
 ipcMain.handle("exportSave", wrap(async (save) => {
   checkSave(save);
@@ -54,6 +67,15 @@ ipcMain.handle("importSave", wrap(async () => {
   return { save, path: r.filePaths[0] };
 }));
 
+const isWeb = (url) => /^https?:/i.test(url);
+function openOffline(err) {
+  const page = remote.PAGE.replace(/"/g, "&quot;");
+  const html = `<!doctype html><meta charset="utf-8"><body style="background:#14110d;color:#e8dcc0;font-family:sans-serif;padding:24px">
+<h2>無法載入工具包</h2><p>${en() ? "Cannot load the toolkit from GitHub." : "無法從 GitHub 載入工具包，請檢查網路後重試。"}</p>
+<p style="color:#9d8f73">${String(err.message).replace(/</g, "&lt;")}</p><p><a style="color:#e8c46a" href="${page}">重新載入 / Retry</a></p></body>`;
+  return win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
+}
+
 app.whenReady().then(() => {
   win = new BrowserWindow({
     width: 1240,
@@ -61,8 +83,19 @@ app.whenReady().then(() => {
     title: en() ? "D2 Survivors Toolkit" : "D2倖存者工具包",
     backgroundColor: "#14110d",
     autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
-  win.loadFile(path.join(__dirname, "index.html"));
+  // 頁面只能停留在工具包網站；其他連結交給系統瀏覽器
+  win.webContents.on("will-navigate", (e, url) => {
+    if (remote.trusted(url)) return;
+    e.preventDefault();
+    if (isWeb(url)) shell.openExternal(url);
+  });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isWeb(url)) shell.openExternal(url);
+    return { action: "deny" };
+  });
+  // ?v= 避開 Pages 約 10 分鐘的快取，避免舊的修改器頁面搭配新的引擎檔
+  win.loadURL(remote.PAGE + "?v=" + Date.now()).catch(openOffline);
 });
 app.on("window-all-closed", () => app.quit());

@@ -462,7 +462,7 @@
 
 <script>
 const LOCALE = window.LANG === "en" ? "en-US" : "zh-TW";
-const TESTED_GAME_BUILD = "20261104.2"; // 每次確認新版遊戲相容後更新此值
+const TESTED_GAME_BUILD = "20261105.1"; // 每次確認新版遊戲相容後更新此值
 const BUILD_KEY = "d2edit:gameBuild";
 const TOOLKIT_VERSION = "1.0.9"; // 與 package.json 的 version 一致；發布前由 build-web.js 檢查
 const TOOLKIT_SITE = "https://nojackno2-ctrl.github.io/d2-survivors-toolkit/";
@@ -531,7 +531,8 @@ async function checkToolkitVersion() {
     const v = await r.json();
     if (!v?.version || !isBuildNewer(v.version, TOOLKIT_VERSION)) return;
     const what = `工具包有新版 v${v.version}${v.note ? `（${v.note}）` : ""}`;
-    const notice = window.api?.web ? `${what}，請關閉修改器後重新點一次書籤` : `${what}，請到 ${TOOLKIT_RELEASES} 下載`;
+    // 網頁版：關掉重新點書籤；桌面啟動器：介面從網站載入，重新開啟工具包即可
+    const notice = window.api?.web ? `${what}，請關閉修改器後重新點一次書籤` : window.api?.launcher ? `${what}，請關閉工具包後重新開啟` : `${what}，請到 ${TOOLKIT_RELEASES} 下載`;
     if (notice !== toolkitNotice) { toolkitNotice = notice; versionDismissed = false; refreshVersionNotice(); }
   } catch {}
 }
@@ -628,6 +629,7 @@ function containers() {
     if (m?.active && m.hired?.[m.active]) out.push({ id: "merc:" + c, label: "傭兵裝備", kind: "slots", obj: () => m.hired[m.active].worn ??= {} });
   }
   out.push({ grp: "其他" });
+  out.push({ id: "keys", label: "鑰匙與器官（首領掉落）", kind: "keys" });
   out.push({ id: "uniques", label: `暗金收藏 (${save.uniques?.length ?? 0})`, kind: "list", collection: true, arr: () => save.uniques ??= [] });
   out.push({ id: "sold", label: "賣出紀錄（可買回）", kind: "list", arr: () => save.sold ??= [], wrap: "item" });
   return out;
@@ -658,6 +660,7 @@ function renderView() {
   const c = cur && contById(cur), v = $("#view");
   if (!c) { v.innerHTML = '<p class="dim">選擇一個位置。</p>'; return; }
   if (c.collection) return renderCollection(c, v);
+  if (c.kind === "keys") return renderKeys(v);
   if (c.kind === "slots") {
     const o = c.obj();
     const canSwap = supportsWeaponSets === true && /^(eq|alt):/.test(c.id);
@@ -681,6 +684,40 @@ function renderView() {
       `</div><p class="note">${c.arr().length} 件物品</p>`;
   }
   for (const el of v.querySelectorAll("[data-k]")) el.onclick = () => { const k = el.dataset.k; sel = c.kind === "slots" ? k : Number(k); renderView(); renderEditor(); };
+}
+
+/* ---------- 鑰匙與器官（恐懼階三大首領掉落） ----------
+   遊戲不把鑰匙與器官放進格子，而是把每件的 id 記在 save.pandemonium 的陣列裡：
+   鑰匙 pk1／pk2／pk3（開啟恐懼階的超級首領選項）、器官 mbr／dhn／bey（超級崔斯特姆）。
+   開啟時會消耗各陣列的第一筆；這裡只增減這六個陣列。 */
+const KEY_ITEMS = [["pk1", "恐懼之鑰"], ["pk2", "憎恨之鑰"], ["pk3", "毀滅之鑰"]];
+const ORGAN_ITEMS = [["mbr", "墨菲斯托之腦"], ["dhn", "迪亞布羅之角"], ["bey", "巴爾之眼"]];
+const keyCount = (code) => save.pandemonium?.[code]?.length ?? 0;
+function setKeyCount(code, n) {
+  const pm = { ...(save.pandemonium ?? {}) };
+  const list = (pm[code] ?? []).slice(0, n);
+  while (list.length < n) list.push(newId());
+  if (list.length) pm[code] = list; else delete pm[code];
+  if (Object.keys(pm).length) save.pandemonium = pm; else delete save.pandemonium;
+}
+const ITEM_NAMES = Object.fromEntries([...KEY_ITEMS, ...ORGAN_ITEMS]);
+function renderKeys(v) {
+  const row = ([code, zh]) => `<label style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <span>${zh}</span><input type="number" min="0" max="999" step="1" data-key="${code}" value="${keyCount(code)}" style="width:90px"></label>`;
+  v.innerHTML = `<h2>鑰匙與器官</h2>
+    <p class="note">恐懼階中，女伯爵、召喚師與尼拉塞克會掉落三種鑰匙，階層越深機率越高。三把鑰匙各持有一把時，恐懼階會出現超級首領選項（女族長巢穴、遺忘沙漠或痛苦熔爐），開啟時消耗鑰匙。三種器官（墨菲斯托之腦、迪亞布羅之角、巴爾之眼）各持有一件時，恐懼階會出現超級崔斯特姆，開啟時消耗器官。按「寫入存檔」才會儲存。</p>
+    <h3>鑰匙</h3>
+    <div style="display:grid;gap:8px;max-width:360px;margin:6px 0 10px">${KEY_ITEMS.map(row).join("")}</div>
+    <button id="keys-one">鑰匙各設為 1</button>
+    <h3>器官</h3>
+    <div style="display:grid;gap:8px;max-width:360px;margin:6px 0 10px">${ORGAN_ITEMS.map(row).join("")}</div>
+    <button id="organs-one">器官各設為 1</button>`;
+  for (const inp of v.querySelectorAll("[data-key]")) inp.onchange = () => {
+    const n = Math.min(999, Math.max(0, Math.floor(Number(inp.value) || 0)));
+    setKeyCount(inp.dataset.key, n); inp.value = n; renderTree(); status(`已將${ITEM_NAMES[inp.dataset.key]}設為 ${n}（尚未寫入存檔）`, "ok");
+  };
+  v.querySelector("#keys-one").onclick = () => { for (const [code] of KEY_ITEMS) setKeyCount(code, 1); renderView(); status("已將三把鑰匙各設為 1（尚未寫入存檔）", "ok"); };
+  v.querySelector("#organs-one").onclick = () => { for (const [code] of ORGAN_ITEMS) setKeyCount(code, 1); renderView(); status("已將三件器官各設為 1（尚未寫入存檔）", "ok"); };
 }
 
 /* ---------- 暗金收藏（分類、一鍵解鎖、一鍵數值最高） ---------- */

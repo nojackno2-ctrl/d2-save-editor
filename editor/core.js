@@ -51,7 +51,7 @@ async function openDb() {
   return db;
 }
 
-async function load(mode) {
+async function loadDb(mode) {
   const db = await openDb();
   let text = null;
   try {
@@ -76,7 +76,7 @@ function backup(name, text, sub = "snapshots") {
   fs.writeFileSync(path.join(dir, `${stamp}_${name}`), text);
 }
 
-async function store(mode, save) {
+async function storeDb(mode, save) {
   const text = sealText(save);
   const db = await openDb();
   try {
@@ -114,7 +114,7 @@ function assets() {
 }
 
 // 找出 / 刪除遊戲留下的匯入痕跡
-async function traces(mode, remove) {
+async function tracesDb(mode, remove) {
   const db = await openDb(), found = [];
   try {
     for (const k of TRACE_KEYS[mode]) {
@@ -131,11 +131,6 @@ async function traces(mode, remove) {
 }
 
 // 中文化：使用工具包隨附的共用字典及遊戲屬性樣板。
-function i18n() {
-  const game = JSON.parse(fs.readFileSync(path.join(__dirname, "gamedata.json"), "utf8"));
-  try { return { dict: JSON.parse(fs.readFileSync(path.join(__dirname, "zh-TW.json"), "utf8")), game }; }
-  catch { return { dict: {}, game, missing: true }; }
-}
 
 /* ---------- 存檔管理 ---------- */
 // 檔名：<時間>_<說明>.json；說明含 softcore/hardcore 時代表模式
@@ -177,8 +172,13 @@ function diag() {
   const ex = (p) => fs.existsSync(p);
   return {
     platform: process.platform, appdata: ex(USER), localStorage: ex(LDB), saveFile: ex(SAVE_FILE),
-    itemData: ex(path.join(D2_DIR, "itemstats.json")), dictionary: ex(LAUNCHER_DICT), backups: BACKUP_DIR,
+    itemData: ex(path.join(D2_DIR, "itemstats.json")), backups: BACKUP_DIR,
   };
 }
 
-module.exports = { load, store, assets, i18n, traces, diag, listBackups, readBackup, deleteBackup, snapshot, readFile, writeFile, sealText, sealState, BACKUP_DIR };
+// 所有 localStorage 讀寫排隊執行：頁面啟動的讀取與使用者操作不能同時開啟資料庫（LevelDB 會鎖檔，後到的會失敗）
+let dbQueue = Promise.resolve();
+const queued = (fn) => (...args) => { const run = dbQueue.then(() => fn(...args)); dbQueue = run.catch(() => {}); return run; };
+const load = queued(loadDb), store = queued(storeDb), traces = queued(tracesDb);
+
+module.exports = { load, store, assets, traces, diag, listBackups, readBackup, deleteBackup, snapshot, readFile, writeFile, sealText, sealState, BACKUP_DIR };

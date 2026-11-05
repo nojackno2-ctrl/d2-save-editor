@@ -10,7 +10,7 @@ function runOne(t, attempt = 1) {
   return new Promise((resolve) => {
     const started = Date.now();
     const cmd = t.kind === "electron" ? electron() : process.execPath;
-    const args = [path.join(P.editor, "tests", t.file)];
+    const args = [path.join(P.root, t.file)]; // 測試檔以根目錄相對路徑登記（見 suite.cjs）
     let out = "";
     const child = spawn(cmd, args, { cwd: P.editor, windowsHide: true, env: { ...process.env, ELECTRON_ENABLE_LOGGING: "" } });
     const timer = setTimeout(() => { out += "\n[逾時，強制結束]"; child.kill(); }, (t.timeout || 120) * 1000);

@@ -154,11 +154,14 @@ javascript:import('https://nojackno2-ctrl.github.io/d2-survivors-toolkit/d2edit.
 ## 開發
 
 ```bash
+# 網頁版：程式與資料都在根目錄對應資料夾（唯一來源），沒有副本。
+node tools/build-web.js https://nojackno2-ctrl.github.io/d2-survivors-toolkit/   # 產生安裝頁、轉址頁、version.json
+
+# 桌面版：editor/ 只是啟動器，介面與引擎資源從網站載入；只有啟動器程式改動時才需要重建。
 cd editor
 npm install
-npm start          # 執行桌面版
-npm run dist       # 封裝 Windows 可攜版
-node build-web.js https://nojackno2-ctrl.github.io/d2-survivors-toolkit/   # 產生網頁版到 ../web
+npm start          # 執行桌面版（開發用）
+npm run dist       # 封裝 Windows 可攜版（僅 editor/ 改動時需要）
 ```
 
 | 位置 | 內容 |
@@ -175,10 +178,11 @@ node build-web.js https://nojackno2-ctrl.github.io/d2-survivors-toolkit/   # 產
 |---|---|
 | 根目錄 | 共用檔：`d2edit.js`（書籤入口，網址不可變）、`index.html`（轉址到 `site/install.html`）、`version.json`、README、授權、`wrangler.jsonc` |
 | `helper/` | 輔助器：`autobot.js`、設計文件、排行榜學習工具、模擬測試 |
-| `lang/` | 語言：`lang.js`、`d2rfont.js`、字典 `zh-TW.json`、`locales/`、補字與桌面注入工具、測試 |
+| `lang/` | 語言：`lang.js`、`d2rfont.js`、字典 `zh-TW.json`、`locales/`、補字與桌面注入工具（`lang/tools/`）、測試 |
 | `modifier/` | 存檔修改器：`editor.html`、`engine-page.js`、`patch.mjs`、`signatures.json`、`gamedata.json`、`webapi.js`、`i18n.js`、`zh.js`、測試 |
 | `site/` | 網站：公告站 `index.html` 與書籤安裝頁 `install.html`（Cloudflare 自動部署 `site/`） |
-| `editor/` | 桌面版（Electron）來源與 `build-web.js`（把平放的來源輸出成上面的網頁版資料夾） |
+| `editor/` | 桌面啟動器（Electron）：`main.js`、`core.js`（存檔讀寫）、`engine.js`（物品引擎）、`remote.js`（從網站抓取資源）與版號 `package.json` |
+| `tools/` | 網頁版建置：`build-web.js`（只產生輸出，不複製來源）與回歸測試 |
 | `backups/` | 本機備份（不進 Git）：`exe/` 舊版執行檔、`code/` 驗證前程式快照與 `lastgood/`、`saves/` 存檔測試副本、`archive/` 雜項；遊戲快照在 `game-bundles/<版本>/`。桌面版執行時的存檔備份在執行檔旁 `backups/{softcore,hardcore,snapshots}/` |
 | `tests/live-harness/`、`verify/`、`docs/`、`game-bundles/` | 跨模組的實機測試、遊戲更新驗證流程、文件、遊戲快照 |
 

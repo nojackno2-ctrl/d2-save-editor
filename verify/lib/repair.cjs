@@ -8,6 +8,9 @@ const MODEL = process.env.VERIFY_MODEL || "laguna-xs-2.1:latest";
 const HOST = "http://127.0.0.1:11434";
 // 絕不碰測試檔、遊戲快照、存檔、驗證腳本本身（避免「改測試讓它通過」）。
 const EDITABLE = new Set(["autobot.js", "d2edit.js", "patch.js", "engine-page.js", "engine.js", "webapi.js", "core.js", "lang.js", "i18n.js", "main.js", "signatures.json"]);
+// 檔名 → 根目錄的唯一來源位置（editor/ 只剩啟動器檔案）。修補時一律改這裡的檔案。
+const WHERE = { "autobot.js": ["helper", "autobot.js"], "d2edit.js": ["d2edit.js"], "patch.js": ["modifier", "patch.mjs"], "engine-page.js": ["modifier", "engine-page.js"], "engine.js": ["editor", "engine.js"], "webapi.js": ["modifier", "webapi.js"], "core.js": ["editor", "core.js"], "lang.js": ["lang", "lang.js"], "i18n.js": ["modifier", "i18n.js"], "main.js": ["editor", "main.js"], "signatures.json": ["modifier", "signatures.json"] };
+const where = (name) => path.join(P.root, ...WHERE[name]);
 
 async function ensureServer() {
   const up = () => fetch(HOST + "/api/tags", { signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false);
@@ -22,7 +25,7 @@ function context(failures) {
   const seen = new Set(), parts = [];
   for (const f of failures) for (const m of f.tail.matchAll(/([\w.-]+\.(?:js|cjs|mjs)):(\d+)/g)) {
     const key = m[1] + ":" + m[2]; if (seen.has(key) || !EDITABLE.has(m[1])) continue; seen.add(key);
-    const lines = fs.readFileSync(path.join(P.editor, m[1]), "utf8").split("\n"), at = Number(m[2]);
+    const lines = fs.readFileSync(where(m[1]), "utf8").split("\n"), at = Number(m[2]);
     parts.push(`### ${m[1]} 第 ${Math.max(1, at - 25)}–${at + 25} 行\n` + lines.slice(Math.max(0, at - 26), at + 25).join("\n"));
   }
   return [...parts.slice(0, 4), ...changedSinceGood()].join("\n\n");
@@ -34,7 +37,7 @@ function changedSinceGood() {
   const out = [];
   if (!fs.existsSync(GOOD)) return out;
   for (const name of EDITABLE) {
-    const g = path.join(GOOD, name), c = path.join(P.editor, name);
+    const g = path.join(GOOD, name), c = where(name);
     if (!fs.existsSync(g) || !fs.existsSync(c)) continue;
     const a = fs.readFileSync(g, "utf8").split("\n"), b = fs.readFileSync(c, "utf8").split("\n");
     let s = 0; while (s < a.length && s < b.length && a[s] === b[s]) s++;
@@ -46,7 +49,7 @@ function changedSinceGood() {
 }
 function saveGood() {
   fs.mkdirSync(GOOD, { recursive: true });
-  for (const name of EDITABLE) if (fs.existsSync(path.join(P.editor, name))) fs.copyFileSync(path.join(P.editor, name), path.join(GOOD, name));
+  for (const name of EDITABLE) if (fs.existsSync(where(name))) fs.copyFileSync(where(name), path.join(GOOD, name));
 }
 
 async function ask(prompt) {
@@ -63,7 +66,7 @@ function applyEdits(edits, backupDir) {
   const done = [];
   for (const e of edits || []) {
     if (!EDITABLE.has(e.file)) throw new Error("不允許修改：" + e.file);
-    const f = path.join(P.editor, e.file), s = fs.readFileSync(f, "utf8");
+    const f = where(e.file), s = fs.readFileSync(f, "utf8");
     const n = s.split(e.find).length - 1;
     if (!e.find || n !== 1) throw new Error(`${e.file} 的 find 文字出現 ${n} 次（必須剛好 1 次）`);
     adapt.backup(f, backupDir);

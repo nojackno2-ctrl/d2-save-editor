@@ -4,11 +4,13 @@ const { P } = require("./util.cjs");
 const { snapshotDir } = require("./game.cjs");
 
 const read = (f) => fs.readFileSync(f, "utf8");
+const AUTOBOT = path.join(P.root, "helper", "autobot.js");
+const SIGNATURES = path.join(P.root, "modifier", "signatures.json");
 const jsFiles = (dir) => Object.fromEntries(fs.readdirSync(dir).filter((f) => f.endsWith(".js")).map((f) => [f, read(path.join(dir, f))]));
 
 // 從 autobot.js 本身取出找 Game 模組的特徵（單一來源，不另外抄一份）。
 function hookSignatures() {
-  const src = read(path.join(P.editor, "autobot.js"));
+  const src = read(AUTOBOT);
   const m = /const signatures = (\[.*\]);/.exec(src);
   if (!m) throw new Error("autobot.js 找不到 signatures 陣列，掛鉤特徵格式已變動");
   return new Function("return " + m[1])();
@@ -21,7 +23,7 @@ function analyze(build, snapshotRoot) {
   if (!gameFile) issues.push("找不到同時符合 autobot 4 項特徵的 Game 模組（掛鉤點失效）");
   // 輔助器呼叫的原版 Game 方法（從 autobot.js 的 g.xxx(／game.xxx( 自動收集），每個都要在新版 Game 模組裡有定義。
   if (gameFile) {
-    const used = [...new Set([...read(path.join(P.editor, "autobot.js")).matchAll(/\b(?:game|g)\.([A-Za-z_]\w*)\(/g)].map((m) => m[1]))];
+    const used = [...new Set([...read(AUTOBOT).matchAll(/\b(?:game|g)\.([A-Za-z_]\w*)\(/g)].map((m) => m[1]))];
     const gone = used.filter((name) => !new RegExp("(?:^|[;,{}\\s*])(?:async\\s+)?" + name + "\\(.{0,300}?\\)\\{").test(files[gameFile]));
     if (gone.length) issues.push("新版 Game 模組找不到輔助器用到的方法：" + gone.join("、"));
   }
@@ -30,16 +32,16 @@ function analyze(build, snapshotRoot) {
   const saveTransfer = Object.keys(files).find((f) => f.startsWith("saveTransfer-") && /`attribute`/.test(files[f]) && /\.difficulty/.test(files[f]));
   if (!saveTransfer) issues.push("找不到含選卡函式特徵（attribute／difficulty）的 saveTransfer 模組");
   // 物品引擎簽名（修改器用）：必要簽名缺失才算問題，選用的缺了只提示。
-  const patch = require(path.join(P.editor, "patch.js")).patch;
-  const sigJson = JSON.parse(read(path.join(P.editor, "signatures.json")));
+  const patch = require(path.join(P.root, "modifier", "tests", "load-patch.cjs"))();
+  const sigJson = JSON.parse(read(SIGNATURES));
   const { missing } = patch(files, sigJson);
   if (missing.length) issues.push("修改器特徵碼失效：" + missing.join("、"));
   return { build, roles: { game: gameFile, itemArt, saveTransfer }, signaturesMissing: missing, issues, ok: issues.length === 0 };
 }
 
-// 根目錄（玩家實際載入、唯一來源）與 editor/ 衍生副本都要改，否則下次同步會把改動蓋掉。
-const NAME_FILES = () => [path.join(P.editor, "autobot.js"), path.join(P.editor, "tests", "autobot.cjs"), path.join(P.root, "helper", "autobot.js"), path.join(P.root, "helper", "tests", "autobot.cjs")].filter((f) => fs.existsSync(f));
-const BUILD_FILES = () => [...["autobot.js", "index.html", "editor.html"].map((f) => path.join(P.editor, f)), path.join(P.root, "helper", "autobot.js"), path.join(P.root, "helper", "selfcheck.js"), path.join(P.editor, "selfcheck.js"), path.join(P.root, "modifier", "editor.html")].filter((f) => fs.existsSync(f));
+// 根目錄是唯一來源（editor/ 已不再有副本），版本常數與檔名只改根目錄。
+const NAME_FILES = () => [path.join(P.root, "helper", "autobot.js"), path.join(P.root, "helper", "tests", "autobot.cjs")].filter((f) => fs.existsSync(f));
+const BUILD_FILES = () => [path.join(P.root, "helper", "autobot.js"), path.join(P.root, "helper", "selfcheck.js"), path.join(P.root, "modifier", "editor.html")].filter((f) => fs.existsSync(f));
 
 // 把檔案內寫死的 itemArt-／saveTransfer- 檔名換成新版；回傳實際改了哪些檔（先備份）。
 function applyNames(roles, backupDir) {

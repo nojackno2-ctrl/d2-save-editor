@@ -11,7 +11,7 @@
 | 位置 | 內容 | 狀態 |
 |---|---|---|
 | `AI_HANDOFF.md` | 交接與長期規則 | 現行 |
-| `helper/AUTOBOT_DESIGN.md` | 輔助器設計與實測調整 | 現行（`editor/AUTOBOT_DESIGN.md` 是建置來源副本） |
+| `helper/AUTOBOT_DESIGN.md` | 輔助器設計與實測調整 | 現行 |
 | `docs/game-analysis/` | 遊戲前端反編譯與機制分析（掉落、任務、技能、物品、戰鬥…）；`verify-*.md` 為各版驗證紀錄 | 以 build 20261101.1 為基準，遊戲更新後須重驗 |
 | `verify/README.md` | 遊戲更新驗證流程（`verify.cjs`、`publish.cjs`、報告位置） | 現行 |
 | `.agents/skills/game-update/`、`.claude/skills/game-update/` | 「遊戲更新」工作流程（兩份內容相同）：官方更新訊息 → 反編譯比對新舊版 → AI 分析工具包是否相符 → 沒變動部分腳本回歸 → 實機驗證 → 使用者確認後發布 | 現行 |
@@ -23,4 +23,4 @@
 ## 維護規則
 - 新紀錄寫進 `AI_HANDOFF.md` 的「近期紀錄」；超過約 200 行時，把舊的原文移到 `docs/ai/` 封存檔，不改寫。
 - 過時資訊直接刪除，不留「已過時」清單；歷史查 Git。
-- 兩處同名檔案（`editor/` 與網頁版資料夾）內容會漂移，改其中一份時註明是否同步。
+- 2026-11-05 第二階段起網頁版只有根目錄一份來源；`editor/` 只剩桌面啟動器，不再有 UI／引擎副本，也不需要同步。

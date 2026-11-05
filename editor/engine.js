@@ -10,9 +10,8 @@ const GAME_ASSETS = path.join(GAME_ARCHIVE, "desktop", "dist", "web", "assets");
 const GAME_CHANGELOG = path.join(GAME_ARCHIVE, "desktop", "dist", "web", "changelog.json");
 const ITEMSTATS = path.join(process.env.APPDATA, "D2 Survivors", "d2", "itemstats.json");
 
-// 名稱 → 用來找它的程式碼特徵，網頁版共用同一份
-const SIGNATURES = require("./signatures.json");
-const { patch } = require("./patch");
+// 簽章、patch、引擎頁面都從 GitHub 抓（見 remote.js），與網頁版共用同一份，不用重新打包 exe
+const remote = require("./remote");
 
 let win = null, ready = null, preparedArchive = null;
 function archiveStamp() {
@@ -23,18 +22,28 @@ function installedBuild() {
   try { return JSON.parse(fs.readFileSync(GAME_CHANGELOG, "utf8"))?.[0]?.build ?? null; } catch { return null; }
 }
 
-function prepare() {
+async function prepare() {
+  const [sigText, patchText, pageText] = await Promise.all([
+    remote.text("modifier/signatures.json"),
+    remote.text("modifier/patch.mjs"),
+    remote.text("modifier/engine-page.js"),
+  ]);
+  const SIGNATURES = JSON.parse(sigText);
   const stamp = archiveStamp();
   const dir = fs.mkdtempSync(path.join(app.getPath("temp"), "d2s-editor-engine-"));
   fs.mkdirSync(path.join(dir, "assets"), { recursive: true });
   if (!fs.existsSync(GAME_ASSETS)) throw new Error("找不到遊戲程式，請確認 D2 Survivors 安裝在預設位置。");
+  // patch.mjs 是網頁版的 ES module（結尾多一行 export），桌面端要去掉再當 CommonJS 載入
+  const patchFile = path.join(dir, "patch.js");
+  fs.writeFileSync(patchFile, patchText.replace(/\r?\nexport const patch = self\.D2Patch\.patch;\s*$/, ""));
+  const { patch } = require(patchFile);
   const files = {};
   for (const f of fs.readdirSync(GAME_ASSETS).filter((f) => f.endsWith(".js"))) files[f] = fs.readFileSync(path.join(GAME_ASSETS, f), "utf8");
   const { patched, missing, found } = patch(files, SIGNATURES);
   if (missing.length) throw new Error(`遊戲版本不相容：找不到 ${missing.join("、")}`);
   // 全部複製到同一個資料夾，區塊之間的相對 import 會指向加過 export 的同一份
   for (const [f, src] of Object.entries(files)) fs.writeFileSync(path.join(dir, "assets", f), patched[f] ?? src);
-  fs.copyFileSync(path.join(__dirname, "engine-page.js"), path.join(dir, "engine-page.js"));
+  fs.writeFileSync(path.join(dir, "engine-page.js"), pageText);
   const mods = Object.keys(patched);
   const gameScripts = Object.keys(files).filter((f) => /^Game-[\w-]+\.js$/.test(f));
   const build = installedBuild();
@@ -52,7 +61,7 @@ window.engine = boot(Object.assign({}, ${mods.map((_, i) => `G${i}`).join(", ")}
 function start() {
   if (ready) return ready;
   ready = (async () => {
-    const page = prepare();
+    const page = await prepare();
     win = new BrowserWindow({ show: false, webPreferences: { webSecurity: false, contextIsolation: true } });
     await win.loadFile(page);
     for (let i = 0; i < 80; i++) {
