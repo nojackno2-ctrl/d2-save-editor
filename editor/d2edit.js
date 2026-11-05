@@ -221,6 +221,8 @@ const backend = {
       modeKey: localStorage.getItem("d2-survivors/mode/v1"), zh: window.D2I18N ? window.D2I18N.language : "未載入",
       engine: { ...engineInfo, found: engineInfo.found ? Object.keys(engineInfo.found).join(",") : undefined },
       storageKeys: keys, savesNow: now, lastWrite: last, writtenThisSession: written,
+      // 遊戲記住的目前職業（選角畫面）：一鍵解鎖地獄火炬時依此給對應職業技能
+      classPick: { softcore: localStorage.getItem("d2-survivors/class/v1"), hardcore: localStorage.getItem("d2-survivors/hc/class/v1") },
     };
   },
 };

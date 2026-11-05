@@ -5,7 +5,9 @@ module.exports = [
   { id: "build-web",          tier: "static",      kind: "node",     file: "build-web.cjs",          timeout: 60 },
   { id: "lang",               tier: "static",      kind: "node",     file: "test_lang.cjs",          timeout: 60 },
   { id: "runeword-class-base",tier: "static",      kind: "node",     file: "runeword-class-base.cjs",timeout: 60 },
-  { id: "skill-mods",         tier: "static",      kind: "node",     file: "skill-mods.cjs",         timeout: 60 },
+  // 裝備資料庫完整檢查：每次更新必跑（always），逐件驗證一鍵解鎖與製作裝備
+  { id: "item-db",            tier: "static",      kind: "node",     file: "item-db.cjs",            timeout: 300, always: true },
+  { id: "skill-mods",        tier: "static",      kind: "node",     file: "skill-mods.cjs",         timeout: 60 },
   { id: "weapon-sets",        tier: "static",      kind: "node",     file: "weapon-sets.cjs",        timeout: 60 },
   { id: "weapon-sets-ui",     tier: "integration", kind: "electron", file: "weapon-sets-ui.cjs",     timeout: 120 },
   { id: "autobot",            tier: "integration", kind: "electron", file: "autobot.cjs",            timeout: 180 },
