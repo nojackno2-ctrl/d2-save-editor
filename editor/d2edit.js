@@ -233,6 +233,7 @@ const backend = {
       engine: { ...engineInfo, found: engineInfo.found ? Object.keys(engineInfo.found).join(",") : undefined },
       storageKeys: keys, savesNow: now, lastWrite: last, writtenThisSession: written,
       // 遊戲記住的目前職業（選角畫面）：一鍵解鎖地獄火炬時依此給對應職業技能
+      selfCheck: window.__d2editSelfCheck ? { build: window.__d2editSelfCheck.build, tested: window.__d2editSelfCheck.tested, issues: window.__d2editSelfCheck.issues } : null,
       classPick: { softcore: localStorage.getItem("d2-survivors/class/v1"), hardcore: localStorage.getItem("d2-survivors/hc/class/v1") },
     };
   },
@@ -331,9 +332,15 @@ const loadGameData = () => (window.__d2gamedataPromise ??= fetch(at("modifier/ga
     [zhUI ? "輔助器" : "Assistant", () => import(at("helper/autobot.js"))],
     [zhUI ? "物品引擎（遊戲裝備產生器）" : "Item engine", () => engine()],
     [zhUI ? "修改器頁面" : "Editor page", () => fetch(at("modifier/editor.html")).then((r) => r.text())],
+    // 自檢與其他步驟並行：載入進度條跑的同時檢查工具包與當前遊戲是否相符；問題只輸出，不阻擋遊玩。
+    [zhUI ? "相容性自檢" : "Compatibility self-check", async () => {
+      const { runSelfCheck } = await import(at("helper/selfcheck.js"));
+      selfCheck = await runSelfCheck({ engine, engineInfo, backend, dict: loadZhDict, gamedata: loadGameData, gameScript: activeGameScript, ready: () => Promise.allSettled([import(at("lang/lang.js")), import(at("helper/autobot.js"))]) });
+      window.__d2editSelfCheck = selfCheck;
+    }],
   ];
   const warn = [];
-  let done = 0;
+  let done = 0, selfCheck = null;
   text.textContent = (zhUI ? "D2 倖存者工具載入中（0/" : "Loading D2 Survivors tools (0/") + steps.length + (zhUI ? "）…" : ")…");
   await Promise.all(steps.map(async ([name, run]) => {
     try { await run(); } catch (err) { warn.push(name); console.warn("載入失敗：" + name, err); }
@@ -342,8 +349,42 @@ const loadGameData = () => (window.__d2gamedataPromise ??= fetch(at("modifier/ga
     fill.style.width = Math.round(done / steps.length * 100) + "%";
   }));
   fill.style.width = "100%";
-  text.textContent = warn.length ? (zhUI ? "載入完成，但以下項目失敗（相關功能可能無法使用）：" : "Loaded, but these failed: ") + warn.join("、") : (zhUI ? "載入完成，按暫停後右上角開啟修改器" : "Loaded. Pause the game to open the editor (top right)");
-  if (warn.length) fill.style.background = "#c0504d";
+  const issues = (selfCheck?.issues || []).filter((i) => i.level !== "info");
+  const label = { error: zhUI ? "錯誤" : "Error", warn: zhUI ? "注意" : "Warning" };
+  if (selfCheck?.issues?.length) {
+    console.groupCollapsed("[D2 工具包自檢] " + (issues.length ? issues.length + " 項問題" : "通過（僅提示）"));
+    for (const i of selfCheck.issues) console[i.level === "error" ? "error" : i.level === "warn" ? "warn" : "info"](`[${i.area}] ${i.msg}`);
+    console.groupEnd();
+  }
+  const problems = [...warn.map((n) => ({ level: "warn", area: n, msg: zhUI ? "載入失敗，相關功能可能無法使用" : "failed to load" })), ...issues];
+  text.textContent = problems.length
+    ? (zhUI ? "載入完成，自檢發現以下問題（不影響繼續遊玩，點一下關閉）：" : "Loaded. Self-check found issues (you can keep playing; tap to dismiss):")
+    : (zhUI ? "載入完成，自檢通過，按暫停後左上角開啟修改器" : "Loaded, self-check passed. Pause the game to open the editor (top left)");
+  const dismiss = () => { box.remove(); if (window.__d2editLoading === box) window.__d2editLoading = null; };
+  if (problems.length) {
+    const list = document.createElement("div");
+    list.style.cssText = "margin-top:8px;max-height:40vh;overflow:auto;font-size:13px;line-height:1.5";
+    for (const i of problems) {
+      const row = document.createElement("div");
+      row.style.cssText = "margin-top:4px;color:" + (i.level === "error" ? "#ff8a80" : "#ffcf70");
+      row.textContent = `【${label[i.level]}】${i.area}：${i.msg}`;
+      list.append(row);
+    }
+    box.append(list); box.style.cursor = "pointer"; box.addEventListener("click", dismiss);
+    fill.style.background = problems.some((i) => i.level === "error") || warn.length ? "#c0504d" : "#e0a030";
+  }
   toolsReady = true; sync();
-  setTimeout(() => { box.remove(); if (window.__d2editLoading === box) window.__d2editLoading = null; }, warn.length ? 6000 : 1800);
+  setTimeout(dismiss, problems.length ? 30000 : 1800);
+  // 遊戲若還在選角畫面，掛接檢查當時只能給提示；約 25 秒後補查一次，新發現的問題寫進主控台與結果。
+  if (selfCheck?.issues.some((i) => i.level === "info" && (i.area === "輔助器" || i.area === "語言"))) {
+    setTimeout(async () => {
+      try {
+        const { checkGameHook } = await import(at("helper/selfcheck.js"));
+        const later = (await checkGameHook(2000)).filter((i) => i.level !== "info");
+        if (!later.length) return;
+        selfCheck.issues.push(...later); selfCheck.ok = false;
+        for (const i of later) console.warn(`[D2 工具包自檢（進入遊戲後）][${i.area}] ${i.msg}`);
+      } catch {}
+    }, 25000);
+  }
 })();

@@ -13,7 +13,7 @@ const out = path.join(__dirname, "..");
 // 來源（editor/ 平放）→ 網頁版輸出位置：入口與共用檔在根目錄，輔助器／語言／修改器各一個資料夾，公告與安裝頁在 site/
 const LAYOUT = {
   "d2edit.js": "d2edit.js", "README.md": "README.md",
-  "autobot.js": "helper/autobot.js", "AUTOBOT_DESIGN.md": "helper/AUTOBOT_DESIGN.md",
+  "autobot.js": "helper/autobot.js", "selfcheck.js": "helper/selfcheck.js", "AUTOBOT_DESIGN.md": "helper/AUTOBOT_DESIGN.md",
   "lang.js": "lang/lang.js", "d2rfont.js": "lang/d2rfont.js", "zh-TW.json": "lang/zh-TW.json", "locales/zh-TW.json": "lang/locales/zh-TW.json",
   "i18n.js": "modifier/i18n.js", "webapi.js": "modifier/webapi.js", "zh.js": "modifier/zh.js", "gamedata.json": "modifier/gamedata.json",
   "engine-page.js": "modifier/engine-page.js", "signatures.json": "modifier/signatures.json",

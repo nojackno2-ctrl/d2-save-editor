@@ -5,7 +5,7 @@ const editor = path.resolve(__dirname, '..');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'd2autobot-build-'));
 const source = path.join(root, 'editor'), out = root;
 fs.mkdirSync(source); fs.mkdirSync(path.join(source, 'tests')); fs.mkdirSync(path.join(source, 'locales'));
-const files = ['build-web.js', 'package.json', 'index.html', 'patch.js', 'web-install.html', 'i18n.js', 'webapi.js', 'zh.js', 'zh-TW.json', 'gamedata.json', 'engine-page.js', 'signatures.json', 'd2edit.js', 'autobot.js', 'lang.js', 'd2rfont.js', 'locales/zh-TW.json', 'AUTOBOT_DESIGN.md', 'tests/autobot.cjs', 'tests/test_lang.cjs', 'tests/weapon-sets.cjs', 'tests/weapon-sets-ui.cjs', 'tests/version-gate-web.cjs', 'README.md'];
+const files = ['build-web.js', 'package.json', 'index.html', 'patch.js', 'web-install.html', 'i18n.js', 'webapi.js', 'zh.js', 'zh-TW.json', 'gamedata.json', 'engine-page.js', 'signatures.json', 'd2edit.js', 'autobot.js', 'selfcheck.js', 'lang.js', 'd2rfont.js', 'locales/zh-TW.json', 'AUTOBOT_DESIGN.md', 'tests/autobot.cjs', 'tests/test_lang.cjs', 'tests/weapon-sets.cjs', 'tests/weapon-sets-ui.cjs', 'tests/version-gate-web.cjs', 'README.md'];
 for (const file of files) fs.copyFileSync(path.join(editor, file), path.join(source, file));
 const keep = ['AGENTS.md', 'AI_HANDOFF.md', 'CLAUDE.md', 'GEMINI.md'];
 for (const file of keep) fs.writeFileSync(path.join(out, file), '協作紀錄：' + file);
@@ -13,7 +13,7 @@ fs.mkdirSync(path.join(out, '.git'));fs.writeFileSync(path.join(out, '.git', 'se
 fs.writeFileSync(path.join(out, 'stale.js'), '過時輸出');
 const build = () => spawnSync(process.execPath, [path.join(source, 'build-web.js'), 'https://example.test/tool/'], { encoding: 'utf8' });
 let result = build(); assert.equal(result.status, 0, result.stderr);
-for (const [from, to] of [['autobot.js', 'helper/autobot.js'], ['AUTOBOT_DESIGN.md', 'helper/AUTOBOT_DESIGN.md'], ['lang.js', 'lang/lang.js'], ['engine-page.js', 'modifier/engine-page.js']]) assert.deepEqual(fs.readFileSync(path.join(out, to)), fs.readFileSync(path.join(source, from)));
+for (const [from, to] of [['autobot.js', 'helper/autobot.js'], ['selfcheck.js', 'helper/selfcheck.js'], ['AUTOBOT_DESIGN.md', 'helper/AUTOBOT_DESIGN.md'], ['lang.js', 'lang/lang.js'], ['engine-page.js', 'modifier/engine-page.js']]) assert.deepEqual(fs.readFileSync(path.join(out, to)), fs.readFileSync(path.join(source, from)));
 assert.match(fs.readFileSync(path.join(out, 'site', 'install.html'), 'utf8'), /d2edit\.js/);
 assert.match(fs.readFileSync(path.join(out, 'd2edit.js'), 'utf8'), /import\(at\("helper\/autobot\.js"\)\)/);
 for (const file of keep) assert.equal(fs.readFileSync(path.join(out, file), 'utf8'), '協作紀錄：' + file);
