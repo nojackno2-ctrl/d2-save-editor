@@ -75,9 +75,11 @@ function namesOf(b) {
     const by = (k) => cat.filter((x) => x.rarity === k);
     check(by("unique").length === G.__uniques.length, `暗金數量 ${by("unique").length} ≠ 遊戲 ${G.__uniques.length}`);
     check(by("set").length === G.__sets.length, `套裝數量 ${by("set").length} ≠ 遊戲 ${G.__sets.length}`);
-    check(by("runeword").length === G.__runewords.length, `符文之語數量 ${by("runeword").length} ≠ 遊戲 ${G.__runewords.length}`);
-    const keys = cat.map((x) => x.rarity + "|" + x.name);
-    check(new Set(keys).size === keys.length, "目錄有重複的品質＋名稱");
+    // 符文之語依底材類型各收一次：列數 = 遊戲對每個名稱的類型數（G.__runewordKinds，與遊戲收藏的「Bases」總數相同）
+    const rwRows = G.__runewords.reduce((n, d) => n + G.__runewordKinds(d.name).length, 0);
+    check(by("runeword").length === rwRows, `符文之語列數 ${by("runeword").length} ≠ 遊戲 ${rwRows}（${G.__runewords.length} 個名稱）`);
+    const keys = cat.map((x) => x.rarity === "runeword" ? `runeword|${x.name}|${x.kind}` : x.rarity + "|" + x.name);
+    check(new Set(keys).size === keys.length, "目錄有重複的品質＋名稱（符文之語含底材類型）");
     // 物品資料（itemstats）必須涵蓋每件暗金與套裝，否則做出來會沒有屬性
     const noData = cat.filter((x) => (x.rarity === "unique" && !statsData.uniques?.[x.name]) || (x.rarity === "set" && !statsData.setItems?.[x.name])).map((x) => x.name);
     check(!noData.length, `物品資料缺少 ${noData.length} 件的屬性：${noData.slice(0, 10).join("、")}`);

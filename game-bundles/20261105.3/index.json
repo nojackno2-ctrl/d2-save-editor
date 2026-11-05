@@ -1,0 +1,218 @@
+{
+  "build": "20261105.3",
+  "fetchedAt": "2026-11-05T21:49:02.374Z",
+  "entry": "game-DQod_2Te.js",
+  "fileCount": 52,
+  "failed": [],
+  "files": {
+    "game-DQod_2Te.js": {
+      "bytes": 18142,
+      "sha256": "45d514d6bfbbe1c9ad21ed774f3f7bd44316d787fa7704c5854b03e80e213940"
+    },
+    "getTextureBatchBindGroup-BOmbyaNZ.js": {
+      "bytes": 344,
+      "sha256": "06c699beb10ceb7fed76cd38e7c4ecf35d1f046e006409337e7282d0e1c766e3"
+    },
+    "previewStorage-P2Xu9kJm.js": {
+      "bytes": 670,
+      "sha256": "418c206484b89b68ef5f067277831e583fc9193a62aadf4de269acaaeb12a85f"
+    },
+    "canvasUtils-B5KrsTsU.js": {
+      "bytes": 6011,
+      "sha256": "572546d1625d86d938f6c61bcd56c0be058707169c3894f0dca30db132e3375c"
+    },
+    "Filter-S41svb1h.js": {
+      "bytes": 41958,
+      "sha256": "58654ec10be6cc7ae4d65bd0258e11868d729f2802a4f74d1b892cfd26533bdd"
+    },
+    "defaultFilter.vert-BgFRsrWN.js": {
+      "bytes": 24425,
+      "sha256": "d928637a3b53c4163dd6e8eb88c8007b076af361e95f994e82eb9d5800c99f94"
+    },
+    "preload-helper-CRzLMJPS.js": {
+      "bytes": 1534,
+      "sha256": "bcc465e3e61dc3878a69ffa95ccb53cb82d95b1639ada223420b281ebd150048"
+    },
+    "CanvasPool-CTz6W2rm.js": {
+      "bytes": 71187,
+      "sha256": "0dbc5a71c65dd8ae8cdc3dde6ae0e11f85f55cd0fbaa9064baffc2c21b01523d"
+    },
+    "Cache-D0EC7riK.js": {
+      "bytes": 1100,
+      "sha256": "dbabb6e1f43eb6d837201109d732bf3f67f19aa71687bb63cdb6a7fd721640ad"
+    },
+    "GCManagedHash-Bzd2gb8m.js": {
+      "bytes": 19354,
+      "sha256": "13b576b994ae1fb28145489c600a3a1f5acd0c03fbfa6322b16cde6a9976d7d1"
+    },
+    "RenderTargetSystem-BH3KfuEA.js": {
+      "bytes": 58815,
+      "sha256": "2ff361f68a63d783a060568b0b7100ad44f5cac4195c4649fc683bb91266979b"
+    },
+    "choice-Dmq6GBHW.js": {
+      "bytes": 432,
+      "sha256": "daf7fd76323cb337bb207e36d73a43cedd3063566ee5740eb89c3a66bfc9fe34"
+    },
+    "CanvasRenderer-CcIX4wQS.js": {
+      "bytes": 27097,
+      "sha256": "a80a684aaa8a3ad1672bdd24891183aa66d86e0f2037503413af8ffad0ab046c"
+    },
+    "GraphicsContext-DxJOD84P.js": {
+      "bytes": 61680,
+      "sha256": "f0de011d94ab0089fd30cdbf550f58126470c10d9471e10498003f36750cc50e"
+    },
+    "d2url-D2-R-aUr.js": {
+      "bytes": 728,
+      "sha256": "3ac7884e83dd49868e49bdd8cb1b7e21f6347fed9c46f03190d3ce9aa56fb470"
+    },
+    "translate-DtcjbHwp.js": {
+      "bytes": 3447,
+      "sha256": "c2c58803a5d7703094d6137060316d2920b517ea48a1783e4772fcd7c197e544"
+    },
+    "ui-C7B1Ywhs.js": {
+      "bytes": 59065,
+      "sha256": "ceec68426f38763104ba44692b5d831811b110b16022e5d6458606a4df29f573"
+    },
+    "lang-DYLSqVI3.js": {
+      "bytes": 2136,
+      "sha256": "c6127ab33079ce7bab332b79f8f4f43d563df5dc8eccc204aa0fd203f038d73c"
+    },
+    "pack-_pWog-fz.js": {
+      "bytes": 34893,
+      "sha256": "e75b05998e2438448ac9c9d38b6a893c94644a0bf4586581dea7b03cc52af7c2"
+    },
+    "site-B7d7CF4u.js": {
+      "bytes": 1271,
+      "sha256": "28d48169d333de24e2c0baabe7a7f010bf38d16839e1f4446743ce08e2b045f7"
+    },
+    "getTexelRangeRects-BPmSyZoz.js": {
+      "bytes": 11358,
+      "sha256": "c4aeec97014b19241de5f4930524d0695463a6a573e957907bd5e41e9b611c5b"
+    },
+    "moved-COKqX8rC.js": {
+      "bytes": 2859,
+      "sha256": "567902b5c79e10548aceec8a0019ce7126df3290fa4387b57ca24299cf906602"
+    },
+    "record-DrVu4-5r.js": {
+      "bytes": 12818,
+      "sha256": "e70aa5522822be9c9d970f5974cc30dbb5d208b8b9c9b9e79c997f249af93ffd"
+    },
+    "chains-CCI1uqG2.js": {
+      "bytes": 530,
+      "sha256": "3787668d882a860a5dc1048b7e726be32d6386806ec95c3febdb89deb2e1d930"
+    },
+    "uniquesTab-C3Wez90c.js": {
+      "bytes": 5611,
+      "sha256": "4e176b9b95d0b45648847f29913d647f6f2d35a5c50149ce84797104b57eeacf"
+    },
+    "report-CrYJ-Jms.js": {
+      "bytes": 2402,
+      "sha256": "ecb0ac7bf7c87ff817335b7d5cb7268488193785f4194ebeaa49ff2ce060bb22"
+    },
+    "saveTransfer-DEUzYKa9.css": {
+      "bytes": 3237,
+      "sha256": "032290910bad41a3289c6e57ce6b8a61e519ebb5d60a532b19966762150ba2d7"
+    },
+    "report-qBYpdFlM.js": {
+      "bytes": 133723,
+      "sha256": "d2630c61e5b8f34a7605a904b5dcf43fcb808d0df193cbc3b571015b5af9916b"
+    },
+    "report-B0o3a0zc.css": {
+      "bytes": 2312,
+      "sha256": "7d099538202b2654cc8265a0c5db3143d03fe853687769bf07eec18431971d91"
+    },
+    "WebGPURenderer-BEWLab2H.js": {
+      "bytes": 62,
+      "sha256": "c3450f017dab21d541b2b5f8781781233fe9b55e1918217c2c109ceed2a14b3c"
+    },
+    "game-RH7g0Ptv.css": {
+      "bytes": 76922,
+      "sha256": "f96e4b96850d18ac6c108c1e1681378da914544f04b84859169b89c2d8a02b9e"
+    },
+    "WebGPURenderer-BLPjHDxc.js": {
+      "bytes": 55179,
+      "sha256": "80de219e5734f9096e34ef66478504934541579fc0ad1034c1663ecfc92ce2c1"
+    },
+    "saveTransfer-BTsCILil.js": {
+      "bytes": 367522,
+      "sha256": "aae94e09516606d98d65b26164379e8d521610aa2c3a0924f254c68162b279ef"
+    },
+    "WebGLRenderer-BqF49RUY.js": {
+      "bytes": 60,
+      "sha256": "40638e70d54ac8f2b913ae157f9ff6075cf73283a712f69a495f052478e68c33"
+    },
+    "itemArt-BPHOVK4V.js": {
+      "bytes": 984004,
+      "sha256": "46a3e0d6065875f49dff3dc9907f546eee3a1477d0a2c888847517031714c5fc"
+    },
+    "WebGLRenderer-C0JkMGpO.js": {
+      "bytes": 72834,
+      "sha256": "057a029766a62d7986f4e6a81bec66c4648429e61f15fa9ea077ae0c601012fd"
+    },
+    "whatsNew-B0EnB46m.js": {
+      "bytes": 1699,
+      "sha256": "043a5070905edc918a147c356e7be8ef458d1657e93be939c53b835a4389096b"
+    },
+    "CanvasRenderer-DEDthYdj.js": {
+      "bytes": 62,
+      "sha256": "2a538c86ecf9ac864d4726a012d51f2f906445b302cb92f79f9b7cf5f145f74d"
+    },
+    "surface-CicdxE2Q.js": {
+      "bytes": 14007,
+      "sha256": "526ac422119486adfd73af83c4351229fb4a4599902ad7b9ac925d48e50f8dd5"
+    },
+    "surface-C-vrwpKO.css": {
+      "bytes": 2195,
+      "sha256": "d40bc96722796421b45db2610d551e1f6d25db0fd799de10a622e9b440ea54c2"
+    },
+    "screens-CiqkX-O5.js": {
+      "bytes": 56542,
+      "sha256": "97e51e3c40fca025cb7f3ee6ffb2152db837d597c1ade01adc9ef984b38d2e8a"
+    },
+    "screens-7XBW0yv6.css": {
+      "bytes": 489,
+      "sha256": "ca78652a05ee3d18b336d183fcf7f23a45e6d4274b784250675cd96ee98f457b"
+    },
+    "plain-piMHWqUW.js": {
+      "bytes": 3451,
+      "sha256": "4ff95b334bb500fc63525f41356a9aceeae8faf816c251a852d82e9dc24f8065"
+    },
+    "dom-Cj3AqyVD.js": {
+      "bytes": 974,
+      "sha256": "9d14fee979c9581f297e00a0cbb3344c11354604f055b39ac63d1914807dfe77"
+    },
+    "browserAll-DAVNiqYI.js": {
+      "bytes": 43523,
+      "sha256": "7e772b7f1eea33a91c838d1efb0316d17e32537448ab499cd3366e93a222d95d"
+    },
+    "Game-DPAk-Rvc.js": {
+      "bytes": 425209,
+      "sha256": "b765bef5963d2fe18812da574b6e674fc811af9f4c3a5166d4b66ed519a2ef7d"
+    },
+    "plain-BGVa5gcB.css": {
+      "bytes": 2729,
+      "sha256": "ec5ad8347d9c03e859a16eb52c6dbb69db95e618375fceb7f38932faea79e340"
+    },
+    "init-DgqmsVnD.js": {
+      "bytes": 14626,
+      "sha256": "5596679533537209b7b657942db66d9a2c0a62fb0e58ad797d95ac06f8b0e874"
+    },
+    "webworkerAll-DjrneVqi.js": {
+      "bytes": 68,
+      "sha256": "aa6456465c0d2f8689745b70214317455cc3caec943c3dffb1c3e25458503526"
+    },
+    "BitmapFont-BqjOtJ7t.js": {
+      "bytes": 54,
+      "sha256": "a009754df2eddc62cc8db33f849a7b5b492ce0fd30531db8006ab3f44a735af9"
+    },
+    "BitmapFont-9vFB1qJ-.js": {
+      "bytes": 33360,
+      "sha256": "67691aa59374777d40fdbd6047f664a6cbf0090658817d46823da2c08ccb3fb6"
+    },
+    "ko-B8ZDF7i7.js": {
+      "bytes": 1015438,
+      "sha256": "26baa72acf4c0d1af70965db2ee66f705718b1a78e4e537a1d207fc487c0c05a"
+    }
+  },
+  "complete": true
+}

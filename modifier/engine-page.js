@@ -15,8 +15,14 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
   const propsOf = { unique: (n) => stats.uniques[n]?.props, set: (n) => stats.setItems[n]?.props, runeword: (n) => stats.runewords[n]?.props };
 
   // 符文之語沒有指定底材：挑孔數夠、類型符合、等級最高的底材
-  function runewordBase(def) {
+  // 底材類型（與遊戲收藏的分類相同）：單手／雙手武器、盾牌、頭盔、盔甲；其他為 null
+  function kindOf(b) {
+    if (b?.type === "weapon") return b.twoHand ? "two-hand" : "one-hand";
+    return b?.type === "shield" || b?.type === "head" || b?.type === "body" ? b.type : null;
+  }
+  function runewordBase(def, kind) {
     const ok = G.__bases.filter((b) => def.types.some((t) => G.__isType(b.itype, t)) && !def.excluded?.some((t) => G.__isType(b.itype, t))
+      && (!kind || kindOf(b) === kind)
       && Math.max(...(stats.bases[b.name]?.sockets ?? [0])) >= def.runes.length);
     const rank = (b) => [stats.bases[b.name]?.level ?? b.level ?? 0, stats.bases[b.name]?.defense?.[1] ?? 0];
     ok.sort((a, b) => { const [la, da] = rank(a), [lb, db] = rank(b); return lb - la || db - da; });
@@ -542,11 +548,19 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
       for (const d of G.__sets) out.push({ rarity: "set", name: d.name, base: d.base, type: bases.get(d.base)?.type, lvl: d.lvl, set: d.set });
       // 網頁版「網站提供遊戲資料」模式的物品資料沒有符文之語，遊戲本身在這個模式也做不出來
       const rwOk = !!stats.runewords && !!stats.runes;
+      // 符文之語的收藏單位是「名稱＋底材類型」：遊戲對每個類型各收一次（G.__runewordKinds 與遊戲的 r(name) 相同）
       for (const d of G.__runewords) {
-        const b = rwOk ? runewordBase(d) : null;
-        out.push({ rarity: "runeword", name: d.name, base: b?.name ?? d.types?.[0], type: b?.type ?? "weapon", lvl: d.lvl, ...(!rwOk && { unavailable: true }) });
+        if (!rwOk) { out.push({ rarity: "runeword", name: d.name, base: d.types?.[0], type: "weapon", lvl: d.lvl, unavailable: true }); continue; }
+        for (const kind of G.__runewordKinds(d.name)) {
+          const b = runewordBase(d, kind);
+          if (b) out.push({ rarity: "runeword", name: d.name, base: b.name, type: b.type, lvl: d.lvl, kind });
+        }
       }
       return out;
+    },
+    // 底材名稱 → 底材類型（收藏頁用來判斷已收藏的符文之語屬於哪一類）
+    kindMap() {
+      return Object.fromEntries(G.__bases.map((b) => [b.name, kindOf(b)]));
     },
     // list: [{ rarity, name, base? }]
     // 產生後再用遊戲讀檔時的整理函式檢查一次，遊戲會丟掉的就不交出去
@@ -726,6 +740,8 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
       if (!G.__itemFault) return null;
       return items.map((it) => { try { return G.__itemFault(JSON.parse(JSON.stringify(it))); } catch (e) { return { why: String(e.message ?? e) }; } });
     },
+    // 遊戲讀檔時的整理結果（與遊戲 sanitize 相同）；失敗回傳 null
+    sanitizeItem(it) { if (!G.__sanitize) return null; try { const c = JSON.parse(JSON.stringify(it)); return G.__sanitize(c) ? c : null; } catch (e) { return null; } },
     saveFaults(save) { if (!G.__saveFaults) return null; try { return G.__saveFaults(save, 50); } catch (e) { return [String(e.message ?? e)]; } },
   };
 }

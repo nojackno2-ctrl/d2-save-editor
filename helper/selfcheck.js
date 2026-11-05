@@ -2,7 +2,7 @@
 // 有問題只輸出（進度條下方列表、主控台、window.__d2editSelfCheck），不阻擋遊玩、不拋錯。
 // 每筆問題 { level: "error" | "warn" | "info", area, msg }：
 //   error＝某項功能一定壞；warn＝可能失效；info＝提示（例如遊戲還在選角畫面，尚無法檢查掛接）。
-const TESTED_GAME_BUILD = "20261105.1"; // 每次確認新版遊戲相容後更新此值（verify 腳本會自動改）
+const TESTED_GAME_BUILD = "20261105.3"; // 每次確認新版遊戲相容後更新此值（verify 腳本會自動改）
 
 // 輔助器依賴的遊戲物件成員（來自 helper/autobot.js 的用法）；缺少代表遊戲改版後輔助器對應功能可能失效。
 const GAME_FUNCS = ["leaveRun", "continueRun", "startRun", "toMenu", "gainXp", "startTerror", "spendStatPoints", "inventoryOf", "equippedOf", "useQuest", "heroNumbers"];

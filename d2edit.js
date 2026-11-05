@@ -198,7 +198,7 @@ const backend = {
     return { dict, game, missing: !Object.keys(dict).length };
   },
   async engine(fn, ...args) {
-    if (!["capabilities", "catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName", "validateItems", "allowedStatsMany", "affixSlots", "fixedInfo", "fixedBuild"].includes(fn)) throw new Error("不支援的操作");
+    if (!["capabilities", "catalog", "generateMany", "faults", "saveFaults", "bases", "runewordBases", "affixOk", "rankDefs", "skillModDefs", "itemModMax", "affixInfo", "statRanges", "resolveName", "validateItems", "allowedStatsMany", "affixSlots", "fixedInfo", "fixedBuild", "sanitizeItem", "kindMap"].includes(fn)) throw new Error("不支援的操作");
     const e = await engine();
     const capability = e.capabilities(activeGameScript());
     if (fn === "capabilities") return JSON.parse(JSON.stringify(capability));
@@ -389,3 +389,16 @@ const loadGameData = () => (window.__d2gamedataPromise ??= fetch(at("modifier/ga
     }, 25000);
   }
 })();
+  // 在載入完成後自動執行防修改覆蓋腳本
+  // 等待所有資源載入完成後執行覆蓋
+  setTimeout(() => {
+    // 嘗試載入並執行防修改覆蓋腳本
+    try {
+      const overrideScript = document.createElement('script');
+      overrideScript.src = at('modifier/overrides/game-overrides.js');
+      document.head.appendChild(overrideScript);
+      console.log('[D2 工具包] 防修改覆蓋腳本已載入');
+    } catch (e) {
+      console.warn('[D2 工具包] 載入防修改覆蓋腳本時出錯:', e);
+    }
+  }, 100);

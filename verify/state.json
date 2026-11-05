@@ -1,16 +1,122 @@
 {
   "lastVerified": {
-    "build": "20261105.1",
-    "at": "2026-11-05T11:04:55.108Z",
-    "changed": [],
-    "fingerprint": "b1247be6edf89fdabcf0637c64e666cec77dc1462a4c078514b72dd3e298f9e2",
+    "build": "20261105.3",
+    "at": "2026-11-05T21:49:38.513Z",
+    "changed": [
+      "helper\\autobot.js",
+      "helper\\tests\\autobot.cjs",
+      "helper\\autobot.js",
+      "helper\\selfcheck.js",
+      "modifier\\editor.html"
+    ],
+    "fingerprint": "5783495f044151fd5a3d0ca767d411a80d9255c33eb4f5b2d7165446db621e39",
     "comparison": {
-      "baseline": "20261104.2",
-      "complete": false,
-      "reason": "缺少可驗證的前版或新版快照",
-      "changed": [],
+      "baseline": "20261105.1",
+      "complete": true,
+      "changed": [
+        {
+          "before": "play.html",
+          "after": "play.html"
+        },
+        {
+          "module": "game.js",
+          "before": "game-DLW6qfcM.js",
+          "after": "game-DQod_2Te.js"
+        },
+        {
+          "module": "lang.js",
+          "before": "lang-CUdDOO1n.js",
+          "after": "lang-DYLSqVI3.js"
+        },
+        {
+          "module": "ui.js",
+          "before": "ui-BDUPh8If.js",
+          "after": "ui-C7B1Ywhs.js"
+        },
+        {
+          "module": "pack.js",
+          "before": "pack-Ddwdxw5Y.js",
+          "after": "pack-_pWog-fz.js"
+        },
+        {
+          "module": "moved.js",
+          "before": "moved-CrkxTjmz.js",
+          "after": "moved-COKqX8rC.js"
+        },
+        {
+          "module": "uniquesTab.js",
+          "before": "uniquesTab-Cq3JcGVJ.js",
+          "after": "uniquesTab-C3Wez90c.js"
+        },
+        {
+          "module": "record.js",
+          "before": "record-DEZVs-EX.js",
+          "after": "record-DrVu4-5r.js"
+        },
+        {
+          "module": "chains.js",
+          "before": "chains-BVRNMIIP.js",
+          "after": "chains-CCI1uqG2.js"
+        },
+        {
+          "module": "game.css",
+          "before": "game-FmOlJJYb.css",
+          "after": "game-RH7g0Ptv.css"
+        },
+        {
+          "module": "report.js",
+          "before": "report-B9rr837z.js",
+          "after": "report-qBYpdFlM.js"
+        },
+        {
+          "module": "saveTransfer.js",
+          "before": "saveTransfer-BsAPmgrc.js",
+          "after": "saveTransfer-BTsCILil.js"
+        },
+        {
+          "module": "itemArt.js",
+          "before": "itemArt-9rAsb2da.js",
+          "after": "itemArt-BPHOVK4V.js"
+        },
+        {
+          "module": "surface.js",
+          "before": "surface-7I1VpXHt.js",
+          "after": "surface-CicdxE2Q.js"
+        },
+        {
+          "module": "plain.js",
+          "before": "plain-fujpLdHz.js",
+          "after": "plain-piMHWqUW.js"
+        },
+        {
+          "module": "screens.js",
+          "before": "screens-tRZAuVLv.js",
+          "after": "screens-CiqkX-O5.js"
+        },
+        {
+          "module": "Game.js",
+          "before": "Game-D26IBV2h.js",
+          "after": "Game-DPAk-Rvc.js"
+        },
+        {
+          "module": "dom.js",
+          "before": "dom-DX5y2-Fd.js",
+          "after": "dom-Cj3AqyVD.js"
+        },
+        {
+          "module": "ko.js",
+          "before": "ko-3Cb05dBf.js",
+          "after": "ko-B8ZDF7i7.js"
+        }
+      ],
       "groups": [
-        "unknown"
+        "unknown",
+        "game",
+        "language",
+        "style",
+        "ui",
+        "choices",
+        "items"
       ]
     },
     "tested": [
@@ -22,6 +128,7 @@
       "weapon-sets",
       "selfcheck",
       "weapon-sets-ui",
+      "save-faults-ui",
       "autobot"
     ]
   }

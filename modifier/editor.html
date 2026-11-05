@@ -442,7 +442,7 @@
     <div class="grid">
       <label><span>金幣</span><input type="number" data-path="gold" min="0" data-max="10000000000"></label>
       <label><span>光之碎片</span><input type="number" data-path="light.shards" min="0"></label>
-      <label><span>可聘傭兵欄</span><input type="number" data-path="hireOpen" min="0"></label>
+      <label><span>可聘傭兵欄</span><select data-path="hireOpen" data-num><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select><span class="dim">（遊戲只接受 1、2、3、5）</span></label>
     </div>
     <p id="goldWarn" class="bad" hidden>金幣原版上限為 10,000,000,000；超過時遊戲會把存檔標記為「被外部修改」（排行榜不計分），未解除限制時無法超過。</p>
   </section>
@@ -482,7 +482,7 @@
 
 <script>
 const LOCALE = window.LANG === "en" ? "en-US" : "zh-TW";
-const TESTED_GAME_BUILD = "20261105.1"; // 每次確認新版遊戲相容後更新此值
+const TESTED_GAME_BUILD = "20261105.3"; // 每次確認新版遊戲相容後更新此值
 const BUILD_KEY = "d2edit:gameBuild";
 const TOOLKIT_VERSION = "1.0.12"; // 與 package.json 的 version 一致；發布前由 build-web.js 檢查
 const TOOLKIT_SITE = "https://nojackno2-ctrl.github.io/d2-survivors-toolkit/";
@@ -743,13 +743,16 @@ function renderKeys(v) {
 /* ---------- 暗金收藏（分類、一鍵解鎖、一鍵數值最高） ---------- */
 const TYPE_ZH = { weapon: "武器", head: "頭盔", body: "盔甲", shield: "盾牌／副手", gloves: "手套", belt: "腰帶", boots: "鞋子", ring: "戒指", amulet: "項鍊", charm: "護身符", other: "其他" };
 let CATALOG = null, colF = { rarity: "all", type: "all", owned: "all", q: "" };
+let KIND = {};  // 底材名稱 → 底材類型（符文之語依類型各收一次）
 async function catalog() {
   if (CATALOG) return CATALOG;
   const r = await window.api.engine("catalog");
   if (r?.error) throw new Error("物品引擎無法啟動：" + r.error);
+  KIND = (await window.api.engine("kindMap")) ?? {};
   return CATALOG = r;
 }
-const ckey = (x) => x.rarity + "|" + x.name;
+// 收藏鍵：暗金／套裝「品質＋名稱」；符文之語「名稱＋底材類型」（同一符文之語在不同類型的底材上各可收藏一次）
+const ckey = (x) => x.rarity === "runeword" ? `runeword|${x.name}|${x.kind ?? KIND[x.base] ?? x.base}` : x.rarity + "|" + x.name;
 async function renderCollection(c, v) {
   v.innerHTML = '<h2>暗金收藏</h2><p class="dim">載入物品資料中…</p>';
   let cat;
