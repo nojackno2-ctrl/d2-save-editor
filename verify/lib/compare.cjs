@@ -57,8 +57,9 @@ function compare(previous, current) {
 function select(comparison, tests, forceAll) {
   if (forceAll || !comparison.complete || comparison.groups.includes("unknown")) return tests;
   const groups = new Set(comparison.groups);
-  if (!["game", "items", "choices"].some((g) => groups.has(g))) return [];
-  const ids = new Set(["autobot"]);
+  const always = tests.filter((test) => test.always);
+  if (!["game", "items", "choices"].some((g) => groups.has(g))) return always;
+  const ids = new Set(["autobot", ...always.map((test) => test.id)]);
   if (groups.has("game") || groups.has("items")) for (const id of ["runeword-class-base", "skill-mods", "weapon-sets", "weapon-sets-ui"]) ids.add(id);
   return tests.filter((test) => ids.has(test.id));
 }

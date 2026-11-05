@@ -125,7 +125,7 @@ const engine = () => (enginePromise ??= (engineStartedAt = performance.now(), st
 /* ---------- 診斷 ---------- */
 // 上次寫入的紀錄存在遊戲頁面的 sessionStorage（同一個分頁重新載入後還在），用來比對遊戲有沒有採用
 const LAST_WRITE = "d2edit:lastWrite";
-let written = false;
+let written = false, lastText = null, keepHooked = false;
 function summarize(text) {
   try {
     const s = JSON.parse(text);
@@ -155,6 +155,17 @@ const backend = {
     const text = await sealText(save);
     localStorage.setItem(mode(m).key, text);
     written = true;
+    // 遊戲在關卡中會於 pagehide／切到背景時用記憶體裡的舊存檔覆寫（有多個監聽，順序不定）。
+    // 寫入後到頁面重新載入前，擋掉遊戲對同一存檔鍵的其他寫入；修改器開著時遊戲無法操作，關閉即重新載入，不會吃掉遊戲進度。
+    lastText = { key: mode(m).key, text };
+    if (!keepHooked) {
+      keepHooked = true;
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) {
+        if (this === localStorage && lastText && k === lastText.key && v !== lastText.text) return;
+        return setItem.call(this, k, v);
+      };
+    }
     const readback = localStorage.getItem(mode(m).key) === text;
     try { sessionStorage.setItem(LAST_WRITE, JSON.stringify({ time: new Date().toISOString(), key: mode(m).key, bytes: text.length, readback, summary: summarize(text) })); } catch {}
     if (!readback) throw new Error("寫入後讀回的內容不一致，存檔可能沒有寫進去。");
@@ -221,6 +232,8 @@ const backend = {
       modeKey: localStorage.getItem("d2-survivors/mode/v1"), zh: window.D2I18N ? window.D2I18N.language : "未載入",
       engine: { ...engineInfo, found: engineInfo.found ? Object.keys(engineInfo.found).join(",") : undefined },
       storageKeys: keys, savesNow: now, lastWrite: last, writtenThisSession: written,
+      // 遊戲記住的目前職業（選角畫面）：一鍵解鎖地獄火炬時依此給對應職業技能
+      classPick: { softcore: localStorage.getItem("d2-survivors/class/v1"), hardcore: localStorage.getItem("d2-survivors/hc/class/v1") },
     };
   },
 };
