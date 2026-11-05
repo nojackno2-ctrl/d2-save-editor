@@ -44,6 +44,8 @@
   - 坑四：物品規則的「底材」不能以 of／the 開頭；萬用樣板（`* of *`）會照英文順序翻，含 of 的整串要先套物品規則。
   - 驗收：用截圖或使用者回報中的實際英文原字串（兩種串法都要），在官方 /play 頁面內呼叫 `__d2lang.translate` 逐一比對；只跑字典模擬或 `test_lang` 不算通過。
 
+- **遊戲更新全自動化**（使用者要求，2026-11-05）：官方幾乎每天更新，以「快速相容」為主、完全自動；新內容由使用者決定是否加入。做法：**不建立排程**（使用者要求）；使用者說「遊戲更新了」即授權，AI 執行 `node verify/auto.cjs`：偵測新版→`verify.cjs --update`→`verify/live-smoke.cjs`（官方網址實機煙霧測試，自動寫 `live.json`）→`publish.cjs --confirm --auto --no-desktop`。失敗即停不發布並通知；啟動時工作目錄有未提交修改也不發布。結果看 `verify/reports/auto-log.md`，新內容看 `verify/reports/new-content.md`。此授權僅涵蓋「相容發布」；加入新功能仍需使用者指示。
+
 ## 資料夾結構（2026-11-04 起）
 - 根目錄只放共用檔：`d2edit.js`（書籤入口，網址不可變）、`index.html`（轉址到 `site/install.html`）、`version.json`、README、LICENSE、`wrangler.jsonc`、本檔。
 - `helper/`＝輔助器；`lang/`＝語言（字典 `lang/zh-TW.json`、`lang/locales/`）；`modifier/`＝存檔修改器；`site/`＝網站（公告站＋安裝頁）；`editor/`＝桌面版來源與 `build-web.js`（把平放來源輸出成上述網頁版資料夾）；`tests/live-harness/`、`verify/`、`docs/`、`game-bundles/<版本>/` 為跨模組。
