@@ -26,6 +26,12 @@ description: 使用者說「遊戲更新了」「官方更新」「驗收新版�
 - 有受影響的就實際修改（網頁版與 `editor/` 桌面副本都要評估同步），並補有意義的測試；不需修改的，記錄具體判斷依據。
 - 在 `impact.json` 的 `items` 逐項填入 `status: "已完成"` 與具體 `evidence`；做不到的保持待分析，不得虛構佐證。
 
+## 3.5 裝備資料庫完整檢查（每次更新必做，不得略過）
+- `verify` 會自動跑 `item-db`（`editor/tests/item-db.cjs`，登記為 `always`，不受快照比對篩選影響）；也可單獨執行 `node editor/tests/item-db.cjs`（`D2_BUILD` 指定快照）。
+- 它用新快照程式碼＋官方 `itemstats.json`（**必須帶 `/play/` 頁 `d2-files` 的 `?h=` 雜湊**，否則會拿到 CDN 舊檔，2026-11-05 曾因此缺地獄火炬屬性）啟動修改器引擎，逐件產生全部暗金／套裝／符文之語，檢查：特徵碼全找到、目錄數量等於遊戲資料、物品資料涵蓋每件、產出品質與名稱正確（2026-11-05 曾因 `makeSet` 特徵碼抓到暗金包裝函式，127 件套裝被做成暗金）、遊戲讀檔不丟棄、遊戲 `itemFault` 判定合法；並以魔法／稀有品質試做每種部位（製作裝備）。
+- 輸出會列出與前一版快照的物品增減；有新增裝備時，另外確認是否有職業相關屬性（例：地獄火炬「+3 職業技能」依目前角色給，見 `fitTorch`）。
+- 失敗時先修特徵碼或引擎，不得改測試放行。
+
 ## 4. 沒有變動的部分：腳本快速回歸
 - 受影響項目修好後，重新執行 `node verify/verify.cjs --update`（可加 `--force`），跑 `verify/suite.cjs` 登記的測試（`lang`、`weapon-sets`、`weapon-sets-ui`、`autobot` 等）作為回歸；其他旗標：`--dry` 不改來源、`--workers N`、`--full` 實機長流程（使用者明說才加）。
 - 測試失敗先查根因，不得為了通過而改驗證腳本或略過失敗。
@@ -58,3 +64,10 @@ description: 使用者說「遊戲更新了」「官方更新」「驗收新版�
   5. 讀結果：`H_OUT/log.txt`（載入失敗、console 錯誤）與 `status.json`（`diag.gameBuild`、`diag.connected`、`hookNote`、`tested`）。`tested` 與新版不同時代表網頁版 `TESTED_GAME_BUILD` 尚未更新。
 - **Codex 分派**：用 `delegate_parallel`、`sandbox: read-only`、`fallback_agent: none`，每組 8–11 項；要求每項給 NEW 檔名:行號與片段。回來後**抽樣用 grep 複核**，尤其是「是」與「已完成」的結論。
 - **版本常數**：實機通過後才把網頁版 `TESTED_GAME_BUILD` 改為新版（`helper/autobot.js`、`modifier/editor.html`）；`editor/` 副本由 `verify` 自動改，但仍要實機確認。
+
+## 兩階段流程（2026-11-04 使用者指定）
+
+- **階段 A：先讓工具包上線**（本次必做）：①官方更新中影響工具包的修正（存檔、首領、選關）②翻譯：新字串全部補上，`language.json` 的遊戲與新聞未翻譯項歸零 ③原有功能回歸：`verify --update --force` 全部套件、`helper/tests/autobot.cjs`、實機用使用者存檔載入（輔助器掛接、修改器可開、存檔可讀寫）④全部通過後發布。
+- **階段 B：遊戲新增內容**（另案）：新 uber、新地點、新機制等，只做分析與記錄，不阻擋階段 A 的發布。
+- **發布授權**：使用者在指令中明說「通過即發布」時，階段 A 完成後直接執行 `publish.cjs --confirm`；否則仍停在第 6 步等「確認發布」。
+- **選關安全**：自動推層一律避開 `uber`、`finale` 選項（會消耗鑰匙與器官）。

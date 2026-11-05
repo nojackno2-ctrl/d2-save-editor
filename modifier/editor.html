@@ -162,6 +162,23 @@
   <section>
     <h2>更新日誌</h2>
     <p class="dim">介紹網頁：<a href="https://d2-survivors-toolkit.nojackno2.workers.dev/#changelog" target="_blank" rel="noopener" style="color:var(--gold)">d2-survivors-toolkit.nojackno2.workers.dev</a></p>
+    <h3>2026-11-05 修改器修正</h3>
+    <ul>
+      <li>暗金收藏「一鍵解鎖」：修正套裝物品被做成暗金的問題（造成收藏數量對不上、已收藏的套裝顯示未收藏）。</li>
+      <li>新增「清除錯誤項目」按鈕：移除先前被做成暗金的套裝與重複收藏，再按一鍵解鎖即可補回正確的。</li>
+      <li>地獄火炬的「+3 職業技能」依遊戲目前角色給予，收藏頁可改選職業。</li>
+      <li>單顆「解鎖」失敗會顯示原因，成功後清單立即更新。</li>
+      <li>修正在關卡中寫入存檔後，關閉修改器重新載入時被遊戲舊存檔蓋掉的問題。</li>
+      <li>存檔檢查不再以額外規則拒絕寫入，以遊戲本身的檢查為準。</li>
+      <li>繁體中文：戰鬥中的中文字改為粗體並加深色描邊，在技能特效上也看得清楚。</li>
+      <li>輔助器：遊戲修改總開關與兩個輔助總開關一樣，重新整理後預設關閉。</li>
+    </ul>
+    <h3>2026-11-05 相容遊戲 20261104.2</h3>
+    <ul>
+      <li>相容新版遊戲：修正硬核存檔副本判定；超級首領戰鬥層數上限為 100。</li>
+      <li>輔助器自動推層會避開需要消耗鑰匙與器官的最終戰選項（Uber Tristram）。</li>
+      <li>繁體中文補上新版兩句遊戲與公告字串的譯文。</li>
+    </ul>
     <h3>2026-11-04 相容遊戲 20261104.1</h3>
     <ul>
       <li>相容新版遊戲：倉庫改為 10×12（與官方新版一致）。</li>
@@ -649,6 +666,7 @@ async function renderCollection(c, v) {
   v.innerHTML = '<h2>暗金收藏</h2><p class="dim">載入物品資料中…</p>';
   let cat;
   try { cat = await catalog(); } catch (e) { v.innerHTML = `<h2>暗金收藏</h2><p class="bad">${esc(e.message)}</p>`; return; }
+  await detectTorchClass();
   const arr = c.arr(), owned = new Map(arr.map((it, i) => [ckey(it), i]));
   const rows = cat.map(x => ({ ...x, idx: owned.get(ckey(x)) }));
   for (const [k, i] of owned) if (!cat.some(x => ckey(x) === k)) rows.push({ ...arr[i], type: arr[i].type, idx: i });
@@ -661,8 +679,9 @@ async function renderCollection(c, v) {
   const opt = (id, cur, list) => `<select id="${id}">${list.map(([k, l]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   v.innerHTML = `<h2>暗金收藏　<span class="dim">已收藏 ${have} / ${rows.length}</span></h2>
     <div class="bar" style="margin-top:0">
-      <button class="primary" id="unlockAll">一鍵解鎖＋全部最高</button><span class="dim">補齊收藏，並把收藏、角色身上、傭兵身上、倉庫、背包、護身符欄的暗金／套裝／符文之語全部調成最高</span>
+      <button class="primary" id="unlockAll">一鍵解鎖＋全部最高</button><button id="cleanBad">清除錯誤項目</button><span class="dim">補齊收藏，並把收藏、角色身上、傭兵身上、倉庫、背包、護身符欄的暗金／套裝／符文之語全部調成最高</span>
     </div>
+    <div class="bar"><span>地獄火炬技能職業</span><select id="torchCls">${CLASS_ORDER.map(k => `<option value="${k}" ${k === torchCls ? "selected" : ""}>${ZH_CLASS[k]}</option>`).join("")}</select><span class="dim">預設為遊戲目前選的角色；變更時存檔裡已有的地獄火炬一起改</span></div>
     <div class="bar">
       ${opt("fRar", colF.rarity, [["all", "全部品質"], ["unique", "暗金"], ["set", "套裝"], ["runeword", "符文之語"]])}
       ${opt("fType", colF.type, [["all", "全部部位"], ...Object.entries(TYPE_ZH)])}
@@ -679,10 +698,36 @@ async function renderCollection(c, v) {
     </div>`;
   const refilter = () => { colF = { rarity: $("#fRar").value, type: $("#fType").value, owned: $("#fOwn").value, q: $("#fQ").value }; renderCollection(c, v).then(() => { const q = $("#fQ"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }); };
   for (const id of ["#fRar", "#fType", "#fOwn"]) $(id).onchange = refilter;
+  $("#torchCls").onchange = (e) => {
+    torchCls = e.target.value;
+    const list = ownedGear(save).filter(it => it.name === TORCH);
+    list.forEach(fitTorch);
+    refresh();
+    status(`地獄火炬改為${ZH_CLASS[torchCls]}技能（${list.length} 件）；記得按「寫入存檔」`, "ok");
+  };
   $("#fQ").oninput = refilter;
   // 這個模式做不出來的（網頁版的符文之語）不補，已有的也保持原樣
+  // 舊版修改器把套裝做成暗金（同名但品質錯）或重複收藏：移除後再一鍵解鎖即可補回正確的
+  $("#cleanBad").onclick = () => {
+    const known = new Set(cat.map(ckey)), names = new Set(cat.map(x => x.name)), seen = new Set();
+    const keep = arr.filter(it => { const k = ckey(it); if (seen.has(k)) return false; seen.add(k); return known.has(k) || !names.has(it.name); });
+    const n = arr.length - keep.length;
+    if (!n) { status("沒有錯誤項目", "ok"); return; }
+    if (!confirm(`將移除 ${n} 件品質錯誤或重複的收藏項目，之後可按「一鍵解鎖」補回正確的。繼續？`)) return;
+    arr.splice(0, arr.length, ...keep); sel = null; refresh();
+    status(`已移除 ${n} 件錯誤項目；可再按「一鍵解鎖」補齊，記得按「寫入存檔」`, "ok");
+  };
   $("#unlockAll").onclick = () => unlockAndMax(rows.filter(r => r.idx === undefined && !r.unavailable), new Set(cat.filter(x => !x.unavailable).map(ckey)));
-  for (const b of v.querySelectorAll("[data-unlock]")) b.onclick = (e) => { e.stopPropagation(); unlock(rows.filter(r => ckey(r) === b.dataset.unlock)); };
+  // 單顆解鎖：失敗要跳提示；成功後重繪，清單才會看到已收藏
+  for (const b of v.querySelectorAll("[data-unlock]")) b.onclick = async (e) => {
+    e.stopPropagation();
+    try {
+      const r = await unlock(rows.filter(x => ckey(x) === b.dataset.unlock));
+      if (!r.n) { status("沒有產生任何物品，這件目前遊戲版本做不出來" + r.msg, "bad"); return; }
+      refresh();
+      status(`已解鎖 ${r.n} 件${r.msg}；記得按「寫入存檔」`, "ok");
+    } catch (err) { fail(err); }
+  };
   for (const el of v.querySelectorAll("[data-k]")) el.onclick = () => { sel = Number(el.dataset.k); renderView(); renderEditor(); };
 }
 // 用遊戲自己的產生器做出最高數值的物品
@@ -696,7 +741,22 @@ async function generate(list, label = "產生物品") {
     if (!Array.isArray(r)) throw new Error(r?.error ?? "物品引擎沒有回應");
     out.push(...r);
   }
+  for (const x of out) if (x?.item) fitTorch(x.item);
   return out;
+}
+// 地獄火炬的「+3 職業技能」：遊戲產生器固定給同一職業，改成「火炬職業」選單的職業（預設為遊戲目前選的角色）
+const TORCH = "Hellfire Torch";
+let torchCls = null;
+async function detectTorchClass() {
+  if (torchCls) return torchCls;
+  try { const d = await window.api.diag(); const c = d?.classPick?.[$("#mode").value === "hardcore" ? "hardcore" : "softcore"]; if (CLASS_ORDER.includes(c)) torchCls = c; } catch {}
+  return torchCls ??= "sorceress";
+}
+function fitTorch(it) {
+  if (it.rarity !== "unique" || it.name !== TORCH || !torchCls) return;
+  const idx = CLASS_ORDER.indexOf(torchCls);
+  for (const s of it.stats ?? []) if (s.stat === "item_addclassskills") s.param = idx;
+  for (const m of it.mods ?? []) if (/^classskills\d$/.test(m.stat)) m.stat = "classskills" + idx;
 }
 // 錯誤要讓人看得到：狀態列之外再跳出提示
 function fail(e) {
@@ -1492,13 +1552,8 @@ async function invalidItems(items) {
   if (!Array.isArray(r)) throw new Error("無法檢查物品屬性：" + (r?.error ?? "物品引擎沒有回應") + "。如需強制修改，請到「設定」開啟解除修改限制。");
   return items.map((item, i) => ({ item, problems: r[i] ?? [] })).filter(x => x.problems.length);
 }
-async function assertLegal(items) {
-  if (unlocked()) return;
-  const bad = await invalidItems(items);
-  if (!bad.length) return;
-  const lines = bad.slice(0, 5).map(x => `「${(x.item.name && nameZh(x.item)) || baseZh(x.item)}」：${x.problems.slice(0, 4).map(problemText).join("；")}`);
-  throw new Error(`不符合原版屬性規則，已拒絕：${lines.join("　")}${bad.length > 5 ? `　…等 ${bad.length} 件` : ""}（如需強制修改，請到「設定」開啟解除修改限制，後果自負）`);
-}
+// 已移除存檔的原版規則檢查（依使用者要求）：寫入與製作不再因此被拒絕；遊戲本身的檢查（faults）仍保留
+async function assertLegal() { return; }
 // 從遊戲讀取時的原始物品：沒改過的遊戲物品不擋，其他（修改、匯入、原始資料）寫入前都要檢查
 let BASELINE = new Set();
 const itemKey = (it) => { const { id, at, ...rest } = it; return JSON.stringify(rest); };
@@ -1721,10 +1776,6 @@ function detect() {
     note: faultyItems ? "遊戲檢查" : "近似檢查",
     fix: async () => { if (regen.length) await maxItems(regen); for (const it of other) { it.rarity = "unique"; delete it.stats; delete it.roll; } }, fixText: "重新產生為合法物品" }
     : { ok: true, text: "物品合法性檢查通過", note: faultyItems ? "遊戲檢查" : "近似檢查" });
-  // 以遊戲自己的資料與檢查為準：額外的詞綴規則（itemstats 推算）只作參考，不當成「會被偵測」
-  if (!ruleBad) out.push({ unknown: true, text: "額外的詞綴規則檢查無法使用" });
-  else out.push(ruleBad.length ? { ok: true, advisory: true, text: `${ruleBad.length} 件物品未通過額外的詞綴規則檢查（以遊戲為準，${faultyItems ? "遊戲檢查接受" : "遊戲檢查不可用，無法確認"}）：${ruleBad.slice(0, 5).map(x => nameZh(x.item)).join("、")}${ruleBad.length > 5 ? "…" : ""}`, note: "僅供參考" }
-    : { ok: true, text: "所有物品通過額外的詞綴規則檢查" });
   const badLv = [];
   for (const [c, h] of Object.entries(s.heroes ?? {})) for (const k of ["kept", "run"]) { const lv = h?.[k]?.build?.level; if (lv !== undefined && !(Number.isInteger(lv) && lv >= 1 && lv <= 99)) badLv.push([c, k]); }
   out.push(badLv.length ? { ok: false, text: `角色等級超出 1–99：${badLv.map(([c]) => CLASS_ZH[c]).join("、")}`, fix: () => { for (const [c, k] of badLv) s.heroes[c][k].build.level = 99; }, fixText: "設為 99" }
@@ -1747,7 +1798,7 @@ async function renderGuard() {
   const items = allItems(save), f = await window.api.engine("faults", items);
   // 賭博商店清單是遊戲自己以普通品質底材展示（含戒指、護身符），買下時才決定品質，不算玩家物品
   const gamble = new Set(Object.values(save.gambleByClass ?? {}).flatMap(v => v ?? []));
-  try { ruleBad = await invalidItems(items.filter(it => !gamble.has(it))); } catch { ruleBad = null; }
+  ruleBad = null; // 已移除原版規則檢查（依使用者要求），不再計算額外的詞綴規則提示
   faultyItems = Array.isArray(f) ? items.filter((_, i) => f[i]) : null;
   const t = await window.api.traces($("#mode").value, false);
   traceKeys = Array.isArray(t) ? t : [];

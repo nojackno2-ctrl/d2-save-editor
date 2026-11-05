@@ -3,13 +3,14 @@
   const CLS = window.__H_CLASS, SPEED = window.__H_SPEED || 1;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const hosted = [...document.querySelectorAll("button")].find((b) => /hosted/i.test(b.textContent));
+  // 注意：setup 頁的 hosted 按鈕會先載入遊戲資產；它也會在未選職業時呼叫遊戲 startRun，產生 reading 'id'（堆疊已確認，為 harness 路徑特有、非玩家路徑）。
   if (hosted) { hosted.click(); return "hosted"; }
   if (!window.__d2autobot) {
     const st = JSON.parse(localStorage.getItem("d2autobot:settings") || "{}");
     localStorage.setItem("d2autobot:settings", JSON.stringify({ ...st, version: 4, enabled: true, progressEnabled: true, cheat: { ...(st.cheat || {}), enabled: true, invincible: true, maxCrit: true, oneHitKill: true, maxSkills: true, maxMonsterDensity: true, monsterDensity10x: true, allElites: true, infiniteRerolls: true, maxDropRate: true, maxGoldRate: true }, quest: { ...(st.quest || {}), autoProgress: true, autoStart: true, prioritizeBoss: true, farmDifficulty: "off" }, terror: { ...(st.terror || {}), mode: "off" } }));
     // 依使用者要求：用 GitHub 連結實測，像玩家點書籤一樣載入 GitHub Pages 上的 d2edit.js（再載入輔助器）。
     // 新版輔助器重新整理後總開關預設關閉；模擬「玩家打開開關」，先寫入頁面記憶體。
-    window.__d2autobotSwitches = { enabled: true, progressEnabled: true };
+    window.__d2autobotSwitches = { enabled: true, progressEnabled: true, cheat: true };
     // H_BASE 可指定本機伺服器（例如 http://localhost:8766/）測試未發布的本機修改；未指定則用 GitHub Pages。
     await import((window.__H_BASE || "https://nojackno2-ctrl.github.io/d2-survivors-toolkit/") + "d2edit.js?v=" + Date.now());
   }
