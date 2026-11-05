@@ -443,6 +443,34 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
         return orig.apply(this, a);
       });
     }
+    // 中文等外文字：原版只在點陣字型本身有描邊時才加外框，戰鬥中的世界文字（區域名、地上物品、拾取金幣）
+    // 因此是無框細字，壓在亮的技能特效上看不清。非英文時改用粗體，並先畫一圈深色描邊。
+    if (typeof P.foreignFont === "function" && typeof P.drawForeign === "function") {
+      const origFont = P.foreignFont, origDraw = P.drawForeign;
+      P.foreignFont = keepFunctionName(origFont, function (...a) {
+        const f = origFont.apply(this, a);
+        if (currentLang === "en" || /^bold /.test(f)) return f;
+        // 寬度快取是用原本字重量的，第一次換粗體時清掉重量
+        if (!this.__d2langBold) { this.__d2langBold = true; try { this.foreignWidths?.clear?.(); } catch {} }
+        return "bold " + f;
+      });
+      const RING = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+      P.drawForeign = keepFunctionName(origDraw, function (ctx, text, x, y, ...rest) {
+        if (currentLang !== "en" && ctx && typeof text === "string") try {
+          const foreign = window.__d2langForeign;
+          if ([...text].some(foreign)) {
+            ctx.font = this.foreignFont(); ctx.textBaseline = "alphabetic";
+            const s = this.foreignSize >= 28 ? 2 : 1;
+            ctx.fillStyle = "rgba(0,0,0,0.9)";
+            for (const [dx, dy] of RING) {
+              let cx = x;
+              for (const ch of text) { if (foreign(ch)) ctx.fillText(ch, cx + dx * s, y + this.baseline + dy * s); cx += this.advanceOf(ch); }
+            }
+          }
+        } catch {}
+        return origDraw.call(this, ctx, text, x, y, ...rest);
+      });
+    }
     // 有些文字在書籤載入前就已取得英文並快取（例如 D2 資料檔的「Level Up」），畫字的入口再翻一次
     for (const name of ["canvas", "width", "wrap", "balance"]) {
       const orig = P[name];
