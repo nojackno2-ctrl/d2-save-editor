@@ -39,7 +39,7 @@ function analyze(build, snapshotRoot) {
 
 // 根目錄（玩家實際載入、唯一來源）與 editor/ 衍生副本都要改，否則下次同步會把改動蓋掉。
 const NAME_FILES = () => [path.join(P.editor, "autobot.js"), path.join(P.editor, "tests", "autobot.cjs"), path.join(P.root, "helper", "autobot.js"), path.join(P.root, "helper", "tests", "autobot.cjs")].filter((f) => fs.existsSync(f));
-const BUILD_FILES = () => [...["autobot.js", "index.html", "editor.html"].map((f) => path.join(P.editor, f)), path.join(P.root, "helper", "autobot.js"), path.join(P.root, "modifier", "editor.html")].filter((f) => fs.existsSync(f));
+const BUILD_FILES = () => [...["autobot.js", "index.html", "editor.html"].map((f) => path.join(P.editor, f)), path.join(P.root, "helper", "autobot.js"), path.join(P.root, "helper", "selfcheck.js"), path.join(P.editor, "selfcheck.js"), path.join(P.root, "modifier", "editor.html")].filter((f) => fs.existsSync(f));
 
 // 把檔案內寫死的 itemArt-／saveTransfer- 檔名換成新版；回傳實際改了哪些檔（先備份）。
 function applyNames(roles, backupDir) {
