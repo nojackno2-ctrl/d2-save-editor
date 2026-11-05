@@ -56,6 +56,7 @@
 - 2026-11-04｜Claude：**備份資料夾分類**。倉庫 `backups/`：`exe/`（舊執行檔）、`code/`（原 `verify/backups/` 與 `lastgood/`）、`saves/test-fixture`（原 `_backup_test/game-save`）、`archive/`；`verify/verify.cjs`、`repair.cjs`、`publish.cjs` 路徑已改。桌面版存檔備份（`editor/core.js`）改寫到執行檔旁 `backups/softcore|hardcore|snapshots/`，`listBackups`／`safeName` 支援一層子資料夾並仍可列出舊的平放檔案；以暫存目錄驗證寫入、列出、刪除與路徑穿越防護。未重新封裝桌面版，Electron 介面未實測。
 - 2026-11-04｜Claude：**專案資料夾解耦**（使用者 /goal）。結構見上方「資料夾結構」。改了 `d2edit.js`／`editor/d2edit.js` 載入路徑、`editor/build-web.js`（輸出新配置，不再複製 tests）、`verify/publish.cjs` 發布清單、字典稽核路徑、live-harness 路徑。**舊根目錄網址（如 `/autobot.js`）已不存在**，書籤入口網址不變。驗證：`node --check`、`test_lang`、`craft-limits`、`weapon-sets`、`editor/tests/build-web.cjs` 通過；Electron 測試與實機未跑，未推送。`verify/lib/repair.cjs` 的 EDITABLE 清單與 `editor/` 桌面副本（內容有漂移）未動。
 - 2026-11-04｜Claude：修正怪物名稱翻譯半中半英（如 Black Archer 顯示成「漆黑 · Archer」，278 個怪物名中 141 個受影響）。根因：`lang/lang.js` `translateString` 的逐字拆解先於 `monster:` 補查。改動：最前面先做 `translateAs("monster", 名稱)` 精確比對。副作用：與怪物同名的詞條（Horror 技能、Slayer 被動／稱號、Plague Bearer、Blood Wing）一律顯示怪物譯名，待以實機語境區分。驗證：`node lang/tests/test_lang.cjs` 通過；模擬 278 個怪物名，修正前 137 正確、141 錯誤。未實機驗證、未發布。
+- 2026-11-05｜Claude：怪物名稱與詞綴列的分隔符。`lang/lang.js`（來源 `editor/lang.js`）新增 `tidyMonsterText`，在 `translateString` 最後套用：純英文怪物名的中文間「 - 」移除（`石塊蛆蟲巫異`）；含詞綴關鍵字（Cursed、Extra Fast、Enchanted 等）的屬性列改為每項之間一個空格（`施加詛咒 靈氣強化 特別快速`）。驗證：獨立腳本 5 案例通過、`node lang/tests/test_lang.cjs` 通過。未實機驗證（遊戲內 " - " 來自原版翻譯器，需實機確認），未發布。
 
 ## 較早紀錄（已封存）
 - 2026-11-03～11-04 的各代理紀錄（專案最佳化、Cloudflare 自動部署、字典統一、更新驗證流程改版、實機長跑檢查、選卡修正、存檔檢查頁等）：`docs/ai/handoff-archive-2026-11.md`。

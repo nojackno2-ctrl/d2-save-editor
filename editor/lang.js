@@ -534,6 +534,16 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     if (CJK_CHAR.test(s)) s = s.replace(CJK_GAP, "$1");
     return s;
   }
+  // 怪物名稱與詞綴列的分隔符（遊戲原版以「 - 」串接，中文化後會留下）：
+  // 純英文的怪物名稱（中文間的分隔符直接移除，例如「石塊蛆蟲巫異」）；
+  // 含詞綴關鍵字的屬性列（例如 Cursed、Extra Fast）則改為每個屬性之間一個空格（「施加詛咒 特別快速」）
+  const MONSTER_LINE = /^[A-Za-z][A-Za-z' -]*$/, MONSTER_TRAIT = /\b(Extra|Cursed|Enchanted|Immune|Resistant|Mana Burn|Teleportation|Spectral Hit|Stone Skin|Multiple Shots|Aura|Champion|Fanatic|Berserker|Ghostly|Possessed|Demon|Undead)\b/;
+  const CJK_SEP = /([一-龥㐀-䶿])\s*[-·]\s*(?=[一-龥㐀-䶿])/g;
+  function tidyMonsterText(en, zh) {
+    if (currentLang === "en" || typeof zh !== "string" || !CJK_CHAR.test(zh)) return zh;
+    if (typeof en !== "string" || !MONSTER_LINE.test(en.trim())) return zh;
+    return MONSTER_TRAIT.test(en) ? zh.replace(CJK_SEP, "$1 ") : zh.replace(CJK_SEP, "$1");
+  }
 
   function useDict(d) {
     buildPatternIndex(d);
@@ -585,7 +595,7 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     // 已含中日韓文字的（我們自己的工具介面、已翻好的）不算缺漏
     // 缺漏清單只供除錯，限制數量避免長時間遊玩（例如持續變動的數字字串）讓記憶體無限成長
     if (r === str && missing.size < 5000 && str.trim().length > 1 && !HAS_CJK.test(str)) missing.add(str.trim());
-    r = cleanCJK(r);
+    r = tidyMonsterText(str.trim(), cleanCJK(r));
     if (cache.size > 20000) cache.clear();
     cache.set(str, r);
     return r;
