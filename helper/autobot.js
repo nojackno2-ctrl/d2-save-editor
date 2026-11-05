@@ -402,7 +402,7 @@
   }
 
   // 會去撿的掉落物（不含罐子）；通關後沒有就直接離開。
-  const wantedLoot = (s, now, lootOn = assistOn() && settings.loot.enabled) => s.pickups.filter((e) => !e.flippy && !e.discarded && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && accepts(e) && dist(e, s.p) <= settings.loot.searchRadius);
+  const wantedLoot = (s, now, lootOn = assistOn() && settings.loot.enabled) => s.pickups.filter((e) => !e.flippy && !e.discarded && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && dist(e, s.p) <= settings.loot.searchRadius && accepts(e));
   // 全圖撿取（非原版行為，可關閉）：要撿的掉落物設原版 magnet 自己飛來；寶箱原版不吸，直接移到角色身上讓原版開啟。
   function vacuum(s, now) {
     // 依使用者要求：全圖吸經驗（非原版行為，可關閉）——地上的經驗寶石（kind=xp）也設原版 magnet 自己飛來，不受撿裝開關影響。
@@ -503,6 +503,7 @@
   // 實測：多敵貼近時排斥力互相抵銷，角色原地被圍死；改沿牆面滑動取樣 16 方向，選路徑上離敵最遠者。
   const DIRS_16 = Array.from({ length: 16 }, (_, i) => { const a = i * Math.PI / 8; return { x: Math.cos(a), y: Math.sin(a) }; });
   const DIRS_24 = Array.from({ length: 24 }, (_, i) => { const a = i * Math.PI / 12; return { x: Math.cos(a), y: Math.sin(a) }; });
+  const PLAN_STEPS = [70, 150];
   function escapeDirection(s, list = null) {
     const p = s.p, near = list || s.enemies.filter((e) => dist(e, p) < settings.movement.kiteDistance * 1.5);
     let best = null;
@@ -546,6 +547,13 @@
     const pr = p.radius || 12, ranged = !fighter(), reach = Math.min(myReach(), 450);
     // 怪物會移動：近戰範圍外再預留 0.4 秒的移動距離（20～80），避免怪一往前就打到而反覆觸發死亡保護。
     const lead = (e) => Math.min(80, Math.max(20, (e?.speed || e?.moveSpeed || 90) * 0.4));
+    // 預先計算近戰危險區與是否為精英，避免在每個候選點重複呼叫 meleeGap 與 isElite
+    for (const f of near) {
+      const gap = meleeGap(f.e);
+      f.zone = gap === -Infinity ? 0 : f.r + pr + gap + (ranged ? lead(f.e) : 0);
+      f.zoneSq = f.zone > 0 ? f.zone * f.zone : 0;
+      f.penalty = isElite(f.e) ? 6 : 2.5;
+    }
     // 依使用者要求以怪物自己的近戰距離為安全距離（不會近戰的怪以 6 計），再加移動緩衝；近戰角色站在自己攻擊距離邊緣。
     const wantFor = (e) => ranged ? Math.min(Math.max(reach - 10, 40), (e?.radius || 12) + pr + Math.max(6, meleeGap(e)) + 10 + lead(e)) : (e?.radius || 12) + pr + Math.max(10, Math.min(reach, 150) - 4);
     // 依使用者要求攻擊性強一點：威脅場作用範圍縮小、權重減半，不再一直跑路。
@@ -570,7 +578,7 @@
     let best = null;
     for (let i = 0; i < 24; i++) {
       const dir = DIRS_24[i];
-      for (const step of [70, 150]) {
+      for (const step of PLAN_STEPS) {
         let x = p.x, y = p.y;
         for (let j = 0; j < 5; j++) {
           const next = typeof s.w.walls?.slide === "function" ? s.w.walls.slide(x, y, dir.x * step / 5, dir.y * step / 5) : { x: x + dir.x * step / 5, y: y + dir.y * step / 5 };
@@ -579,10 +587,25 @@
         const moved = Math.hypot(x - p.x, y - p.y);
         if (moved < step * 0.4) continue;
         const pt = { x, y };
-        let crowd = 0; for (const f of near) if (dist(f, pt) < 110) crowd++;
-        let score = -threat(pt) * 2 - shotHit(pt) * 6 - crowd * 0.4;
-        // 落在任何怪（目前或預測位置）的近戰範圍內就重扣，精英／王扣更多。
-        for (const f of near) { const gap = meleeGap(f.e); if (gap === -Infinity) continue; const zone = f.r + pr + gap + (ranged ? lead(f.e) : 0); if (dist(pt, f.e) < zone || dist(pt, f) < zone) score -= isElite(f.e) ? 6 : 2.5; }
+        let crowd = 0, threatScore = 0, meleePenalty = 0;
+        for (const f of near) {
+          const dfx = pt.x - f.x, dfy = pt.y - f.y, dfSq = dfx * dfx + dfy * dfy;
+          if (dfSq < 12100) crowd++;
+          if (!boss || f.e !== boss) {
+            const df = Math.sqrt(dfSq);
+            const d = Math.max(0, df - f.r);
+            threatScore += f.w / (1 + (d / scale) ** 2);
+          }
+          if (f.zoneSq > 0) {
+            if (dfSq < f.zoneSq) {
+              meleePenalty += f.penalty;
+            } else {
+              const dex = pt.x - f.e.x, dey = pt.y - f.e.y;
+              if (dex * dex + dey * dey < f.zoneSq) meleePenalty += f.penalty;
+            }
+          }
+        }
+        let score = -threatScore * 2 - shotHit(pt) * 6 - crowd * 0.4 - meleePenalty;
         if (focus) {
           const want = wantFor(focus), d = dist(pt, focus);
           score -= Math.abs(d - want) / want * (boss ? 3 : 2.5);
@@ -1144,6 +1167,8 @@
     c._passiveMap = new Map(c.passives.map((x) => [x[1].toLowerCase(), x]));
   }
   // 原版技能表（itemArt 模組匯出：技能含 maxLevel／evolution{passive,into}／synergies[{from}]；被動含 maxLevel）。
+  const ALL_SKILLS_BONUS = 20;
+  let allSkillsOverride = null;
   let SKILLS = null, PASSIVES = null, SKILL_BY_NAME = null, PASSIVE_BY_NAME = null, nativeLevelChoices = null, nativeWeapon = null, nativeKeyBindings = null;
   async function loadSkillTables(gameUrl) {
     // 相依模組檔名含每版不同的雜湊，從遊戲入口的 import 動態解析，不寫死檔名（2026-11-04 起）。
@@ -1507,11 +1532,97 @@
   }
   function blocked() { return (!settings.enabled && !settings.progressEnabled) || document.hidden || !panel.hidden || window.__d2editIsOpen?.() || performance.now() < manualUntil || paused(); }
   let goldOverride = null;
+  function restoreAllSkills() {
+    const o = allSkillsOverride;
+    if (!o) return;
+    if (typeof o.player.allSkills === "number") o.player.allSkills -= o.added;
+    allSkillsOverride = null;
+  }
   function restoreGoldRate() {
     if (!goldOverride) return;
     const { player, value, own } = goldOverride;
     if (player.goldGain === 999999) { if (own) player.goldGain = value; else delete player.goldGain; }
     goldOverride = null;
+  }
+  // 子開關還原紀錄（致命一擊 maxCrit、一擊必殺 oneHitKill、掉寶 maxDropRate）：每個子開關記下自己改過的欄位，
+  // 第一次寫入前記下原值（含是否為自有屬性），每次寫入記下寫入值。還原時只還原「目前值仍等於自己寫入值」的欄位，
+  // 遊戲後來自行改過的值不蓋掉。玩家物件換了（新的一局）就丟掉舊紀錄。
+  const cheatRecs = new Map();
+  const CLAMP_PROPS = new Set(["owed", "waveDue"]);
+  function cheatField(key, owner, obj, prop, value) {
+    let rec = cheatRecs.get(key);
+    if (!rec || rec.owner !== owner) { rec = { owner, fields: [] }; cheatRecs.set(key, rec); }
+    let f = rec.fields.find((x) => x.obj === obj && x.prop === prop);
+    if (!f) { f = { obj, prop, own: Object.hasOwn(obj, prop), base: obj[prop], written: undefined }; rec.fields.push(f); }
+    else if (obj[prop] !== f.written) { f.own = Object.hasOwn(obj, prop); f.base = obj[prop]; }
+    obj[prop] = value;
+    f.written = value;
+  }
+  function restoreCheat(key) {
+    const rec = cheatRecs.get(key);
+    if (!rec) return;
+    for (const f of rec.fields) {
+      // 怪物生成待補數（owed／waveDue）會被遊戲逐步消耗而不再等於寫入值；關閉時若仍高於原值就降回原值，否則會繼續補出大量怪物（實機：450 消耗到 435 後殘留）。
+      if (CLAMP_PROPS.has(f.prop) && typeof f.obj[f.prop] === "number" && typeof f.base === "number" && f.obj[f.prop] > f.base) { f.obj[f.prop] = f.base; continue; }
+      if (f.obj[f.prop] !== f.written) continue;
+      if (f.own) f.obj[f.prop] = f.base; else delete f.obj[f.prop];
+    }
+    cheatRecs.delete(key);
+  }
+  function restoreAllCheats() {
+    for (const key of [...cheatRecs.keys()]) restoreCheat(key);
+    restoreXpWrap();
+    restoreInvincible();
+  }
+  // 無敵：攔截玩家生命值的所有下降（不論傷害來源、不論是否經過遊戲的傷害函式）。
+  // 做法是把 player.life 換成存取器：寫入較低的值一律忽略，只接受回血與提高。不改網址、不改遊戲旗標，遊戲不會因此標記本局。
+  const lifeGuards = new WeakMap();
+  function lifeGuard(p, on) {
+    if (!p || typeof p !== "object") return;
+    const guard = lifeGuards.get(p);
+    if (on) {
+      if (guard) return;
+      if (typeof p.life !== "number") return;
+      const state = { value: p.life };
+      Object.defineProperty(p, "life", {
+        configurable: true, enumerable: true,
+        get() { return state.value; },
+        set(v) { if (typeof v === "number" && v < state.value) return; state.value = v; },
+      });
+      lifeGuards.set(p, state);
+    } else if (guard) {
+      const value = guard.value;
+      Object.defineProperty(p, "life", { configurable: true, enumerable: true, writable: true, value });
+      lifeGuards.delete(p);
+    }
+  }
+  // 目前套用無敵的玩家物件；子開關關、總開關關、全部關閉、destroy、換了新的一局時都會還原它的 life。
+  let invinciblePlayer = null;
+  function restoreInvincible() {
+    if (invinciblePlayer) lifeGuard(invinciblePlayer, false);
+    invinciblePlayer = null;
+  }
+  // 經驗值加成：包住遊戲的 gainXp，把獲得的經驗乘上固定倍率。只有自己包過的（xpWrap 記錄的 wrapped 仍是目前值）才會放回原函式；
+  // 若其他程式之後又包裝過，目前值已不是自己的包裝，就不覆蓋它。
+  let xpWrap = null;
+  function restoreXpWrap() {
+    if (!xpWrap) return;
+    const { owner, orig, wrapped } = xpWrap;
+    if (owner.gainXp === wrapped) owner.gainXp = orig;
+    xpWrap = null;
+  }
+  function applyXpWrap(g) {
+    const on = settings.cheat?.enabled && settings.cheat.maxXp;
+    if (xpWrap && (xpWrap.owner !== g || g.gainXp !== xpWrap.wrapped)) xpWrap = null; // 新的一局或已被其他程式改寫：舊紀錄作廢，不覆蓋
+    if (!on) { restoreXpWrap(); return; }
+    if (xpWrap || typeof g.gainXp !== "function") return;
+    const orig = g.gainXp;
+    const wrapped = function (amount, ...rest) {
+      const boost = settings.cheat?.enabled && settings.cheat.maxXp && Number.isFinite(amount) && amount > 0;
+      return orig.call(this, boost ? amount * 1000 : amount, ...rest);
+    };
+    g.gainXp = wrapped;
+    xpWrap = { owner: g, orig, wrapped };
   }
   // 遊戲修改：無敵、致命攻擊、一擊必殺、技能99等、怪物數量最大化、全精英、無限重抽、極限掉寶金幣
   // 召喚暗黑破壞神分身（作弊）：不必出售喬丹之石，直接在目前恐懼階呼叫遊戲原本的分身登場函式。
@@ -1540,30 +1651,8 @@
     cloneAutoSince.set(w, "done");
     lastAction = summonClone();
   }
-  // 無敵：攔截玩家生命值的所有下降（不論傷害來源、不論是否經過遊戲的傷害函式）。
-  // 做法是把 player.life 換成存取器：寫入較低的值一律忽略，只接受回血與提高。不改網址、不改遊戲旗標，遊戲不會因此標記本局。
-  const lifeGuards = new WeakMap();
-  function lifeGuard(p, on) {
-    if (!p || typeof p !== "object") return;
-    const guard = lifeGuards.get(p);
-    if (on) {
-      if (guard) return;
-      if (typeof p.life !== "number") return;
-      const state = { value: p.life };
-      Object.defineProperty(p, "life", {
-        configurable: true, enumerable: true,
-        get() { return state.value; },
-        set(v) { if (typeof v === "number" && v < state.value) return; state.value = v; },
-      });
-      lifeGuards.set(p, state);
-    } else if (guard) {
-      const value = guard.value;
-      Object.defineProperty(p, "life", { configurable: true, enumerable: true, writable: true, value });
-      lifeGuards.delete(p);
-    }
-  }
   function applyCheats(g) {
-    if (!g || !settings.cheat?.enabled) { restoreGoldRate(); return; }
+    if (!g || !settings.cheat?.enabled) { restoreGoldRate(); restoreAllSkills(); restoreAllCheats(); return; }
     const currentGold = (Number.isFinite(g.save?.gold) ? g.save.gold : 0) + (Number.isFinite(g.world?.gold) ? g.world.gold : 0);
     if (settings.cheat.maxGoldRate && currentGold >= 9000000000) {
       settings.cheat.maxGoldRate = false;
@@ -1575,11 +1664,12 @@
 
     // 1. 無敵：攔截所有生命值下降（見 lifeGuard）；關閉時還原為一般數值。
     const p0 = g.world?.player;
-    if (p0 && !settings.cheat.invincible) lifeGuard(p0, false);
+    if (invinciblePlayer && (invinciblePlayer !== p0 || !settings.cheat.invincible)) restoreInvincible();
     if (settings.cheat.invincible) {
       const p = p0;
       if (p) {
         lifeGuard(p, true);
+        invinciblePlayer = p;
         if (p.maxLife > 0 && p.life < p.maxLife) p.life = p.maxLife;
         p.damageTaken = 0;
       }
@@ -1591,29 +1681,25 @@
     if (p) {
       // 2. 致命攻擊（機率最高）
       if (settings.cheat.maxCrit) {
-        p.criticalStrike = 100;
-        p.deadlyStrike = 100;
-        (p.passiveLevels ??= {}).criticalStrike = Math.max(p.passiveLevels.criticalStrike || 0, 99);
-      }
+        cheatField("maxCrit", p, p, "criticalStrike", 100);
+        cheatField("maxCrit", p, p, "deadlyStrike", 100);
+        const pl = (p.passiveLevels ??= {});
+        cheatField("maxCrit", p, pl, "criticalStrike", Math.max(pl.criticalStrike || 0, 99));
+      } else restoreCheat("maxCrit");
 
       // 3. 一擊必殺（所有屬性傷害一百倍）
       if (settings.cheat.oneHitKill) {
-        p.might = Math.max(p.might || 1, 100);
-        p.weaponDamage = Math.max(p.weaponDamage || 1, 100);
+        cheatField("oneHitKill", p, p, "might", Math.max(p.might || 1, 100));
+        cheatField("oneHitKill", p, p, "weaponDamage", Math.max(p.weaponDamage || 1, 100));
         if (p.mastery && typeof p.mastery === "object") {
           for (const k of ["physical", "fire", "cold", "lightning", "poison", "magic"]) {
-            p.mastery[k] = Math.max(p.mastery[k] || 1, 100);
+            cheatField("oneHitKill", p, p.mastery, k, Math.max(p.mastery[k] || 1, 100));
           }
         }
-        p.damageMult = 100;
-        p.physicalDamageMult = 100;
-        p.fireDamageMult = 100;
-        p.lightningDamageMult = 100;
-        p.coldDamageMult = 100;
-        p.poisonDamageMult = 100;
-        p.magicDamageMult = 100;
-        p.elementalDamageMult = 100;
-      }
+        for (const k of ["damageMult", "physicalDamageMult", "fireDamageMult", "lightningDamageMult", "coldDamageMult", "poisonDamageMult", "magicDamageMult", "elementalDamageMult"]) {
+          cheatField("oneHitKill", p, p, k, 100);
+        }
+      } else restoreCheat("oneHitKill");
 
       // 掉寶與金幣倍率
       if (settings.cheat.maxGoldRate) {
@@ -1621,39 +1707,37 @@
         p.goldGain = 999999;
       }
       if (settings.cheat.maxDropRate) {
-        p.magicFind = 999999;
-        p.uniqueBoost = 9999;
-        p.rareBoost = 9999;
-        p.setBoost = 9999;
-      }
+        cheatField("maxDropRate", p, p, "magicFind", 999999);
+        cheatField("maxDropRate", p, p, "uniqueBoost", 9999);
+        cheatField("maxDropRate", p, p, "rareBoost", 9999);
+        cheatField("maxDropRate", p, p, "setBoost", 9999);
+      } else restoreCheat("maxDropRate");
     }
 
-    // 4. 技能最高等級 99 等
-    if (settings.cheat.maxSkills) {
-      if (Array.isArray(g.build?.skills)) {
-        for (const s of g.build.skills) {
-          if (s && (s.level || 0) < 99) s.level = 99;
-        }
-      }
-      if (g.build?.passives && typeof g.build.passives === "object") {
-        for (const [id, lvl] of Object.entries(g.build.passives)) {
-          if (lvl < 99) g.build.passives[id] = 99;
-        }
-      }
+    // 4. 技能加成：不改技能等級，只提高角色「+所有技能」屬性（裝備加總值 player.allSkills），關閉時還原
+    {
+      const p = g.world?.player;
+      if (settings.cheat.maxSkills && p && typeof p.allSkills === "number") {
+        // 遊戲以差額增減 allSkills（換裝先減舊再加新），所以只加一次 +20，關閉時減回。
+        if (allSkillsOverride && allSkillsOverride.player !== p) allSkillsOverride = null; // 新的一局：舊物件已作廢
+        if (!allSkillsOverride) { p.allSkills += ALL_SKILLS_BONUS; allSkillsOverride = { player: p, added: ALL_SKILLS_BONUS }; }
+      } else restoreAllSkills();
     }
 
     // 5. 怪物數量最大化
+    // 導演的生成計數器（batchTimer／owed／waveDue）會被遊戲每幀自行消耗，還原時只在仍等於本模組寫入值時才還原；world 的密度欄位則完整還原。
     if (settings.cheat.maxMonsterDensity || settings.cheat.monsterDensity10x) {
       if (g.director && typeof g.director === "object") {
-        g.director.batchTimer = 0;
-        g.director.owed = Math.max(g.director.owed || 0, 450);
-        if (g.director.waves && !g.director.waves.done) {
-          g.director.waveDue = Math.max(g.director.waveDue || 0, 450);
+        const dir = g.director;
+        cheatField("maxMonsterDensityDirector", dir, dir, "batchTimer", 0);
+        cheatField("maxMonsterDensityDirector", dir, dir, "owed", Math.max(dir.owed || 0, 450));
+        if (dir.waves && !dir.waves.done) {
+          cheatField("maxMonsterDensityDirector", dir, dir, "waveDue", Math.max(dir.waveDue || 0, 450));
         }
       }
       if (g.world) {
-        g.world.monsterDensity = 999;
-        g.world.spawnRate = 999;
+        cheatField("maxMonsterDensity", g.world, g.world, "monsterDensity", 999);
+        cheatField("maxMonsterDensity", g.world, g.world, "spawnRate", 999);
       }
       if (!g.director && Array.isArray(g.world?.enemies) && g.world.enemies.length > 0 && g.world.enemies.length < 450) {
         if (!g.world._cheatClonedCount) g.world._cheatClonedCount = 0;
@@ -1675,9 +1759,12 @@
           }
         }
       }
+    } else {
+      restoreCheat("maxMonsterDensity");
+      restoreCheat("maxMonsterDensityDirector");
     }
 
-    // 6. 一般怪物全部變成精英以上等級
+    // 6. 一般怪物全部變成精英以上等級：直接改寫現有怪物的等級與倍率，沒有全域設定可還原；關閉後已生成的怪維持精英等級（不還原），只是之後不再套用。
     if (settings.cheat.allElites) {
       if (Array.isArray(g.world?.enemies)) {
         for (const e of g.world.enemies) {
@@ -1693,16 +1780,8 @@
       }
     }
 
-    // 經驗值加成最大：包住遊戲的 gainXp，把獲得的經驗乘上固定倍率（依設定即時生效，關閉即原樣放行）
-    if (typeof g.gainXp === "function" && !g.gainXp.__d2Xp) {
-      const orig = g.gainXp;
-      const wrapped = function (amount, ...rest) {
-        const on = settings.cheat?.enabled && settings.cheat.maxXp && Number.isFinite(amount) && amount > 0;
-        return orig.call(this, on ? amount * 1000 : amount, ...rest);
-      };
-      wrapped.__d2Xp = true;
-      g.gainXp = wrapped;
-    }
+    // 經驗值加成最大：包住遊戲的 gainXp（開啟時才包裝，關閉時放回原函式）
+    applyXpWrap(g);
 
     // 7. 選技能重抽無限次數 (Infinite Rerolls)
     if (settings.cheat.enabled && settings.cheat.infiniteRerolls) {
@@ -1714,11 +1793,12 @@
       }
       if (g.save?.ranks) {
         g.save.ranks.rerolls = Math.max(g.save.ranks.rerolls || 0, 999);
-        g.save.ranks.Reroll = Math.max(g.save.ranks.Reroll || 0, 999);
       }
-      const rerollBtn = document.querySelector("#level-up button#reroll, #level-up .reroll, button[data-action='reroll']");
-      if (rerollBtn && rerollBtn.disabled) {
-        rerollBtn.disabled = false;
+      if (g.state === "levelUp") {
+        const rerollBtn = document.getElementById("reroll") || document.querySelector("#level-up .reroll, button[data-action='reroll']");
+        if (rerollBtn && rerollBtn.disabled) {
+          rerollBtn.disabled = false;
+        }
       }
     }
   }
@@ -1982,7 +2062,7 @@
   field("cheat.invincible", "無敵（免疫所有傷害且鎖定滿血）");
   field("cheat.maxCrit", "致命攻擊（致命一擊機率最高）");
   field("cheat.oneHitKill", "一擊必殺（所有屬性傷害提升一百倍）");
-  field("cheat.maxSkills", "技能最高等級99等（所有已學技能與被動等級鎖定99等）");
+  field("cheat.maxSkills", "所有技能 +20（提高裝備「+所有技能」屬性，不改技能等級）");
   group("怪物與環境修改");
   field("cheat.maxMonsterDensity", "怪物數量最大化（地圖怪物生成速度與數量拉滿）");
   field("cheat.allElites", "一般怪物全部變成精英以上等級（全圖小怪升階為金/藍怪）");
@@ -2018,7 +2098,7 @@
   root.getElementById("stop-all").onclick = () => {
     const disable = (obj) => { for (const key of Object.keys(obj)) { if (typeof obj[key] === "boolean") obj[key] = false; else if (obj[key] && typeof obj[key] === "object") disable(obj[key]); } };
     disable(settings); settings.terror.mode = "off"; settings.quest.farmDifficulty = "off";
-    restoreGoldRate(); stop("已全部關閉", true);
+    restoreGoldRate(); restoreAllSkills(); restoreAllCheats(); stop("已全部關閉", true);
   };
   stopButton.onclick = () => { settings.progressEnabled = false; release(); lastAction = "已停止自動戰鬥"; save(true); };
   for (const el of [host, launcher, stopButton]) for (const name of ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "keydown", "keyup", "click", "wheel"]) el.addEventListener(name, (e) => e.stopPropagation(), { signal: abort.signal });
@@ -2053,7 +2133,7 @@
     setText(status, trAuto(["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用（" + modeLabel() + "）" : "關閉"), game ? questLine(game) : "", game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n")));
   }, 200);
   const api = {
-    destroy() { if (!alive) return; alive = false; restoreGoldRate(); release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
+    destroy() { if (!alive) return; alive = false; restoreGoldRate(); restoreAllSkills(); restoreAllCheats(); release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
     diagnostics: () => ({ hellClears, hookUrl, hookNote, connected: !!game, state: game?.state ?? null, lastAction, storageNote, quests: (() => { try { const q = questSnapshot(game); return { line: questLine(game), done: q.done, total: q.total, pending: q.pending, cain: q.cain }; } catch { return null; } })(), gameBuild: (() => { try { return JSON.parse(localStorage.getItem(BUILD_KEY) || "null"); } catch { return null; } })() }),
     get game() { return game; },
   };

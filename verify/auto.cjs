@@ -16,7 +16,11 @@ const node = (script, args = [], timeout = 1800000) => {
   const r = spawnSync(process.execPath, [path.join(P.verify, script), ...args], { cwd: P.root, encoding: "utf8", timeout, windowsHide: true });
   return { ok: r.status === 0, out: ((r.stdout || "") + (r.stderr || "")).trim() };
 };
-const git = (...a) => (spawnSync("git", a, { cwd: P.root, encoding: "utf8", windowsHide: true }).stdout || "").trim();
+const git = (...a) => {
+  const r = spawnSync("git", a, { cwd: P.root, encoding: "utf8", windowsHide: true });
+  if (r.error || r.status !== 0) throw new Error(`git ${a.join(" ")} 失敗：${r.error?.message || r.stderr || `退出碼 ${r.status}`}`);
+  return (r.stdout || "").trim();
+};
 const stamp = () => new Date().toISOString().replace("T", " ").slice(0, 16);
 const result = { at: new Date().toISOString(), steps: [] };
 const step = (name, ok, detail) => { result.steps.push({ name, ok, detail: String(detail || "").slice(-3000) }); console.log(`${ok ? "✓" : "✗"} ${name}`); };

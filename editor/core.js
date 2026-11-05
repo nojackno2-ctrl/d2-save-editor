@@ -81,10 +81,21 @@ async function storeDb(mode, save) {
   const db = await openDb();
   try {
     const k = lsKey(MODES[mode].key);
+    let old = null;
     try {
-      backup(`${mode}_localStorage.json`, decodeLs(await db.get(k)), mode);
+      old = decodeLs(await db.get(k));
     } catch {}
+    if (old !== null) {
+      try {
+        backup(`${mode}_localStorage.json`, old, mode);
+      } catch (e) {
+        throw new Error("無法備份原存檔，已取消寫入：" + e.message);
+      }
+    }
     await db.put(k, encodeLs(text));
+    if (decodeLs(await db.get(k)) !== text) {
+      throw new Error("寫入後讀回的內容不一致，存檔可能沒有寫進去。");
+    }
   } finally {
     await db.close();
   }
@@ -94,7 +105,11 @@ async function storeDb(mode, save) {
     let oldMode = "softcore";
     try { if (JSON.parse(old).mode === "hc") oldMode = "hardcore"; } catch {}
     if (oldMode === mode) {
-      backup("save.json", old, mode);
+      try {
+        backup("save.json", old, mode);
+      } catch (e) {
+        throw new Error("無法備份 save.json，已取消寫入：" + e.message);
+      }
       fs.writeFileSync(SAVE_FILE, text);
     }
   }

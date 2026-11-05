@@ -24,7 +24,8 @@
     const missing = sigs.map(([k]) => k).filter((k) => !found[k] && !OPTIONAL.has(k));
     const patched = {};
     for (const [f, names] of Object.entries(perFile)) {
-      patched[f] = files[f] + `;export{${Object.entries(names).map(([k, v]) => `${v} as __${k}`).join(",")}};`;
+      patched[f] = files[f] + `
+;export{${Object.entries(names).map(([k, v]) => `${v} as __${k}`).join(",")}};`;
     }
     return { patched, found, missing };
   }

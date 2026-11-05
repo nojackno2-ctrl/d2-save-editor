@@ -269,10 +269,11 @@ window.__d2editLauncher?.remove();
 window.__d2editStopWatch?.();
 window.__d2editClose = (quiet) => { if (frame) { frame.remove(); frame = null; window.removeEventListener("message", onMessage); } if (!quiet && written) location.reload(); };
 window.__d2editIsOpen = () => !!frame;
+const editorUrl = () => at("modifier/editor.html") + "&origin=" + encodeURIComponent(location.origin) + "&mode=" + (localStorage.getItem("d2-survivors/mode/v1") === "hardcore" ? "hardcore" : "softcore");
 function openEditor() {
   if (frame) return;
   frame = document.createElement("iframe");
-  frame.src = at("modifier/editor.html") + "&origin=" + encodeURIComponent(location.origin) + "&mode=" + (localStorage.getItem("d2-survivors/mode/v1") === "hardcore" ? "hardcore" : "softcore");
+  frame.src = editorUrl();
   frame.style.cssText = "position:fixed;inset:0;width:100vw;width:100dvw;height:100vh;height:100dvh;border:0;z-index:2147483647;background:#14110d";
   window.addEventListener("message", onMessage);
   document.body.appendChild(frame);
@@ -331,7 +332,7 @@ const loadGameData = () => (window.__d2gamedataPromise ??= fetch(at("modifier/ga
     [zhUI ? "語言模組" : "Language module", () => import(at("lang/lang.js"))],
     [zhUI ? "輔助器" : "Assistant", () => import(at("helper/autobot.js"))],
     [zhUI ? "物品引擎（遊戲裝備產生器）" : "Item engine", () => engine()],
-    [zhUI ? "修改器頁面" : "Editor page", () => fetch(at("modifier/editor.html")).then((r) => r.text())],
+    [zhUI ? "修改器頁面" : "Editor page", () => fetch(editorUrl()).then((r) => r.text())],
     // 自檢與其他步驟並行：載入進度條跑的同時檢查工具包與當前遊戲是否相符；問題只輸出，不阻擋遊玩。
     [zhUI ? "相容性自檢" : "Compatibility self-check", async () => {
       const { runSelfCheck } = await import(at("helper/selfcheck.js"));

@@ -36,8 +36,8 @@ if (has("confirm") && (!latest?.ok || latest.mode !== "update" || latest.dry !==
   console.error("缺少相同版本的正式更新測試紀錄，無法發布。"); process.exit(1);
 }
 const untranslatedNew = (translation?.game?.untranslatedAdded?.length || 0) + (translation?.news?.untranslatedAdded?.length || 0);
-if (has("confirm") && (!translation?.ok || (!has("auto") && untranslatedNew))) {
-  console.error("新增遊戲字串或新聞尚有未翻譯項目，無法發布。"); process.exit(1);
+if (has("confirm") && (!translation?.ok || translation.build !== verified.build || (!has("auto") && untranslatedNew))) {
+  console.error("翻譯檢查版本不符或新增遊戲字串、新聞尚有未翻譯項目，無法發布。"); process.exit(1);
 }
 if (has("confirm") && (!live?.ok || live.build !== verified.build || live.fingerprint !== verified.fingerprint || !live.at || !live.evidence || live.url !== "https://d2survivors.lol/play/")) {
   console.error("缺少相同版本及來源指紋的隔離設定檔真實遊戲載入證據，無法發布。"); process.exit(1);
@@ -49,7 +49,9 @@ const sourceIndex = fs.readFileSync(path.join(P.root, "modifier", "editor.html")
 const sourceVersion = sourceIndex.match(/const TOOLKIT_VERSION = "([^"]+)"/)?.[1];
 const versionLogPrepared = new RegExp(`<h3>[^<]*v${pkg.version.replaceAll(".", "\\.")}</h3>`).test(sourceIndex);
 const committedWebVersion = JSON.parse(run("git", ["show", "HEAD:version.json"], P.web));
-const pendingVersion = sourceVersion === pkg.version && versionLogPrepared && committedWebVersion.version !== pkg.version;
+const unpushed = has("confirm") && !has("no-push") ? Number(run("git", ["rev-list", "--count", "refs/remotes/origin/main..HEAD"], P.web)) : 0;
+if (!Number.isSafeInteger(unpushed) || unpushed < 0) throw new Error("無法確認尚未推送的提交數量。");
+const pendingVersion = sourceVersion === pkg.version && versionLogPrepared && (committedWebVersion.version !== pkg.version || unpushed > 0);
 const next = has("no-bump") || pendingVersion ? pkg.version : pkg.version.replace(/\d+$/, (n) => String(Number(n) + 1));
 const RELEASE_PATHS = new Set([
   "AI_HANDOFF.md", "README.md", "d2edit.js", "index.html", "version.json", ".nojekyll",
@@ -74,6 +76,11 @@ const plan = [
   "5. 推送後 Cloudflare 公告網站會自動建置（需到後台 Deployments 確認成功）",
 ];
 if (!has("confirm")) { console.log("【發布計畫，尚未執行】\n" + plan.join("\n") + "\n\n完成適配、測試與真實遊戲載入後以 --confirm 自動發布。"); process.exit(0); }
+
+if (!has("auto")) {
+  const dirty = run("git", ["status", "--porcelain", "--untracked-files=all"], P.web);
+  if (dirty) throw new Error("工作目錄或暫存區已有未提交變更，拒絕手動發布：\n" + dirty);
+}
 
 const bump = () => {
   if (next === pkg.version) return;
@@ -143,8 +150,8 @@ const addChangelog = () => {
   else {
     run("git", ["commit", "-m", msg], P.web);
     console.log("已提交倉庫：" + msg);
-    if (!has("no-push")) { run("git", ["push", "origin", "HEAD"], P.web); console.log("已推送到 GitHub。"); }
   }
+  if (!has("no-push")) { run("git", ["push", "origin", "HEAD"], P.web); console.log("已推送到 GitHub。"); }
   if (exe && !has("no-push") && !has("no-release")) {
     const body = `## 更新內容\n- 相容官方遊戲 ${verified.build}，已通過自動驗證（掛鉤點、修改器特徵碼與既有測試）。\n- 網頁版書籤載入時自動取得最新版本。\n\n## 使用前請留意\n- Windows 可攜版尚未簽署；需要已安裝相容版本的 D2 Survivors。\n- 使用前請先備份存檔。\n\nSHA-256：\`${hash}\`\n`;
     const url = run("gh", ["release", "create", `v${pkg.version}`, exe, "--repo", REPO, "--title", `v${pkg.version} 相容官方 ${verified.build}`, "--notes", body], P.web);

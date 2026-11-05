@@ -29,11 +29,29 @@
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
   const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const BK_PREFIX = "d2edit:backup:", BK_MODES = ["softcore", "hardcore"];
+  const bkFile = (mode) => `寫入前備份_${mode === "hardcore" ? "硬核" : "一般"}.json`;
+  const bkMode = (file) => BK_MODES.find((mode) => bkFile(mode) === file);
 
   const remote = ["load", "save", "assets", "i18n", "engine", "traces", "diag", "gameBuild"];
   const api = Object.fromEntries(remote.map((fn) => [fn, (...args) => rpc(fn, args)]));
   Object.assign(api, {
     web: true,
+    async save(mode, save) {
+      const original = await rpc("load", [mode]);
+      if (original.error || !original.save) return { error: `無法備份原存檔，已取消寫入：${original.error || "找不到存檔"}` };
+      try {
+        const key = BK_PREFIX + (mode === "hardcore" ? "hardcore" : "softcore");
+        const text = JSON.stringify(original.save);
+        localStorage.setItem(key, text);
+        localStorage.setItem(key + ":time", String(Date.now()));
+        localStorage.setItem(key + ":seal", original.seal || "none");
+        if (localStorage.getItem(key) !== text) throw new Error("備份讀回不一致");
+      } catch (e) {
+        return { error: `無法備份原存檔，已取消寫入：${e.message}` };
+      }
+      return rpc("save", [mode, save]);
+    },
     async snapshot(save, label) {
       const text = await rpc("sealText", [save]);
       download(`D2倖存者_${String(label || "快照").replace(/[\\/:*?"<>|]/g, "_")}_${stamp()}.json`, text);
@@ -59,9 +77,29 @@
         input.click();
       });
     },
-    listBackups: async () => [],
-    readBackup: async () => ({ error: "網頁版的備份是下載的檔案，請用「從檔案匯入」。" }),
-    deleteBackup: async () => ({ ok: true }),
+    listBackups: async () => BK_MODES.flatMap((mode) => {
+      const raw = localStorage.getItem(BK_PREFIX + mode);
+      if (raw == null) return [];
+      const file = bkFile(mode);
+      const time = Number(localStorage.getItem(BK_PREFIX + mode + ":time")) || 0;
+      try {
+        const save = JSON.parse(raw);
+        return [{ file, time, mode, gold: save.gold, seal: localStorage.getItem(BK_PREFIX + mode + ":seal") || "none" }];
+      } catch { return [{ file, time, mode, broken: true }]; }
+    }),
+    readBackup: async (file) => {
+      const mode = bkMode(file), raw = mode && localStorage.getItem(BK_PREFIX + mode);
+      if (raw == null || !mode) return { error: "找不到這份備份。" };
+      try { return { save: JSON.parse(raw) }; } catch (e) { return { error: "備份損壞：" + e.message }; }
+    },
+    deleteBackup: async (file) => {
+      const mode = bkMode(file);
+      if (!mode) return { error: "找不到這份備份。" };
+      localStorage.removeItem(BK_PREFIX + mode);
+      localStorage.removeItem(BK_PREFIX + mode + ":time");
+      localStorage.removeItem(BK_PREFIX + mode + ":seal");
+      return { ok: true };
+    },
     openBackups: async () => {},
     close: () => rpc("close", []),
   });

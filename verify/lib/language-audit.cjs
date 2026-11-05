@@ -40,7 +40,7 @@ async function audit(previous, current) {
     const oldNewsSet = new Set(oldNews || []);
     const newsAdded = oldNews ? currentNews.filter((text) => !oldNewsSet.has(text)) : currentNews;
     const missing = (items) => items.filter((text) => tr.translate(text) === text);
-    return { ok: true, baseline: previous || null, baselineComplete: !!oldDict && !!oldNews,
+    return { ok: true, build: current, baseline: previous || null, baselineComplete: !!oldDict && !!oldNews,
       game: { total: keys.length, added: added.length, changed: changed.length, untranslatedAdded: missing(added), untranslatedAll: missing(keys) },
       news: { total: currentNews.length, added: newsAdded.length, untranslatedAdded: missing(newsAdded), untranslatedAll: missing(currentNews) } };
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
