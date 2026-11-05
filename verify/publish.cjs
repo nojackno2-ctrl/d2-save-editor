@@ -11,6 +11,8 @@ const { P, state, sha256, readJson } = require("./lib/util.cjs");
 const game = require("./lib/game.cjs");
 
 const argv = process.argv.slice(2), has = (n) => argv.includes("--" + n);
+// --auto：全自動相容發布（由 verify/auto.cjs 呼叫）。官方更新條目與新字串不擋發布，改列在 reports/new-content.md 由使用者決定；
+// 相容性仍須通過自動測試與實機煙霧測試（live.json）。
 const opt = (n, d) => { const i = argv.indexOf("--" + n); return i >= 0 ? argv[i + 1] : d; };
 const HOST = "https://nojackno2-ctrl.github.io/d2-survivors-toolkit/";
 const REPO = "nojackno2-ctrl/d2-survivors-toolkit";
@@ -23,7 +25,7 @@ const run = (cmd, args, cwd, extra = {}) => {
 const verified = state().lastVerified;
 if (!verified) { console.error("尚無驗證通過紀錄，請先執行 node verify/verify.cjs --update"); process.exit(1); }
 const review = readJson(path.join(P.reports, "impact.json"), null);
-if (has("confirm") && (!review || review.build !== verified.build || !Array.isArray(review.items) || review.items.some((item) => item.status !== "已完成" || typeof item.evidence !== "string" || !item.evidence.trim()))) {
+if (has("confirm") && !has("auto") && (!review || review.build !== verified.build || !Array.isArray(review.items) || review.items.some((item) => item.status !== "已完成" || typeof item.evidence !== "string" || !item.evidence.trim()))) {
   console.error("官方更新內容尚未逐項完成分析與記錄佐證；請先完成 verify/reports/impact.json，再重新執行更新驗證。");
   process.exit(1);
 }
@@ -33,7 +35,8 @@ const translation = readJson(path.join(P.reports, "language.json"), null);
 if (has("confirm") && (!latest?.ok || latest.mode !== "update" || latest.dry !== false || latest.build !== verified.build || !latest.steps?.some((step) => step.tests?.length))) {
   console.error("缺少相同版本的正式更新測試紀錄，無法發布。"); process.exit(1);
 }
-if (has("confirm") && (!translation?.ok || translation.game?.untranslatedAdded?.length || translation.news?.untranslatedAdded?.length)) {
+const untranslatedNew = (translation?.game?.untranslatedAdded?.length || 0) + (translation?.news?.untranslatedAdded?.length || 0);
+if (has("confirm") && (!translation?.ok || (!has("auto") && untranslatedNew))) {
   console.error("新增遊戲字串或新聞尚有未翻譯項目，無法發布。"); process.exit(1);
 }
 if (has("confirm") && (!live?.ok || live.build !== verified.build || live.fingerprint !== verified.fingerprint || !live.at || !live.evidence || live.url !== "https://d2survivors.lol/play/")) {
@@ -54,8 +57,11 @@ const RELEASE_PATHS = new Set([
   "lang/lang.js", "lang/d2rfont.js", "lang/zh-TW.json", "lang/locales/zh-TW.json", "lang/tests/test_lang.cjs",
   "modifier/editor.html", "modifier/gamedata.json", "modifier/i18n.js", "modifier/patch.mjs", "modifier/signatures.json", "modifier/webapi.js", "modifier/zh.js", "modifier/engine-page.js",
   "modifier/tests/weapon-sets.cjs", "modifier/tests/weapon-sets-ui.cjs", "modifier/tests/version-gate-web.cjs",
-  "site/index.html", "site/install.html",
+  "site/index.html", "site/install.html", "verify/state.json",
 ]);
+// 發布流程本身會改動的桌面版來源（升版號、更新日誌、verify 自動換模組檔名與 TESTED_GAME_BUILD）。
+const RELEASE_PREFIXES = ["editor/"];
+const releasable = (f) => RELEASE_PATHS.has(f) || RELEASE_PREFIXES.some((p) => f.startsWith(p));
 
 const plan = [
   `驗證通過的遊戲版本：${verified.build}（${verified.at}）`,
@@ -109,6 +115,7 @@ const addChangelog = () => {
 (async () => {
   const official = await game.latestBuild();
   if (official.build !== verified.build) throw new Error(`官方最新版已前進至 ${official.build}，驗證紀錄為 ${verified.build}；請先重新比對與驗收。`);
+  require(path.join(P.editor, "sync-from-web.js")).sync(); // 根目錄為唯一來源，建置前先同步 editor/ 副本
   bump(); console.log("工具包版本：" + pkg.version);
   console.log("更新日誌：" + (addChangelog().join("、") || "已存在，略過"));
   console.log("建置網頁版…"); run("node", ["build-web.js", HOST, note], P.editor);
@@ -124,14 +131,15 @@ const addChangelog = () => {
     console.log("桌面版 SHA-256：" + hash);
   }
   const stagedBefore = run("git", ["diff", "--cached", "--name-only"], P.web).split(/\r?\n/).filter(Boolean);
-  const unexpectedStaged = stagedBefore.filter((f) => !RELEASE_PATHS.has(f));
+  const unexpectedStaged = stagedBefore.filter((f) => !releasable(f));
   if (unexpectedStaged.length) throw new Error("暫存區含非本次發布檔案，拒絕提交：" + unexpectedStaged.join("、"));
   const stageArgs = [...RELEASE_PATHS].filter((f) => fs.existsSync(path.join(P.web, f)));
   run("git", ["add", "--", ...stageArgs], P.web);
+  run("git", ["add", "-u", "--", ...RELEASE_PREFIXES], P.web);
   const status = run("git", ["status", "--porcelain", "--untracked-files=all"], P.web).split(/\r?\n/).filter(Boolean);
-  const unexpectedWorking = status.map((line) => line.slice(3)).filter((f) => !RELEASE_PATHS.has(f));
+  const unexpectedWorking = status.map((line) => line.slice(3)).filter((f) => !releasable(f));
   if (unexpectedWorking.length) throw new Error("工作目錄含非本次發布檔案，已僅暫存允許清單，拒絕提交：" + unexpectedWorking.join("、"));
-  const msg = `chore(相容性): 遊戲 ${verified.build} 適配完成，工具包 v${pkg.version} [by Codex]`;
+  const msg = `chore(相容性): 遊戲 ${verified.build} ${has("auto") ? "自動相容發布" : "適配完成"}，工具包 v${pkg.version}`;
   if (!run("git", ["status", "--porcelain"], P.web)) console.log("倉庫沒有變更，略過提交。");
   else {
     run("git", ["commit", "-m", msg], P.web);

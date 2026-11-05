@@ -116,4 +116,6 @@ async function update() {
   finish(true, `遊戲 ${build} 選定測試通過 ${r.results.length}／${r.results.length}（${r.seconds} 秒）。自動更新：${[...new Set(changed)].join("、") || "無"}。\n更新內容待分析 ${review.pending} 項；新增未翻譯 ${missing} 項。詳見 verify/reports/impact.json 與 language.json。\n範圍：靜態檢查與隔離測試，未涵蓋真實遊戲操作。\n→ 完成更新內容、翻譯與真實遊戲載入驗證後自動發布。`);
 }
 
+// 根目錄是唯一來源：測試與自動適配針對 editor/ 副本，先同步，避免驗到過時副本。
+if (!flag("dry")) require(path.join(P.editor, "sync-from-web.js")).sync();
 (flag("update") ? update() : quick()).catch((e) => { console.error("驗證腳本本身錯誤：", e); process.exitCode = 2; });

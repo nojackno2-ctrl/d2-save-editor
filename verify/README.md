@@ -2,6 +2,22 @@
 
 目標：腳本自動完成可重複的檢查，AI 依官方更新內容分析、改良並驗證工具包。不得將腳本通過視為新版功能已完整適配。
 
+## 全自動更新（2026-11-05 起，日常主流程）
+官方幾乎每天更新，日常以「快速相容」為主，全部由排程自動完成，不需 AI 介入：
+
+```bash
+powershell -File verify/schedule.ps1     # 註冊 Windows 排程，每 2 小時執行一次（-Hours N 調整、-Remove 移除）
+node verify/auto.cjs                      # 手動跑一次：有新版才動作（--force 強制、--no-publish 只驗證）
+node verify/live-smoke.cjs                # 單獨跑實機煙霧測試，寫入 reports/live.json
+```
+
+`auto.cjs` 流程：偵測官方新版 → `verify.cjs --update`（快照、自動換模組檔名、特徵碼與裝備資料庫檢查、回歸測試）→ `live-smoke.cjs`（Electron 隔離設定檔開官方 /play/，從本機臨時伺服器載入待發布工具包，確認進入遊戲、輔助器接上、語言掛上、修改器入口存在）→ 產生 `reports/new-content.md` → `publish.cjs --confirm --auto --no-desktop`。
+- **新內容不自動做**：官方更新條目與新增未翻譯字串列在 `reports/new-content.md`，由使用者決定要不要加入；`--auto` 發布不以它們為阻擋條件。
+- **安全閘**：任一步失敗即停止、不發布，Windows 通知並寫 `reports/auto-log.md`、`auto.json`、`ticket.json`；啟動時工作目錄有未提交修改也不發布（保護進行中的工作）。
+- 自動發布只更新網頁版（書籤會自動取得）；桌面版 exe 需手動 `publish.cjs --confirm` 打包。
+- 失敗時再請 AI 依 `.claude/skills/game-update/SKILL.md` 處理。
+
+## 手動指令
 ```bash
 node verify/verify.cjs --update      # 偵測新版→下載快照→比對、翻譯稽核與自動測試→供 AI 分析與適配
 node verify/verify.cjs --quick       # 只跑既有測試（不上網）
@@ -35,7 +51,6 @@ node verify/selftest.cjs             # 驗證「驗證腳本自己會抓錯」
 
 ## 尚未做（誠實記錄）
 - 並行「每個測試一份全新存檔、由修改器造檔」的實機整合測試（目前整合測試仍是既有的隔離 Electron 假後端）。
-- 真實遊戲載入與待發布工具包檢查尚需 AI 操作，沒有全自動載入程式。
 - 在真實 Chromium 載入本機快照、實際 import Game／itemArt／saveTransfer 模組（目前是靜態特徵檢查）。
 - `publish.cjs --confirm` 只驗證過「列出計畫」，打包與推送尚未實際執行過。
 - Cloudflare 公告網站已連 GitHub 自動建置；尚待確認後台「組建組態」的部署命令指向 site/，並確認第一次建置成功。

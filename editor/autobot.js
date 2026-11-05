@@ -53,8 +53,8 @@
   // 兩個分頁各有總開關：戰鬥輔助（enabled）、自動戰鬥（progressEnabled）。
   const questOn = () => settings.progressEnabled && settings.quest.autoProgress;
   const terrorMode = () => settings.progressEnabled ? settings.terror.mode : "off";
-  // 依使用者回報：只開自動戰鬥時角色不走位、不喝水，自動戰鬥跑不起來；自動戰鬥開著就包含戰鬥輔助（走位、閃避、喝水、撿物）。
-  const assistOn = () => settings.enabled || settings.progressEnabled;
+  // 各分頁只受自己的總開關控制；自動戰鬥不會隱含開啟戰鬥輔助。
+  const assistOn = () => settings.enabled;
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) || "{}");
     settings = merge(defaults, stored);
@@ -741,7 +741,10 @@
         await g.startReplay(g.kit, t.targetFarmTier);
       } else {
         if (!Array.isArray(record.offers) || !record.offers.length) return;
-        const offer = record.offers.findIndex((e) => !e.affixes?.includes("nobelt"));
+        // 超級首領與最終戰選項（offer.uber／offer.finale）會消耗鑰匙或器官（遊戲 itemArt 的 Kl(…, uber)），自動流程優先避開；只剩它時才退回原行為。
+        const usable = (e) => !e.affixes?.includes("nobelt");
+        const plain = record.offers.findIndex((e) => usable(e) && !e.uber && !e.finale);
+        const offer = plain >= 0 ? plain : record.offers.findIndex(usable);
         g.tierDone = null;
         lastAction = "推進恐怖 " + record.open + " 層";
         await g.startTerror(g.kit, Math.max(0, offer));
@@ -917,8 +920,8 @@
   }
   const isCharm = (item) => !!item?.base && /charm/i.test(String(item.type || "") + " " + String(item.base));
   function autoEquip(g, now) {
-    // 依使用者要求：任一總開關（戰鬥輔助或自動戰鬥）開著就自動換裝、賣用不到的裝備。
-    if ((!settings.enabled && !settings.progressEnabled) || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
+    // 自動穿裝只受自動戰鬥總開關控制；戰鬥輔助分頁不會啟用換裝。
+    if (!settings.progressEnabled || !settings.gear.autoEquip || now - gearAt < 3000 || !g.world?.player || g.save?.cursor) return;
     if (!["playing", "camp"].includes(g.state) || typeof g.gearActions !== "function" || typeof g.heroNumbers !== "function" || typeof g.makePlayer !== "function") return;
     gearAt = now;
     const p = g.world.player;
@@ -1062,8 +1065,8 @@
   };
   let townSince = 0;
   function campShop(g, now) {
-    // 依使用者要求：任一總開關開著，回營地就買水、賣裝、存倉、升級（不必開推層）。
-    if ((!settings.enabled && !settings.progressEnabled) || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
+    // 營地整備屬於自動戰鬥分頁，只受自動戰鬥總開關控制。
+    if (!settings.progressEnabled || !settings.town.enabled) { if (shop && !shop.done) { leaveTrade(g); shop = null; } return false; }
     if (g.state === "playing") { shop = null; townSince = 0; return false; }
     // 依原版對話流程：阿卡拉對話先呼叫 akaraSearch，嘗試翻譯卷軸。
     if (g.state === "camp" && !g.trade && !g.swapping && !g.save?.cursor && g.kit && typeof g.akaraSearch === "function") {
@@ -1135,13 +1138,17 @@
   // 原版技能表（itemArt 模組匯出：技能含 maxLevel／evolution{passive,into}／synergies[{from}]；被動含 maxLevel）。
   let SKILLS = null, PASSIVES = null, SKILL_BY_NAME = null, PASSIVE_BY_NAME = null, nativeLevelChoices = null, nativeWeapon = null, nativeKeyBindings = null;
   async function loadSkillTables(gameUrl) {
+    // 相依模組檔名含每版不同的雜湊，從遊戲入口的 import 動態解析，不寫死檔名（2026-11-04 起）。
+    let gameSource = "";
+    try { gameSource = await (await fetch(gameUrl, { signal: abort.signal })).text(); } catch { /* 讀不到就走各自的降級 */ }
     try {
-      // 只載入已驗證版本的相依模組，避免同頁資源紀錄中的舊版模組被誤選。
-      for (const u of [new URL("itemArt-IboVUP2X.js", gameUrl).href]) {
+      const itemArtName = /["']\.\/(itemArt-[\w-]+\.js)["']/.exec(gameSource)?.[1];
+      for (const u of itemArtName ? [new URL(itemArtName, gameUrl).href] : []) {
         const m = await import(u);
-        // 目前已辨識版本的 Di 為遊戲實際使用的鍵位讀取函式；先檢查特徵再採用。
-        if (typeof m.Di === "function" && m.Di.length === 0 && /localStorage\.getItem/.test(Function.prototype.toString.call(m.Di))) nativeKeyBindings = m.Di;
+        // 鍵位讀取函式的匯出名每版都會變（20261103.2 為 V_ 陣列 as Di，20261104.1 為 j_ as Sa），改依特徵辨認：
+        // 零參數、以 JSON.parse(localStorage.getItem(…)) 讀取 d2s:keys。
         for (const v of Object.values(m)) {
+          if (typeof v === "function" && !nativeKeyBindings && v.length === 0 && /JSON\.parse\(localStorage\.getItem\(/.test(Function.prototype.toString.call(v))) { nativeKeyBindings = v; continue; }
           if (!v || typeof v !== "object" || Array.isArray(v)) continue;
           if (!SKILLS && v.doubleSwing?.name && v.magicArrow?.name) { SKILLS = v; SKILL_BY_NAME = new Map(Object.entries(v).map(([k, d]) => [String(d?.name || "").toLowerCase(), k])); }
           if (!PASSIVES && v.innerSight?.name && v.criticalStrike?.name) { PASSIVES = v; PASSIVE_BY_NAME = new Map(Object.entries(v).map(([k, d]) => [String(d?.name || "").toLowerCase(), k])); }
@@ -1150,7 +1157,8 @@
       }
     } catch { /* 讀不到就只用排行榜權重 */ }
     try {
-      const urls = [new URL("saveTransfer-Cma7QL-E.js", gameUrl).href];
+      const saveTransferName = /["']\.\/(saveTransfer-[\w-]+\.js)["']/.exec(gameSource)?.[1];
+      const urls = saveTransferName ? [new URL(saveTransferName, gameUrl).href] : [];
       for (const url of urls) {
         const module = await import(url);
         const matches = Object.values(module).filter((fn) => {
@@ -1268,8 +1276,7 @@
     });
   }
   function canReroll(g) {
-    const unlimited = settings.cheat.enabled && settings.cheat.infiniteRerolls;
-    if (!settings.build.autoReroll || (!unlimited && levelRerollCount >= 2)) return false;
+    if (!settings.progressEnabled || !settings.build.autoReroll || levelRerollCount >= 2) return false;
     const rerollBtn = document.getElementById("reroll") || document.querySelector("#level-up button#reroll, #level-up .reroll, button[data-action='reroll']");
     if (rerollBtn && rerollBtn.disabled) return false;
     if (g?.build && typeof g.build.rerolls === "number" && g.build.rerolls <= 0) return false;
@@ -1629,11 +1636,12 @@
     }
 
     // 7. 選技能重抽無限次數 (Infinite Rerolls)
-    if (settings.cheat.infiniteRerolls) {
+    if (settings.cheat.enabled && settings.cheat.infiniteRerolls) {
+      // 存檔載入時戰局的重抽／跳過／排除次數上限為 99，超過會被判定無法讀取（A saved run could not be read）；不可寫 9999。
       if (g.build) {
-        g.build.rerolls = 9999;
-        g.build.skips = 9999;
-        g.build.banishes = 9999;
+        g.build.rerolls = 99;
+        g.build.skips = 99;
+        g.build.banishes = 99;
       }
       if (g.save?.ranks) {
         g.save.ranks.rerolls = Math.max(g.save.ranks.rerolls || 0, 999);
