@@ -7,6 +7,12 @@ app.commandLine.appendSwitch("disable-renderer-backgrounding");
 app.commandLine.appendSwitch("disable-background-timer-throttling");
 app.setPath("userData", path.join(OUT, "profile"));
 const log = (...a) => fs.appendFileSync(path.join(OUT, "log.txt"), new Date().toISOString().slice(11, 19) + " " + a.join(" ") + "\n");
+// H_BLOCK_API：攔截遊戲的 /api/ 請求（排行榜上傳與回報），請求不送出，只記錄網址；用於測試上傳佇列而不影響正式排行榜。
+if (process.env.H_BLOCK_API) {
+  app.whenReady().then(() => {
+    require("electron").session.defaultSession.webRequest.onBeforeRequest({ urls: ["https://*/api/*"] }, (d, cb) => { log("blocked", d.method, d.url); cb({ cancel: true }); });
+  });
+}
 app.whenReady().then(async () => {
   // H_LOCAL：把 GitHub Pages 的請求改由本機檔案回應（測試未發布的本機修改；與 craft-live.cjs 相同做法）。
   if (process.env.H_LOCAL) {
