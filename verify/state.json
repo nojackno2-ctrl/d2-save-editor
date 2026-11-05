@@ -1,9 +1,9 @@
 {
   "lastVerified": {
     "build": "20261104.2",
-    "at": "2026-11-04T22:27:01.443Z",
+    "at": "2026-11-05T01:24:30.537Z",
     "changed": [],
-    "fingerprint": "92b216beb607f627fd4524dcdf448297c50b2e639efe2cc145e3737b7220fbac",
+    "fingerprint": "6b97ac1a272acc0ee7cae84c9f2400a02b5ba8ac2e289f0e3e10c3e09ed8f15b",
     "comparison": {
       "baseline": "20261104.1",
       "complete": true,
@@ -96,6 +96,7 @@
       "build-web",
       "lang",
       "runeword-class-base",
+      "item-db",
       "skill-mods",
       "weapon-sets",
       "weapon-sets-ui",
