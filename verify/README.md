@@ -3,11 +3,10 @@
 目標：腳本自動完成可重複的檢查，AI 依官方更新內容分析、改良並驗證工具包。不得將腳本通過視為新版功能已完整適配。
 
 ## 全自動更新（2026-11-05 起，日常主流程）
-官方幾乎每天更新，日常以「快速相容」為主，全部由排程自動完成，不需 AI 介入：
+官方幾乎每天更新，日常以「快速相容」為主。使用者說「遊戲更新了」時，AI 直接執行下列指令，全程自動（不使用排程）：
 
 ```bash
-powershell -File verify/schedule.ps1     # 註冊 Windows 排程，每 2 小時執行一次（-Hours N 調整、-Remove 移除）
-node verify/auto.cjs                      # 手動跑一次：有新版才動作（--force 強制、--no-publish 只驗證）
+node verify/auto.cjs                      # 全自動：有新版才動作（--force 強制、--no-publish 只驗證）
 node verify/live-smoke.cjs                # 單獨跑實機煙霧測試，寫入 reports/live.json
 ```
 
