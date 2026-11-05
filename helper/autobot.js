@@ -54,6 +54,8 @@
   let settings = merge(defaults, {}), storageNote = "";
   // 兩個分頁各有總開關：戰鬥輔助（enabled）、自動戰鬥（progressEnabled）。
   const questOn = () => settings.progressEnabled && settings.quest.autoProgress;
+  // Pandemonium 材料的物品代碼：三把鑰匙（pk1 烏伯鑰匙、pk2、pk3）與三個器官（mbr、dhn、bey）。
+  const PANDEMONIUM_BASES = ["pk1", "pk2", "pk3", "mbr", "dhn", "bey"];
   const terrorMode = () => settings.progressEnabled ? settings.terror.mode : "off";
   // 各分頁只受自己的總開關控制；自動戰鬥不會隱含開啟戰鬥輔助。
   const assistOn = () => settings.enabled;
@@ -391,7 +393,8 @@
     // 遊戲 20261101.1：地上藥水種類有 potion／rejuvenation／mana（法師的魔力藥水補能量護盾，滿了才入腰帶）；腰帶有空或可直接使用就撿。
     if (["potion", "rejuvenation", "mana"].includes(drop.kind)) { if (drop.kind === "mana" && game?.kit?.id !== "sorceress") return false; const cols = game?.world?.belt?.columns; return !Array.isArray(cols) || cols.some((c) => (c?.length || 0) < 4) || drop.kind === "mana"; }
     if (!item) return false;
-    if (item.type === "quest") return questOn();
+    // 烏伯鑰匙與器官（Pandemonium 材料，遊戲 itemArt 的 Iv 名單）即使關閉任務自動推進也要撿，否則 Terror 首領掉落會被略過。
+    if (item.type === "quest") return questOn() || PANDEMONIUM_BASES.includes(item.base);
     // 交由遊戲原版判斷保留、隱藏與自動販售，避免輔助器再套用另一套品質規則。
     let decision = drop.loot;
     try { if (typeof game?.loot === "function") decision = game.loot(item); } catch { return false; }
