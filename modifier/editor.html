@@ -869,8 +869,11 @@ async function unlockAndMax(missing, known) {
     status(`完成：補齊 ${b.n} 件、調高 ${a.n} 件（含角色與傭兵身上）${near ? `，其中 ${near} 件找不到全滿的合法數值，用最接近最高的` : ""}${a.msg}${b.msg}；記得按「寫入存檔」`, "ok");
   } catch (e) { fail(e); }
 }
+// 遊戲的鍛造（temper）記錄在 forge／forgeHeld；重新產生會把它清掉，所以已鍛造的物品保持原樣
+const hasForge = (it) => Boolean(it?.forge || it?.forgeHeld);
 // 把物品重新產生成最高數值（保留 ID 與位置）；遊戲不接受的保持原樣
-async function maxItemsRaw(items) {
+async function maxItemsRaw(all) {
+  const items = all.filter(it => !hasForge(it)), kept = all.length - items.length;
   const out = await generate(items, "調成最高數值");
   let n = 0, near = 0;
   out.forEach((r, i) => {
@@ -880,10 +883,11 @@ async function maxItemsRaw(items) {
     Object.assign(it, r.item, { id: keep.id }, keep.at && { at: keep.at });
     n++; if (!r.max) near++;
   });
-  return { n, near, msg: skipped(out) };
+  return { n, near, msg: skipped(out) + (kept ? `，${kept} 件已鍛造保持原樣` : "") };
 }
-async function maxItems(items) {
-  if (!items.length) return;
+async function maxItems(all) {
+  const items = all.filter(it => !hasForge(it)), kept = all.length - items.length;
+  if (!items.length) { if (kept) status(`${kept} 件已鍛造（temper）保持原樣，未調整`, "ok"); return; }
   try {
     const out = await generate(items, "調成最高數值");
     let n = 0, near = 0;
@@ -894,7 +898,7 @@ async function maxItems(items) {
       Object.assign(it, r.item, { id: keep.id }, keep.at && { at: keep.at }); // 保留原本的物品 ID 與位置
       n++; if (!r.max) near++;
     });
-    refresh(); status(`${n} 件已調成最高數值，全部為合法物品${near ? `（${near} 件套裝使用最接近最高的合法數值）` : ""}；記得按「寫入存檔」`, "ok");
+    refresh(); status(`${n} 件已調成最高數值，全部為合法物品${near ? `（${near} 件套裝使用最接近最高的合法數值）` : ""}${kept ? `；${kept} 件已鍛造保持原樣` : ""}；記得按「寫入存檔」`, "ok");
   } catch (e) { fail(e); }
 }
 
@@ -2059,7 +2063,7 @@ function detect() {
   const regen = risky.filter(it => ["unique", "set", "runeword"].includes(it.rarity)), other = risky.filter(it => !regen.includes(it));
   out.push(risky.length ? { ok: false, text: `${risky.length} 件物品會被判定為不合法：${risky.slice(0, 5).map(nameZh).join("、")}${risky.length > 5 ? "…" : ""}`,
     note: faultyItems ? "遊戲檢查" : "近似檢查",
-    fix: async () => { if (regen.length) await maxItems(regen); for (const it of other) { it.rarity = "unique"; delete it.stats; delete it.roll; } }, fixText: "重新產生為合法物品" }
+    fix: async () => { if (regen.length) await maxItems(regen); for (const it of other) { if (hasForge(it)) continue; it.rarity = "unique"; delete it.stats; delete it.roll; } }, fixText: "重新產生為合法物品" }
     : { ok: true, text: "物品合法性檢查通過", note: faultyItems ? "遊戲檢查" : "近似檢查" });
   // 套裝裝備被標成暗金（舊版修復／自動放裝備殘留）：遊戲會當成錯誤物品，直接移除
   const fakeUniques = fakeUniqueItems(s);
