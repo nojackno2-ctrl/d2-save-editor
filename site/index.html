@@ -1551,6 +1551,7 @@
           </ul>
           <p class="card-foot">修改套裝、魔法、稀有屬性後若遊戲顯示「Not legit」（只影響排行榜），可在此頁處理。</p>
           <p class="card-foot"><b>遊戲本身會偵測修改</b>：遊戲會檢查存檔是否在遊戲外被修改（簽章與匯入痕跡）。被判定為修改過的英雄，排行榜會拒絕並標示「存檔在遊戲外被修改」（Save edited outside the game），不會計入排行榜。此偵測由遊戲執行；本頁的反修改偵測只依同一套規則標出可能被拒絕的項目。</p>
+          <p class="card-foot"><b>遊戲本身也會偵測書籤</b>：就算沒有修改遊戲，只要載入中文化書籤（d2_zh.js），或書籤替換了瀏覽器的內建函式（WeakMap.get、Storage.setItem、drawImage 等 7 項），遊戲的頁面診斷都會列出（例如「replaced Storage.setItem」）。工具包的書籤在寫入存檔時會替換 Storage.setItem，因此寫入後診斷會出現這一項。這項診斷本身不影響排行榜判定；排行榜的「作弊標記」（tainted）只依網址參數與自動化環境設定。</p>
         </div>
 
         <div class="hud-card">
