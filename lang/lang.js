@@ -197,67 +197,83 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
       GameTranslator = Object.values(mod).find((v) => typeof v === "function" && v.prototype && typeof v.prototype.translate === "function" && typeof v.prototype.translateAs === "function") || null;
     } catch (e) { console.warn("[d2lang] 無法使用遊戲翻譯器，改用簡易比對", e); }
   }
-  // 只有遊戲原本使用韓文翻譯器時才接上其原生流程；其他語言使用本模組的字典翻譯，避免切換遊戲語言與攔截原生 Storage API。
+  // 原版詞綴英文（冠軍怪、唯一怪的詞綴列）：詞綴之間以單一空白分隔；名稱（怪物、物品）則直接相接
+  const TRAIT_EN = new Set(["Cursed", "Aura Enchanted", "Extra Fast", "Extra Strong", "Cold Enchanted", "Fire Enchanted", "Lightning Enchanted", "Mana Burn", "Magic Resistant", "Teleportation", "Spectral Hit", "Stone Skin", "Multiple Shots", "Champion", "Fanatic", "Berserker", "Ghostly", "Possessed", "Demon", "Undead"]);
+  const isTrait = (s) => TRAIT_EN.has(s) || /^Immune to (Physical|Magic|Fire|Lightning|Cold|Poison)$/.test(s);
+  // 組合規則：遊戲以「 - 」串接的名稱，依原版規則重組（不再用正則替換譯文）
+  // 物品「字首 底材 of 字尾」→ 字尾＋字首＋底材；兩個字的稀有名稱 → 兩字分別翻譯
+  // 只用字典的精確詞條（不走萬用樣板，免得「Ring of Craftsmanship」這種片段被樣板誤配）
+  const up = (s) => s.replace(/\s+/g, " ").trim().toUpperCase();
+  const exactOf = (self, kind, s) => self.exact?.get(up(`${kind}:${s}`)) ?? self.exact?.get(up(s)) ?? null;
+  // 遊戲把技能名稱串成清單（「A and B」「A, +19% of B」）再代入樣板；萬用樣板至少要 3 個大寫字母，
+  // 串接詞撐不起來，逐段翻譯後用中文標點組回（只在本模組的字典上，韓文原版不受影響）
+  function composeFind(P) {
+    if (typeof P.find !== "function") return;
+    const origFind = P.find;
+    const itemName = function (e) {
+      const words = e.trim().split(/\s+/);
+      if (words.length < 2 || words.length > 8 || !words.every((w) => /^(of|the|[A-Z][\w'’-]*)$/.test(w))) return null;
+      for (let len = words.length - 1; len >= 1; len--) {
+        for (let i = 0; i + len <= words.length; i++) {
+          const base = exactOf(this, "item", words.slice(i, i + len).join(" "));
+          if (base === null) continue;
+          const pre = words.slice(0, i).join(" "), suf = words.slice(i + len).join(" ");
+          // 原版只有魔法字尾（of …）會移到最前面；沒有 of 的（怪物稱號、稀有名稱）維持原順序
+          if (suf && !/^of /.test(suf)) continue;
+          const p = pre ? exactOf(this, "affix", pre) : "", s = suf ? exactOf(this, "affix", suf) : "";
+          if (p !== null && s !== null) return cleanCJK(`${s}${p}${base}`);
+        }
+      }
+      if (words.length === 2) {
+        const [a, b] = words.map((w) => exactOf(this, "affix", w));
+        if (a !== null && b !== null) return cleanCJK(a + b);
+      }
+      return null;
+    };
+    P.find = keepFunctionName(origFind, function (e, depth) {
+      if (this !== gameTr || depth > 3) return origFind.call(this, e, depth);
+      const sep = LIST_SEP[currentLang] || LIST_SEP.default;
+      const part = (s) => {
+        const m = /^([+-]?\d[\d.,]*%?) of (.+)$/.exec(s.trim());
+        if (m) { const n = origFind.call(this, m[2], depth + 1); return n === null ? null : `${n} ${m[1]}`; }
+        return origFind.call(this, s.trim(), depth + 1);
+      };
+      if (e.includes(" - ")) {
+        const segs = e.split(" - ").map((s) => s.trim());
+        if (segs.every(isTrait)) {
+          const tr = segs.map(part);
+          if (tr.every((x) => x !== null)) return tr.join(" "); // 不換行空白：cleanCJK 不會刪，寬度同一般空格
+        }
+        const item = itemName.call(this, segs.join(" "));
+        if (item !== null) return item;
+        const out = segs.map(part);
+        if (out.every((x) => x !== null)) return out.join("");
+      }
+      const r = origFind.call(this, e, depth);
+      if (r !== null) return r;
+      for (const [re, glue] of [[/, (?:and )?/, sep.comma], [/ and /, sep.and], [/ or /, sep.or]]) {
+        if (!re.test(e)) continue;
+        const outList = e.split(re).map(part);
+        if (outList.every((x) => x !== null)) return outList.join(glue);
+      }
+      return itemName.call(this, e, depth);
+    });
+  }
+  // 韓文原生流程：只有遊戲本來使用韓文翻譯器時才接管 translate；其他語言只接組合規則，翻譯仍走本模組字典
   let gameHooked = false;
   async function hookGameTranslation() {
     if (gameHooked || !GameTranslator) return;
     try {
       const nativeKo = document.documentElement.lang === "ko";
-      if (!nativeKo) {
-        document.documentElement.lang = currentLang === "zh-TW" ? "zh-Hant" : currentLang;
-        gameHooked = true;
-        return;
+      const P = GameTranslator.prototype;
+      if (nativeKo) {
+        const orig = { translate: P.translate, translateAs: P.translateAs, translateMagic: P.translateMagic };
+        const via = (name, self, args, raw) => currentLang === "en" || !gameTr ? orig[name].apply(self, args) : orig[name].apply(gameTr, args);
+        P.translate = keepFunctionName(orig.translate, function (s) { return cleanCJK(via("translate", this, [s], s)); });
+        P.translateAs = keepFunctionName(orig.translateAs, function (kind, s) { return cleanCJK(via("translateAs", this, [kind, s], s)); });
+        P.translateMagic = keepFunctionName(orig.translateMagic, function (s, base) { return cleanCJK(via("translateMagic", this, [s, base], s)); });
       }
-      const P = GameTranslator.prototype, orig = { translate: P.translate, translateAs: P.translateAs, translateMagic: P.translateMagic };
-      const via = (name, self, args, raw) => currentLang === "en" || !gameTr ? (nativeKo ? orig[name].apply(self, args) : raw) : orig[name].apply(gameTr, args);
-      P.translate = keepFunctionName(orig.translate, function (s) { return cleanCJK(via("translate", this, [s], s)); });
-      P.translateAs = keepFunctionName(orig.translateAs, function (kind, s) { return cleanCJK(via("translateAs", this, [kind, s], s)); });
-      P.translateMagic = keepFunctionName(orig.translateMagic, function (s, base) { return cleanCJK(via("translateMagic", this, [s, base], s)); });
-      // 遊戲把技能名稱串成清單（「A and B」「A, +19% of B, +150% of C」）再代入樣板；原版萬用樣板至少要 3 個大寫字母，
-      // 串接詞撐不起來，逐段翻譯後用中文標點組回（只在本模組的字典上，韓文原版不受影響）
-      if (typeof P.find === "function") {
-        const origFind = P.find;
-        P.find = keepFunctionName(origFind, function (e, depth) {
-          const r = origFind.call(this, e, depth);
-          if (r !== null || this !== gameTr || depth > 3) return r;
-          const sep = LIST_SEP[currentLang] || LIST_SEP.default;
-          const part = (s) => {
-            const m = /^([+-]?\d[\d.,]*%?) of (.+)$/.exec(s.trim());
-            if (m) { const n = origFind.call(this, m[2], depth + 1); return n === null ? null : `${n} ${m[1]}`; }
-            return origFind.call(this, s.trim(), depth + 1);
-          };
-          for (const [re, glue] of [[/, (?:and )?/, sep.comma], [/ and /, sep.and], [/ or /, sep.or]]) {
-            if (!re.test(e)) continue;
-            const out = e.split(re).map(part);
-            if (out.every((x) => x !== null)) return out.join(glue);
-          }
-          return itemName.call(this, e, depth);
-        });
-        // 物品名稱（遊戲只在知道底材時才拆字首字尾，提示框等處拿到的是整串名稱）：
-        // 魔法物品「字首 底材 of 字尾」→ 字尾＋字首＋底材；兩個字的稀有名稱 → 兩字分別翻譯
-        // 只用字典的精確詞條（不走萬用樣板，免得「Ring of Craftsmanship」這種片段被樣板誤配）
-        const up = (s) => s.replace(/\s+/g, " ").trim().toUpperCase();
-        const exactOf = (self, kind, s) => self.exact?.get(up(`${kind}:${s}`)) ?? self.exact?.get(up(s)) ?? null;
-        const itemName = function (e) {
-          const words = e.trim().split(/\s+/);
-          if (words.length < 2 || words.length > 8 || !words.every((w) => /^(of|the|[A-Z][\w'’-]*)$/.test(w))) return null;
-          for (let len = words.length - 1; len >= 1; len--) {
-            for (let i = 0; i + len <= words.length; i++) {
-              const base = exactOf(this, "item", words.slice(i, i + len).join(" "));
-              if (base === null) continue;
-              const pre = words.slice(0, i).join(" "), suf = words.slice(i + len).join(" ");
-              const p = pre ? exactOf(this, "affix", pre) : "", s = suf ? exactOf(this, "affix", suf) : "";
-              if (p !== null && s !== null) return cleanCJK(`${s}${p}${base}`);
-            }
-          }
-          // 兩個字的稀有名稱
-          if (words.length === 2) {
-            const [a, b] = words.map((w) => exactOf(this, "affix", w));
-            if (a !== null && b !== null) return cleanCJK(a + b);
-          }
-          return null;
-        };
-      }
+      composeFind(P);
       document.documentElement.lang = currentLang === "zh-TW" ? "zh-Hant" : currentLang;
       gameHooked = true;
     } catch (e) { console.warn("[d2lang] 無法接上遊戲翻譯流程，只翻譯 DOM 與 Canvas 文字", e); }
@@ -520,8 +536,8 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     return true;
   }
 
-  const CJK_PUNCT = /[，,、]/, CJK_PUNCT_ALL = /[，,、]+/g, MULTI_SPACE = /\s{2,}/g;
-  const CJK_CHAR = /[\u4e00-\u9fa5\u3400-\u4dbf]/, CJK_GAP = /([\u4e00-\u9fa5\u3400-\u4dbf])\s+(?=[\u4e00-\u9fa5\u3400-\u4dbf])/g;
+  const CJK_PUNCT = /[，,、]/, CJK_PUNCT_ALL = /[，,、]+/g, MULTI_SPACE = /[^\S ]{2,}/g;
+  const CJK_CHAR = /[\u4e00-\u9fa5\u3400-\u4dbf]/, CJK_GAP = /([\u4e00-\u9fa5\u3400-\u4dbf])[^\S\u00a0]+(?=[\u4e00-\u9fa5\u3400-\u4dbf])/g;
   // 淨化中文字串：移除怪物名稱中文字之間的空格、精英怪屬性中間的逗號／頓號
   function cleanCJK(str) {
     if (!str || typeof str !== "string" || currentLang === "en") return str;
@@ -534,17 +550,6 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     if (CJK_CHAR.test(s)) s = s.replace(CJK_GAP, "$1");
     return s;
   }
-  // 怪物名稱與詞綴列的分隔符（遊戲原版以「 - 」串接，中文化後會留下）：
-  // 純英文的怪物名稱（中文間的分隔符直接移除，例如「石塊蛆蟲巫異」）；
-  // 含詞綴關鍵字的屬性列（例如 Cursed、Extra Fast）則改為每個屬性之間一個空格（「施加詛咒 特別快速」）
-  const MONSTER_LINE = /^[A-Za-z][A-Za-z' -]*$/, MONSTER_TRAIT = /\b(Extra|Cursed|Enchanted|Immune|Resistant|Mana Burn|Teleportation|Spectral Hit|Stone Skin|Multiple Shots|Aura|Champion|Fanatic|Berserker|Ghostly|Possessed|Demon|Undead)\b/;
-  const CJK_SEP = /([一-龥㐀-䶿])\s*[-·]\s*(?=[一-龥㐀-䶿])/g;
-  function tidyMonsterText(en, zh) {
-    if (currentLang === "en" || typeof zh !== "string" || !CJK_CHAR.test(zh)) return zh;
-    if (typeof en !== "string" || !MONSTER_LINE.test(en.trim())) return zh;
-    return MONSTER_TRAIT.test(en) ? zh.replace(CJK_SEP, "$1 ") : zh.replace(CJK_SEP, "$1");
-  }
-
   function useDict(d) {
     buildPatternIndex(d);
     cache.clear();
@@ -595,7 +600,7 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     // 已含中日韓文字的（我們自己的工具介面、已翻好的）不算缺漏
     // 缺漏清單只供除錯，限制數量避免長時間遊玩（例如持續變動的數字字串）讓記憶體無限成長
     if (r === str && missing.size < 5000 && str.trim().length > 1 && !HAS_CJK.test(str)) missing.add(str.trim());
-    r = tidyMonsterText(str.trim(), cleanCJK(r));
+    r = cleanCJK(r);
     if (cache.size > 20000) cache.clear();
     cache.set(str, r);
     return r;
