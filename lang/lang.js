@@ -292,6 +292,7 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
   window.__d2langForeign = isForeign;
   window.__d2langCtx = () => (fontCtx ??= document.createElement("canvas").getContext("2d"));
   let fontPatched = false;
+  const CJK_SCALE = 1.25; // 遊戲畫布中文字級倍率
   // 走訪遊戲物件：收集點陣字型的原型，以及畫好的文字畫布快取（Map 的值是 canvas，例如 surface.texts）
   function scanGame(root) {
     const seen = new Set(), queue = [[root, 0]], protos = new Set(), caches = new Set();
@@ -467,7 +468,17 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     if (typeof P.foreignFont === "function" && typeof P.drawForeign === "function") {
       const origFont = P.foreignFont, origDraw = P.drawForeign;
       P.foreignFont = keepFunctionName(origFont, function (...a) {
-        const f = origFont.apply(this, a);
+        let f = origFont.apply(this, a);
+        // 中文字級放大：原版字級是為韓文算的，中文筆畫多、偏小。記下原字級，依語言切換倍率（寬度快取一併清掉）
+        if (this.foreignSize) {
+          this.__d2langBase ??= this.foreignSize;
+          const want = currentLang === "en" ? this.__d2langBase : Math.round(this.__d2langBase * CJK_SCALE);
+          if (this.foreignSize !== want) {
+            this.foreignSize = want;
+            try { this.foreignWidths?.clear?.(); } catch {}
+            f = f.replace(/\d+px/, `${want}px`);
+          }
+        }
         if (currentLang === "en" || /^bold /.test(f)) return f;
         // 寬度快取是用原本字重量的，第一次換粗體時清掉重量
         if (!this.__d2langBold) { this.__d2langBold = true; try { this.foreignWidths?.clear?.(); } catch {} }
