@@ -40,7 +40,8 @@
       allElites: false,
       infiniteRerolls: false,
       maxDropRate: false,
-      maxGoldRate: false
+      maxGoldRate: false,
+      maxXp: false
     },
   };
   // 由 d2survivors.lol 排行榜 API 產生（editor/ladder-learn.js）：各職業前 50 位不同玩家，每人只取最高恐懼層紀錄（依使用者要求），不足 20 位以地獄榜補：技能／被動 [id, 名稱, 權重]、常用變體、配點比例、各欄常用暗金套裝。
@@ -82,6 +83,7 @@
         infiniteRerolls: false,
         maxDropRate: false,
         maxGoldRate: false,
+        maxXp: false,
         ...stored.cheat
       };
       settings.version = 9;
@@ -1635,6 +1637,17 @@
       }
     }
 
+    // 經驗值加成最大：包住遊戲的 gainXp，把獲得的經驗乘上固定倍率（依設定即時生效，關閉即原樣放行）
+    if (typeof g.gainXp === "function" && !g.gainXp.__d2Xp) {
+      const orig = g.gainXp;
+      const wrapped = function (amount, ...rest) {
+        const on = settings.cheat?.enabled && settings.cheat.maxXp && Number.isFinite(amount) && amount > 0;
+        return orig.call(this, on ? amount * 1000 : amount, ...rest);
+      };
+      wrapped.__d2Xp = true;
+      g.gainXp = wrapped;
+    }
+
     // 7. 選技能重抽無限次數 (Infinite Rerolls)
     if (settings.cheat.enabled && settings.cheat.infiniteRerolls) {
       // 存檔載入時戰局的重抽／跳過／排除次數上限為 99，超過會被判定無法讀取（A saved run could not be read）；不可寫 9999。
@@ -1919,6 +1932,7 @@
   group("流程與掉落修改");
   field("cheat.infiniteRerolls", "選技能的重抽無限次數（升級選卡無限重抽、跳過與排除）");
   field("cheat.maxDropRate", "掉寶率最高（大幅提升暗金/套裝/稀有尋寶率）");
+  field("cheat.maxXp", "經驗值加成最大（擊殺與任務獲得的經驗值乘以 1000 倍，升級極快）");
   field("cheat.maxGoldRate", "金幣掉落率最高（偵測玩家金幣超過 90 億自動關閉）");
   // 依使用者要求：目前模式用不到的設定隱藏（欄位所在的 label 列與分組標題）。
   function applyModeVisibility() {

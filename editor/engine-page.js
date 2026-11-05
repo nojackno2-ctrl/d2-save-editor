@@ -711,7 +711,7 @@ export function boot(G, itemstatsText, gameIdentity = {}) {
       }
       return out;
     },
-    bases() { return G.__bases.map((b) => ({ name: b.name, type: b.type, itype: b.itype, level: b.level ?? 0, size: b.size })); },
+    bases() { return G.__bases.map((b) => ({ name: b.name, type: b.type, itype: b.itype, level: b.level ?? 0, size: b.size, sockets: stats.bases[b.name]?.sockets ?? null })); },
     // 可以做成這個符文之語的底材
     fixedInfo(rarity, name, baseName, eth) { try { return fixedInfo(rarity, name, baseName, eth); } catch (e) { return { error: String(e.message ?? e) }; } },
     fixedBuild(spec) { try { return fixedBuild(spec); } catch (e) { return { error: String(e.message ?? e) }; } },
