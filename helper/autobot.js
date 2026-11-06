@@ -191,7 +191,7 @@
     refreshControls();
   }
   // 自動停機（如離場失敗）不改寫使用者儲存的設定；使用者按「停止輔助」才存成關閉（依使用者回報：舊版按停止後下次載入又是開的）。
-  function stop(reason = "輔助已停止", byUser = false) { settings.enabled = false; settings.progressEnabled = false; release(); lastAction = reason; save(byUser); }
+  function stop(reason = "輔助已停止", byUser = false) { settings.enabled = false; settings.progressEnabled = false; setPickupRadius(pickupOwner, false); release(); lastAction = reason; save(byUser); }
   function manual(e) {
     if (!e.isTrusted || host.contains(e.target) || e.target === launcher || e.target === stopButton) return;
     manualUntil = performance.now() + 1200;
@@ -401,17 +401,31 @@
     return decision === "pick" || decision === "sell";
   }
 
+  // 撿拾距離（原版 player.pickupRadius，基礎 70）：開啟「全圖撿寶」時放大到全圖，原版自己把掉落物吸過來；撿哪些仍由遊戲過濾器決定。
+  const FULL_MAP_PICKUP = 1e6;
+  let naturalPickupRadius = null, pickupOwner = null;
+  function setPickupRadius(p, on) {
+    if (!p || !finite(p.pickupRadius)) return;
+    // 原版重算過（換裝、升級）後的值不是我們設的全圖值，就當成新的原始值記住。
+    if (p.pickupRadius !== FULL_MAP_PICKUP) naturalPickupRadius = p.pickupRadius;
+    if (on) { p.pickupRadius = FULL_MAP_PICKUP; pickupOwner = p; }
+    else if (pickupOwner === p) { if (p.pickupRadius === FULL_MAP_PICKUP && naturalPickupRadius != null) p.pickupRadius = naturalPickupRadius; pickupOwner = null; }
+  }
   // 會去撿的掉落物（不含罐子）；通關後沒有就直接離開。
   const wantedLoot = (s, now, lootOn = assistOn() && settings.loot.enabled) => s.pickups.filter((e) => !e.flippy && !e.discarded && (blockedLoot.get(e) || 0) < now && (lootOn || e.item?.type === "quest") && dist(e, s.p) <= settings.loot.searchRadius && accepts(e));
   // 全圖撿取（非原版行為，可關閉）：要撿的掉落物設原版 magnet 自己飛來；寶箱原版不吸，直接移到角色身上讓原版開啟。
   function vacuum(s, now) {
+    setPickupRadius(s.p, assistOn() && settings.loot.enabled && settings.loot.vacuum);
     // 依使用者要求：全圖吸經驗（非原版行為，可關閉）——地上的經驗寶石（kind=xp）也設原版 magnet 自己飛來，不受撿裝開關影響。
     if (assistOn() && settings.loot.vacuumXp && s.p) for (const e of s.pickups) if (e.kind === "xp" && !e.dead) e.magnet = true;
     if (assistOn() && settings.loot.vacuumGold && s.p) for (const e of s.pickups) if (e.kind === "gold" && !e.dead && !e.flippy && !e.discarded) e.magnet = true;
     if (!assistOn() || !settings.loot.enabled || !settings.loot.vacuum || !s.p) return;
     for (const e of s.pickups) {
-      if (e.dead || e.flippy || e.discarded || e.kind === "xp" || !accepts(e)) continue;
+      // 任務物品（烏伯鑰匙、Horadric Codex 等）與裝備一起吸過來，不受任務推進開關限制；其餘仍依 accepts（遊戲 loot 過濾）。
+      if (e.dead || e.flippy || e.discarded || e.kind === "xp" || !(e.item?.type === "quest" || accepts(e))) continue;
       if (e.kind === "chest") { e.x = s.p.x; e.y = s.p.y; e.sprite?.position?.set?.(e.x, e.y); }
+      // 裝備：原版吸附迴圈會跳過有 item 的掉落物（magnet 對裝備無效），所以直接移到角色身上，由原版 Lle（距離內）＋carry（背包空位）收取；剛丟下的（dropped）不動。
+      else if (e.item) { if (!e.dropped) { e.x = s.p.x; e.y = s.p.y; e.sprite?.position?.set?.(e.x, e.y); } }
       else e.magnet = true;
     }
   }
@@ -2044,7 +2058,7 @@
   for (const [path, label] of [["autoHp", "自動喝生命藥水"], ["hpThreshold", "生命門檻（％）"], ["lethalProtection", "一擊必殺預判喝水"], ["lethalLookaheadSec", "預測提前秒數"], ["hpCooldownMs", "生命藥水冷卻（毫秒）"], ["fallbackHpSlot", "降級模式生命藥帶欄（1～4）"]]) field("potion." + path, label);
   group("走位與閃避");
   for (const [path, label] of [["enabled", "自動走位（預判包圍、保持距離、閃避）"], ["combatStyle", "戰鬥方式"], ["dodgeProjectiles", "閃避敵方飛彈"]]) field("movement." + path, label, path === "combatStyle" ? [["auto", "自動（依技能攻擊距離）"], ["melee", "近戰（貼身攻擊）"], ["ranged", "遠程（保持距離）"]] : undefined);
-  group("撿寶"); field("loot.enabled", "自動撿寶"); field("loot.vacuumXp", "全圖吸經驗（地上經驗寶石自動飛來；非原版行為）"); field("loot.vacuumGold", "全圖吸金幣"); field("loot.vacuumMode", "全圖撿寶", [["off", "關閉"], ["all", "開啟（依遊戲過濾器）"]]); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
+  group("撿寶"); field("loot.enabled", "自動撿寶"); field("loot.vacuumXp", "全圖吸經驗（地上經驗寶石自動飛來；非原版行為）"); field("loot.vacuumGold", "全圖吸金幣"); field("loot.vacuumMode", "全圖撿寶（撿取距離改為全圖，要撿哪些依遊戲過濾器）", [["off", "關閉"], ["all", "開啟"]]); field("loot.kickJars", "踢地上罐子木桶（可能掉藥水）");
   field("loot.backtrackForLoot", "通關後等待撿裝");
   tab("progress"); field("progressEnabled", "自動戰鬥開關"); field("autoKind", "自動模式", [["quest", "任務模式（完成所有任務並練到 99 級，達成後自動改刷地獄）"], ["fixedDifficulty", "固定關卡模式（重複刷指定難度）"], ["ladder", "天梯模式"]]);
   field("ladderMode", "天梯方式", [["terror", "推關（恐怖層數往上推）"], ["fixedTier", "固定層數（重刷指定層，須已通關）"]]);
@@ -2133,7 +2147,7 @@
     setText(status, trAuto(["戰鬥輔助：" + (settings.enabled ? "啟用" : "關閉") + "／自動戰鬥：" + (settings.progressEnabled ? "啟用（" + modeLabel() + "）" : "關閉"), game ? questLine(game) : "", game ? "掛鉤：原版 Game／" + game.state : hookNote, s.hp ? `生命：${Math.ceil(s.hp.now)}／${Math.ceil(s.hp.max)}` : "生命：無法讀取", s.mp ? `魔力：${Math.ceil(s.mp.now)}／${Math.ceil(s.mp.max)}` : "魔力：未啟用或無法讀取", game?.kit?.id ? "職業：" + ({ amazon: "亞馬遜", assassin: "刺客", barbarian: "野蠻人", druid: "德魯伊", necromancer: "死靈法師", paladin: "聖騎士", sorceress: "法師" }[game.kit.id] || game.kit.id) + "（" + (isMelee() ? "近戰" : "遠程") + "）" : "", game?.world?.terror ? "恐怖層數：" + game.world.terror.tier : "", "最近動作：" + lastAction, storageNote].filter(Boolean).join("\n")));
   }, 200);
   const api = {
-    destroy() { if (!alive) return; alive = false; restoreGoldRate(); restoreAllSkills(); restoreAllCheats(); release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
+    destroy() { if (!alive) return; alive = false; restoreGoldRate(); restoreAllSkills(); restoreAllCheats(); setPickupRadius(pickupOwner, false); release(); abort.abort(); clearInterval(timer); for (const restore of restores.reverse()) restore(); launcher.remove(); stopButton.remove(); statusLine.remove(); host.remove(); if (window.__d2autobot === api) delete window.__d2autobot; }, stop,
     diagnostics: () => ({ hellClears, hookUrl, hookNote, connected: !!game, state: game?.state ?? null, lastAction, storageNote, quests: (() => { try { const q = questSnapshot(game); return { line: questLine(game), done: q.done, total: q.total, pending: q.pending, cain: q.cain }; } catch { return null; } })(), gameBuild: (() => { try { return JSON.parse(localStorage.getItem(BUILD_KEY) || "null"); } catch { return null; } })() }),
     get game() { return game; },
   };
