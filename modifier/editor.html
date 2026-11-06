@@ -2240,7 +2240,8 @@ function resetTerror(className) {
   // 依據：遊戲 Xl 只在 terror[職業] 不存在時才以 open:1 開始；刪除整筆會讓已開啟的階數消失
   const t = save.terror?.[className];
   if (t && typeof t === "object") {
-    if (Number.isInteger(t.open) && t.open >= 1 && Array.isArray(t.offers) && t.offers.length === 3) {
+    // 只有該職業真的打完地獄（baalSlain 為 hell）才保留恐懼階；否則整筆丟棄，遊戲不會列出恐懼選項
+    if (save.baalSlain?.[className] === "hell" && Number.isInteger(t.open) && t.open >= 1 && Array.isArray(t.offers) && t.offers.length === 3) {
       save.terror = { ...save.terror, [className]: { open: t.open, best: 0, cleared: 0, offers: t.offers, ...(t.waves !== undefined && { waves: t.waves }) } };
     } else {
       save.terror = dropKey(save.terror, className);
