@@ -149,7 +149,7 @@
     // 反修改偵測
     "偵測結果": "Scan results",
     "依照遊戲本身的檢查規則（金幣上限、光之碎片、物品合法性、角色等級、簽章、標記與匯入痕跡）掃描目前的存檔內容。": "Scans the current save with the game's own checks (gold cap, light shards, item legitimacy, character level, signature, flags and import traces).",
-    "重新掃描": "Rescan", "一鍵全部規避": "Fix all", "狀態": "Status", "項目": "Item", "存檔識別碼": "Save identifiers", "重新產生排行榜與角色識別碼": "Regenerate leaderboard and character IDs", "此操作會重設所有角色的爬塔紀錄。變更需寫入存檔後生效。": "This resets every character's climb record. Write the save to apply the changes.",
+    "重新掃描": "Rescan", "一鍵全部規避": "Fix all", "狀態": "Status", "項目": "Item", "存檔識別碼": "Save identifiers", "重新產生排行榜與角色識別碼": "Regenerate leaderboard and character IDs", "此操作會重設所有角色的爬塔紀錄與恐懼階層（含連勝與被換下角色保存的恐懼紀錄）。變更需寫入存檔後生效。": "This resets every character's climb record and terror tiers (including the streak and the terror record kept on swapped-out characters). Write the save to apply the changes.", "已重新產生排行榜與角色識別碼，並重設爬塔紀錄與恐懼階層（記得寫入存檔）": "Regenerated the leaderboard and character IDs, and reset climb records and terror tiers (remember to write the save)",
     "排行榜關閉時不會上傳任何資料。角色的爬塔紀錄帶有連鎖雜湊，修改器不會動它。": "Nothing is uploaded while the leaderboard is off. Character climb records carry a hash chain and are never touched.",
     "簽章正確": "Signature valid", "簽章損壞或不存在": "Signature broken or missing", "寫入時自動修復": "fixed automatically on write",
     "金幣在上限內（≤ 100 億）": "Gold within the cap (≤ 10 billion)", " 超過 100 億上限": " exceeds the 10 billion cap", "設為 100 億": "Set to 10 billion",

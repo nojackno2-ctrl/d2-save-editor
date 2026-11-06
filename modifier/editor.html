@@ -411,7 +411,7 @@
     <h2>存檔識別碼</h2>
     <table><tbody id="ids"></tbody></table>
     <div class="bar"><button id="newLbId">重新產生排行榜與角色識別碼</button></div>
-    <p class="note">此操作會重設所有角色的爬塔紀錄。變更需寫入存檔後生效。</p>
+    <p class="note">此操作會重設所有角色的爬塔紀錄與恐懼階層（含連勝與被換下角色保存的恐懼紀錄）。變更需寫入存檔後生效。</p>
   </section>
 </div>
 
@@ -874,6 +874,31 @@ async function unlock(list) {
   let n = 0, near = 0;
   for (const r of out) if (r?.item) { delete r.item.at; arr.push(r.item); n++; if (!r.max) near++; }
   return { n, near, msg: skipped(out) };
+}
+// 收藏中隨機種子對不上的符文之語：依同名同底材重新產生，逐件用遊戲檢查確認後才替換原項目（失敗的保留原樣）
+async function regenRunewords(bad) {
+  const idx = bad.map(it => (save.uniques ?? []).indexOf(it)).filter(i => i >= 0);
+  if (!idx.length) return { n: 0, failed: [] };
+  const out = await generate(idx.map(i => ({ rarity: "runeword", name: save.uniques[i].name, base: save.uniques[i].base })), "重新產生符文之語");
+  const cand = idx.map((i, j) => ({ i, it: out[j]?.item ?? null }));
+  // 先套用遊戲讀檔時的整理（sanitize），讓寫入的內容與遊戲讀回的一致（否則讀回後 roll／mod 會被重算而對不上）
+  // 不附 roll（保留 stats）：帶 roll 的符文之語讀回時會被遊戲改寫版本（roll[0] 1→2）而對不上種子；不附 roll 的做法與既有產生器一致，讀檔不會改回
+  for (const c of cand) {
+    if (!c.it) continue;
+    delete c.it.roll;
+    const s = await window.api.engine("sanitizeItem", JSON.parse(JSON.stringify(c.it))).catch(() => null);
+    c.it = s && typeof s === "object" ? s : null;
+  }
+  const withItem = cand.filter(c => c.it);
+  // 遊戲檢查不可用（null）時不替換，避免把未驗證的項目寫進存檔
+  const chk = withItem.length ? await window.api.engine("faults", withItem.map(c => JSON.parse(JSON.stringify(c.it)))) : [];
+  const okIdx = new Set(Array.isArray(chk) ? withItem.filter((c, k) => !chk[k]).map(c => c.i) : []);
+  let n = 0; const failed = [];
+  for (const c of cand) {
+    if (okIdx.has(c.i)) { delete c.it.at; save.uniques[c.i] = c.it; n++; }
+    else failed.push(save.uniques[c.i].name);
+  }
+  return { n, failed };
 }
 // 一鍵：先把已有的全部調最高，再補齊缺的（補的本來就是最高值）
 // 範圍：收藏、角色身上、傭兵身上、倉庫、背包、護身符欄（商店商品不動）
@@ -2080,6 +2105,9 @@ function attributeChecks(s) {
 function detect() {
   const out = [], s = save;
   out.push(...attributeChecks(s));
+  // 收藏中的符文之語隨機種子對不上（遊戲 itemFault 判定 seed）：遊戲的 sanitize 修不好，改為依同名同底材重新產生
+  const seedBad = (faultyItems ?? []).filter(it => it.rarity === "runeword" && (s.uniques ?? []).includes(it));
+  if (seedBad.length) out.push({ ok: false, text: `收藏中的符文之語 ${seedBad.length} 件隨機種子對不上（遊戲判定「not what its roll makes」）`, note: "遊戲的 sanitize 無法修正", fixText: "依同名重新產生", fix: () => regenRunewords(seedBad) });
   out.push(lastSeal === "sealed" ? { ok: true, text: "簽章正確" } : { ok: false, text: "簽章損壞或不存在", note: "寫入時自動修復" });
   out.push(s.gold <= 1e10 ? { ok: true, text: "金幣在上限內（≤ 100 億）" }
     : { ok: false, text: `金幣 ${s.gold.toLocaleString(LOCALE)} 超過 100 億上限`, fix: () => { s.gold = 1e10; }, fixText: "設為 100 億" });
@@ -2229,14 +2257,44 @@ function newLeaderboardId() {
   };
   save.leaderboard = { ...save.leaderboard, id: newId() };
   const climbs = save.climbs ?? (save.climbs = {});
-  const classes = new Set([...Object.keys(save.heroes ?? {}), ...Object.keys(climbs)]);
+  const classes = new Set([...Object.keys(save.heroes ?? {}), ...Object.keys(climbs), ...Object.keys(save.terror ?? {}), ...Object.keys(save.retired ?? {})]);
   for (const className of classes) {
     const entry = climbs[className] ?? (climbs[className] = {});
     if (typeof entry !== "object") continue;
     for (const key of Object.keys(entry)) delete entry[key];
     entry.hero = newId();
+    resetTerror(className);
   }
-  renderGuard(); status("已重新產生排行榜與角色識別碼，並重設爬塔紀錄（記得寫入存檔）", "ok");
+  renderGuard(); status("已重新產生排行榜與角色識別碼，並重設爬塔紀錄與恐懼階層（記得寫入存檔）", "ok");
+}
+// 清除單一職業的恐懼階層：目前的 terror 狀態、連勝（cain.terror）、舊的 best，以及被換下的前任角色保存的恐懼紀錄
+// 依據：遊戲 saveTransfer 的 xA（清 terror[職業]）、Xl（開始恐懼時讀 heroes[職業].best）、swap（還原 reached.terror）
+function resetTerror(className) {
+  const dropKey = (obj, key) => {
+    if (!obj || !(key in obj)) return obj;
+    const { [key]: _removed, ...rest } = obj;
+    return rest;
+  };
+  if (save.terror) {
+    save.terror = dropKey(save.terror, className);
+    if (!Object.keys(save.terror).length) delete save.terror;
+  }
+  if (save.cain?.terror) {
+    save.cain.terror = dropKey(save.cain.terror, className);
+    if (!Object.keys(save.cain.terror).length) delete save.cain.terror;
+  }
+  const hero = save.heroes?.[className];
+  if (hero && "best" in hero) delete hero.best;
+  // 進行中的恐懼局（run.run.terror）與續玩點（kept）若帶恐懼狀態，一併丟棄，否則可直接續玩恐懼階
+  if (hero) {
+    if (hero.run?.run?.terror !== undefined) delete hero.run;
+    if (hero.kept?.run?.terror !== undefined) delete hero.kept;
+    if (!Object.keys(hero).length) delete save.heroes[className];
+  }
+  for (const old of save.retired?.[className] ?? []) {
+    if ("best" in old) delete old.best;
+    if (old.reached && "terror" in old.reached) delete old.reached.terror;
+  }
 }
 
 /* ---------- 全新存檔 ---------- */
