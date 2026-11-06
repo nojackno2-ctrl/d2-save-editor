@@ -372,7 +372,7 @@
     <h2>存檔識別碼</h2>
     <table><tbody id="ids"></tbody></table>
     <div class="bar"><button id="newLbId">重新產生排行榜與角色識別碼</button></div>
-    <p class="note">此操作會重設所有角色的爬塔紀錄與恐懼階層（含連勝與被換下角色保存的恐懼紀錄）。變更需寫入存檔後生效。</p>
+    <p class="note">此操作會重設所有角色的爬塔紀錄與恐懼最佳、連勝與被換下角色保存的恐懼紀錄；已開啟的恐懼階會保留。變更需寫入存檔後生效。</p>
   </section>
 </div>
 
@@ -2236,9 +2236,16 @@ function resetTerror(className) {
     const { [key]: _removed, ...rest } = obj;
     return rest;
   };
-  if (save.terror) {
-    save.terror = dropKey(save.terror, className);
-    if (!Object.keys(save.terror).length) delete save.terror;
+  // 已開啟的恐懼階（open）與候選（offers）保留，英雄應保有已解鎖的恐懼階；只清最佳、通過數與進行中欄位
+  // 依據：遊戲 Xl 只在 terror[職業] 不存在時才以 open:1 開始；刪除整筆會讓已開啟的階數消失
+  const t = save.terror?.[className];
+  if (t && typeof t === "object") {
+    if (Number.isInteger(t.open) && t.open >= 1 && Array.isArray(t.offers) && t.offers.length === 3) {
+      save.terror = { ...save.terror, [className]: { open: t.open, best: 0, cleared: 0, offers: t.offers, ...(t.waves !== undefined && { waves: t.waves }) } };
+    } else {
+      save.terror = dropKey(save.terror, className);
+      if (!Object.keys(save.terror).length) delete save.terror;
+    }
   }
   if (save.cain?.terror) {
     save.cain.terror = dropKey(save.cain.terror, className);
