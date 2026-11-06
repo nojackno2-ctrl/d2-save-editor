@@ -153,6 +153,8 @@ const backend = {
   async save(m, save) {
     if (typeof save !== "object" || !save || typeof save.version !== "number") throw new Error("存檔格式不正確。");
     const text = await sealText(save);
+    // 同一頁第二次寫入時，上一次的防護還在；先清掉，讓修改器自己的這次寫入通過（否則會被擋下、顯示讀回不一致）。
+    lastText = null;
     localStorage.setItem(mode(m).key, text);
     written = true;
     // 遊戲在關卡中會於 pagehide／切到背景時用記憶體裡的舊存檔覆寫（有多個監聽，順序不定）。

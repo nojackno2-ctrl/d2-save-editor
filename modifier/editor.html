@@ -404,8 +404,8 @@
   <section>
     <h2>存檔識別碼</h2>
     <table><tbody id="ids"></tbody></table>
-    <div class="bar"><button id="newLbId">重新產生排行榜識別碼</button></div>
-    <p class="note">排行榜關閉時不會上傳任何資料。角色的爬塔紀錄帶有連鎖雜湊，修改器不會動它。</p>
+    <div class="bar"><button id="newLbId">重新產生排行榜與角色識別碼</button></div>
+    <p class="note">此操作會重設所有角色的爬塔紀錄。變更需寫入存檔後生效。</p>
   </section>
 </div>
 
@@ -2217,9 +2217,20 @@ async function fixAll() {
 }
 // 與遊戲相同格式：16 個隨機位元組的 base64url
 function newLeaderboardId() {
-  const b = crypto.getRandomValues(new Uint8Array(16));
-  save.leaderboard = { ...save.leaderboard, id: btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") };
-  renderGuard(); status("已產生新的排行榜識別碼（記得寫入存檔）", "ok");
+  const newId = () => {
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+  save.leaderboard = { ...save.leaderboard, id: newId() };
+  const climbs = save.climbs ?? (save.climbs = {});
+  const classes = new Set([...Object.keys(save.heroes ?? {}), ...Object.keys(climbs)]);
+  for (const className of classes) {
+    const entry = climbs[className] ?? (climbs[className] = {});
+    if (typeof entry !== "object") continue;
+    for (const key of Object.keys(entry)) delete entry[key];
+    entry.hero = newId();
+  }
+  renderGuard(); status("已重新產生排行榜與角色識別碼，並重設爬塔紀錄（記得寫入存檔）", "ok");
 }
 
 /* ---------- 全新存檔 ---------- */

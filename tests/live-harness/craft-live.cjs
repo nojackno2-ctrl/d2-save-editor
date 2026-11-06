@@ -9,7 +9,7 @@ const fs = require("fs"), os = require("os"), path = require("path");
 const [script, out] = process.argv.slice(2).filter((a) => !a.startsWith("--") && !a.endsWith("electron.exe") && a !== ".");
 const ROOT = path.resolve(__dirname, "..", ".."), PAGES = "https://nojackno2-ctrl.github.io/d2-survivors-toolkit/";
 const MIME = { ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json", ".html": "text/html", ".svg": "image/svg+xml", ".css": "text/css" };
-app.setPath("userData", fs.mkdtempSync(path.join(os.tmpdir(), "d2craft-")));
+app.setPath("userData", process.env.H_PROFILE ? path.resolve(process.env.H_PROFILE) : fs.mkdtempSync(path.join(os.tmpdir(), "d2craft-"))); // H_PROFILE：共用設定檔目錄（跨多次執行保留 localStorage，例如語言切換會重新載入）
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ width: 1100, height: 800, show: !!process.env.H_SHOW, webPreferences: { webSecurity: false } });
   session.defaultSession.protocol.handle("https", (req) => {
