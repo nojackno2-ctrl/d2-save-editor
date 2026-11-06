@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // 發布：只在驗證通過且你確認後執行。預設只列出計畫，不做任何事。
 //   node verify/publish.cjs                列出將要做的事（不執行）
-//   node verify/publish.cjs --confirm      升版號 → 建置網頁版 → 提交推送（加 --desktop 才另外打包桌面版並建立 Release）
-//   --no-bump      不升版號        --desktop     另外打包桌面版（只有啟動器程式 editor/ 改動時才需要）並建立 Release
+//   node verify/publish.cjs --confirm      建置網頁版 → 提交推送（不升版號：工具包支援熱重載，書籤載入即取得最新版）
+//   --bump         升版號（只在要發 GitHub Release 時用）  --desktop  另外打包桌面版並建立 Release（需同時加 --bump）
 //   --no-push      只建置與提交    --no-release  不建立 GitHub Release
 //   --note "說明"  更新說明（預設：相容官方遊戲版本）
 // Cloudflare 公告網站已連 GitHub：推送後由 Cloudflare 自動建置，請到後台 Deployments 確認成功。
@@ -46,13 +46,9 @@ const pkgFile = path.join(P.editor, "package.json");
 const pkg = JSON.parse(fs.readFileSync(pkgFile, "utf8"));
 const note = opt("note", `相容官方遊戲 ${verified.build}`);
 const sourceIndex = fs.readFileSync(path.join(P.root, "modifier", "editor.html"), "utf8");
-const sourceVersion = sourceIndex.match(/const TOOLKIT_VERSION = "([^"]+)"/)?.[1];
-const versionLogPrepared = new RegExp(`<h3>[^<]*v${pkg.version.replaceAll(".", "\\.")}</h3>`).test(sourceIndex);
-const committedWebVersion = JSON.parse(run("git", ["show", "HEAD:version.json"], P.web));
-const unpushed = has("confirm") && !has("no-push") ? Number(run("git", ["rev-list", "--count", "refs/remotes/origin/main..HEAD"], P.web)) : 0;
-if (!Number.isSafeInteger(unpushed) || unpushed < 0) throw new Error("無法確認尚未推送的提交數量。");
-const pendingVersion = sourceVersion === pkg.version && versionLogPrepared && (committedWebVersion.version !== pkg.version || unpushed > 0);
-const next = has("no-bump") || pendingVersion ? pkg.version : pkg.version.replace(/\d+$/, (n) => String(Number(n) + 1));
+// 版號預設不變：網頁版熱重載，版號只用於桌面 Release 的識別。加 --bump 才升一號。
+const next = has("bump") ? pkg.version.replace(/\d+$/, (n) => String(Number(n) + 1)) : pkg.version;
+if (has("desktop") && next === pkg.version) { console.error("桌面版發布需要加 --bump 升版號（同一版號的 Release 不能重複建立）。"); process.exit(1); }
 const RELEASE_PATHS = new Set([
   "AI_HANDOFF.md", "README.md", "d2edit.js", "index.html", "version.json", ".nojekyll",
   "helper/autobot.js", "helper/selfcheck.js", "helper/AUTOBOT_DESIGN.md", "helper/tests/autobot.cjs", "helper/tests/selfcheck.cjs",
@@ -67,12 +63,12 @@ const releasable = (f) => RELEASE_PATHS.has(f) || RELEASE_PREFIXES.some((p) => f
 
 const plan = [
   `驗證通過的遊戲版本：${verified.build}（${verified.at}）`,
-  `工具包版本：${pkg.version}${pendingVersion ? "（接續尚未完成的發布）" : next === pkg.version ? "（不升版）" : ` → ${next}（改 editor/package.json 與 modifier/editor.html）`}`,
+  `工具包版本：${pkg.version}${next === pkg.version ? "（不升版，網頁版熱重載）" : ` → ${next}（改 editor/package.json 與 modifier/editor.html）`}`,
   `1. 建置網頁版：node tools/build-web.js ${HOST}（更新說明：${note}）`,
   has("desktop") ? "2. 打包桌面版：npm run dist → 舊執行檔備份到 backups/exe/ → 覆蓋根目錄執行檔 → 記錄 SHA-256" : "2. （略過）桌面版（只有 --desktop 才打包；啟動器程式不變時不需要）",
   has("no-push") ? "3. 提交根目錄倉庫（不推送）" : "3. 提交並推送根目錄倉庫到 GitHub（origin）",
   !has("desktop") || has("no-push") || has("no-release") ? "4. （略過）GitHub Release" : `4. 建立 GitHub Release v${next}（附桌面版執行檔與 SHA-256）`,
-  "   同時在公告站與工具內「更新日誌」各加一筆（可用 --log \"項目一|項目二\" 加入自訂內容）",
+  "   更新日誌：同一天的內容併入當日條目（公告站與工具內各一處；可用 --log \"項目一|項目二\" 加入自訂內容）",
   "5. 推送後 Cloudflare 公告網站會自動建置（需到後台 Deployments 確認成功）",
 ];
 if (!has("confirm")) { console.log("【發布計畫，尚未執行】\n" + plan.join("\n") + "\n\n完成適配、測試與真實遊戲載入後以 --confirm 自動發布。"); process.exit(0); }
@@ -91,30 +87,47 @@ const bump = () => {
   }
 };
 
-// 更新日誌：公告站與工具內「更新日誌」頁各加一筆（以版本號判斷，重複執行不會重複加入）。
-// 條目＝自動一行「相容官方遊戲 X」＋ --log "項目一|項目二" 自訂的使用者可見變更。
+// 更新日誌：同一天的更新合併成同一則（公告站與工具內各一處）。
+// 條目＝自動一行「相容官方遊戲 X」＋ --log "項目一|項目二" 的使用者可見變更；
+// 當天已有條目就把項目接在最後面，已存在的項目不重複加入，所以同一天重跑發布也安全。
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 const addChangelog = () => {
-  const date = new Date().toISOString().slice(0, 10), v = pkg.version;
+  const date = new Date().toISOString().slice(0, 10);
   const groupNames = { game: "遊戲核心", items: "物品與技能", choices: "選卡", style: "介面樣式" };
   const areas = (verified.comparison?.groups || []).map((g) => groupNames[g]).filter(Boolean);
   const coverage = verified.tested?.length ? `已執行 ${verified.tested.length} 項自動測試` : "已執行自動測試";
-  const items = [`<b>相容性</b>：針對官方遊戲 ${esc(verified.build)}${areas.length ? ` 的${areas.join("、")}變動` : ""}，${coverage}。`, ...opt("log", "").split("|").filter(Boolean).map(esc)];
+  const auto = `相容性：針對官方遊戲 ${verified.build}${areas.length ? ` 的${areas.join("、")}變動` : ""}，${coverage}。`;
+  const items = [auto, ...opt("log", "").split("|").map((x) => x.trim()).filter(Boolean)];
+  // 把項目併入當天條目；沒有當天條目就在最前面新增一則（回傳是否有變更）
+  const mergeDay = (s, dayHeader, newEntry, anchor, liIndentOf) => {
+    const h = s.indexOf(dayHeader);
+    if (h < 0) {
+      if (anchor < 0) throw new Error("找不到更新日誌區塊");
+      return { s: s.slice(0, anchor) + newEntry(items) + s.slice(anchor), changed: true };
+    }
+    const end = s.indexOf("</ul>", h);
+    const dayText = s.slice(h, end);
+    const fresh = items.filter((it, i) => (i === 0 ? !dayText.includes(`官方遊戲 ${verified.build}`) : !dayText.includes(esc(it))));
+    if (!fresh.length) return { s, changed: false };
+    const lineStart = s.lastIndexOf("\n", end) + 1;
+    const lis = fresh.map((i) => `${liIndentOf(s.slice(lineStart, end))}<li>${esc(i)}</li>`).join("\n");
+    return { s: s.slice(0, lineStart).replace(/\s*$/, "\n") + lis + "\n" + s.slice(lineStart), changed: true };
+  };
   const done = [];
-  for (const f of ["modifier/editor.html"]) {
-    const p = path.join(P.root, f), s = fs.readFileSync(p, "utf8");
-    if (s.includes(`<h3>${date} v${v}</h3>`)) continue;
-    const at = s.indexOf("<h3>", s.indexOf("<h2>更新日誌</h2>"));
-    if (at < 0) throw new Error(f + " 找不到更新日誌區塊");
-    const html = `<h3>${date} v${v}</h3>\n    <ul>\n${items.map((i) => `      <li>${i.replace(/<\/?b>/g, "")}</li>`).join("\n")}\n    </ul>\n    `;
-    fs.writeFileSync(p, s.slice(0, at) + html + s.slice(at)); done.push(f);
+  {
+    const p = path.join(P.root, "modifier", "editor.html"), s = fs.readFileSync(p, "utf8");
+    const head = s.indexOf("<h2>更新日誌</h2>");
+    const r = mergeDay(s, `<h3>${date}</h3>`,
+      (its) => `    <h3>${date}</h3>\n    <ul>\n${its.map((i) => `      <li>${esc(i)}</li>`).join("\n")}\n    </ul>\n`,
+      s.indexOf("<h3>", head), (ind) => ind + "  ");
+    if (r.changed) { fs.writeFileSync(p, r.s); done.push("modifier/editor.html"); }
   }
-  const sp = path.join(P.web, "site", "index.html"), s = fs.readFileSync(sp, "utf8");
-  if (!s.includes(`<span class="log-ver">v${v}</span>`)) {
-    const at = s.indexOf('<div class="log-entry">', s.indexOf('<div class="log">'));
-    if (at < 0) throw new Error("公告站找不到更新日誌區塊");
-    const html = `<div class="log-entry">\n          <div class="log-date">${date} <span class="log-ver">v${v}</span></div>\n          <ul>\n${items.map((i) => `            <li>${i}</li>`).join("\n")}\n          </ul>\n        </div>\n        `;
-    fs.writeFileSync(sp, s.slice(0, at) + html + s.slice(at)); done.push("site/index.html");
+  {
+    const sp = path.join(P.web, "site", "index.html"), s = fs.readFileSync(sp, "utf8");
+    const r = mergeDay(s, `<div class="log-date">${date}</div>`,
+      (its) => `        <div class="log-entry">\n          <div class="log-date">${date}</div>\n          <ul>\n${its.map((i) => `            <li>${esc(i)}</li>`).join("\n")}\n          </ul>\n        </div>\n        `,
+      s.indexOf('<div class="log-entry">', s.indexOf('<div class="log">')), (ind) => ind + "  ");
+    if (r.changed) { fs.writeFileSync(sp, r.s); done.push("site/index.html"); }
   }
   return done;
 };
@@ -123,7 +136,7 @@ const addChangelog = () => {
   const official = await game.latestBuild();
   if (official.build !== verified.build) throw new Error(`官方最新版已前進至 ${official.build}，驗證紀錄為 ${verified.build}；請先重新比對與驗收。`);
   bump(); console.log("工具包版本：" + pkg.version);
-  console.log("更新日誌：" + (addChangelog().join("、") || "已存在，略過"));
+  console.log("更新日誌：" + (addChangelog().join("、") || "當日條目已包含本次內容，略過"));
   console.log("建置網頁版…"); run("node", [path.join("tools", "build-web.js"), HOST, note], P.root);
   let exe = null, hash = "";
   if (has("desktop")) {
