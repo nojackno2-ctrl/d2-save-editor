@@ -577,6 +577,19 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     let r = cache.get(str);
     if (r !== undefined) return r;
     const look = (s) => (gameTr ? gameTr.translate(s) : simpleTranslate(s));
+    const synergyList = (s) => {
+      const segs = s.split(/,\s*(?=\+)/);
+      if (segs.length < 2) return null;
+      const out = [];
+      for (const seg of segs) {
+        const m = /^\+(\d+(?:\.\d+)?)% (?:damage per level of|of) (.+)$/.exec(seg.trim());
+        if (!m) return null;
+        const name = m[2].trim(), zh = look(name);
+        if (zh === name || !/[一-鿿]/.test(zh)) return null;
+        out.push(`${zh}每級傷害 +${m[1]}%`);
+      }
+      return out.join("；");
+    };
     // 整句完全相符時直接用字典原文：遊戲翻譯器在原文沒有換行時會把譯文的換行刪掉，版面需要的換行就沒了
     const key = str.trim(), exact = Object.prototype.hasOwnProperty.call(dict, key) ? dict[key] : undefined;
     // 版本號後面帶雜湊（例如「Build 20261101.1 ·4e657e90」）：只換「Build」字樣，譯文放在字典鍵「Build (version)」
@@ -586,6 +599,10 @@ canvas.d2-text, #game-container canvas, #app canvas { filter: contrast(1.18) bri
     if (mon0 && mon0 !== key) r = str.replace(key, mon0);
     else if (typeof exact === "string" && exact) r = str.replace(key, exact);
     else if (build && word) r = build[1] + word + " " + build[2] + build[3] + build[4];
+    // 技能的多段數值列表（遊戲執行時組合）：「+19% damage per level of Frost Nova, +19% of Ice Blast, …」
+    // 逐段查技能名，每段譯成「技能名每級傷害 +N%」，段與段以「；」相接（中文逗號會被 cleanCJK 刪除）。
+    // 任一段查不到技能名就放棄，改走一般流程，避免譯出半中半英
+    else if (synergyList(key) !== null) r = str.replace(key, synergyList(key));
     else {
       r = look(str);
       // 遊戲用空白串起來的整行（例如 Boss 詞綴 "Demon Extra Strong Aura Enchanted"）整句查不到時，逐段查字典再接回
